@@ -27,7 +27,7 @@ export default function SuperAdminDashboard() {
   const [companies, setCompanies] = useState<CompanySummary[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
   const [companiesError, setCompaniesError] = useState<string | null>(null);
-  const [activeAction, setActiveAction] = useState<"create-company" | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -159,9 +159,8 @@ export default function SuperAdminDashboard() {
   ];
 
   const handleQuickActionClick = (action: QuickAction) => {
-    if (action.id) {
-      const id = action.id;
-      setActiveAction((current) => (current === id ? null : id));
+    if (action.id === "create-company") {
+      setShowCreateModal(true);
       return;
     }
 
@@ -173,6 +172,7 @@ export default function SuperAdminDashboard() {
       const filtered = prev.filter((item) => item.id !== company.id);
       return [company, ...filtered];
     });
+    setShowCreateModal(false);
   };
 
   return (
@@ -250,7 +250,7 @@ export default function SuperAdminDashboard() {
                   <Button
                     key={action.label}
                     className="w-full justify-start"
-                    variant={action.id && activeAction === action.id ? "primary" : "outline"}
+                    variant="outline"
                     onClick={() => handleQuickActionClick(action)}
                   >
                     <span className="mr-3 text-[#004B5B]">{action.icon}</span>
@@ -262,10 +262,6 @@ export default function SuperAdminDashboard() {
                 ))}
               </div>
             </Card>
-
-            {activeAction === "create-company" && (
-              <CompanyCreateForm authToken={token} onCreated={handleCompanyCreated} />
-            )}
 
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-gray-600 mb-4">Recently Listed Companies</h3>
@@ -289,28 +285,6 @@ export default function SuperAdminDashboard() {
                         {company.sector && (
                           <p className="text-xs uppercase tracking-wide text-[#004B5B]">{company.sector}</p>
                         )}
-                        <p className="text-xs text-gray-400 mt-1">
-                          Closing {company.closingPrice ?? "—"} · Change {company.priceChange ?? "—"}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        {company.sector && <p className="text-xs text-gray-400">{company.sector}</p>}
-                        <p className="text-xs text-gray-300">
-                          {new Intl.DateTimeFormat(undefined, {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          }).format(new Date(company.createdAt))}
-                        </p>
-                        {company.snapshotDate && (
-                          <p className="text-[10px] text-gray-400 mt-1">
-                            Snapshot {new Intl.DateTimeFormat(undefined, {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            }).format(new Date(company.snapshotDate))}
-                          </p>
-                        )}
                       </div>
                     </li>
                   ))}
@@ -320,28 +294,17 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
 
-        <Card className="p-6 animate-fadeInUp">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-500">Exchange Snapshot</h2>
-            <Button variant="secondary" className="text-sm text-[#004B5B]">
-              Export metrics
-            </Button>
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 ">
+            <div className="w-full max-w-4xl max-h-[100vh] overflow-y-auto">
+              <CompanyCreateForm 
+                authToken={token} 
+                onCreated={handleCompanyCreated}
+                onCancel={() => setShowCreateModal(false)}
+              />
+            </div>
           </div>
-          <div className="grid md:grid-cols-4 gap-6">
-            {[
-              { label: "Daily Volume", value: "Rwf 4.6B", change: "+6.1%", color: "green" },
-              { label: "Active Orders", value: "1,247", change: "+14%", color: "blue" },
-              { label: "Market Depth", value: "Rwf 3.2B", change: "Stable", color: "gray" },
-              { label: "Bid / Ask Spread", value: "1.8%", change: "-0.3%", color: "orange" },
-            ].map((item) => (
-              <div key={item.label} className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-500">{item.label}</p>
-                <p className="text-lg font-semibold text-gray-700">{item.value}</p>
-                <p className={`text-xs text-${item.color}-600 font-medium`}>{item.change}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
+        )}
       </div>
     </DashboardLayout>
   );
