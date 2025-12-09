@@ -1,10 +1,12 @@
 "use client";
 
 import { JSX, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserStats } from "@/hooks/useUserStats";
 import { CompanyCreateForm, type CompanySummary } from "@/components/company/CompanyCreateForm";
 import {
   FiUsers,
@@ -18,7 +20,9 @@ import {
 import toast from "react-hot-toast";
 
 export default function SuperAdminDashboard() {
+  const router = useRouter();
   const { user, token } = useAuth();
+  const { stats: userStats } = useUserStats();
 
   const [companies, setCompanies] = useState<CompanySummary[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
@@ -76,20 +80,28 @@ export default function SuperAdminDashboard() {
     };
   }, [user?.email, user?.fullName]);
 
+  const companyStats = useMemo(() => {
+    const total = companies.length;
+    const pending = companies.filter((c) => c.status === "pending").length;
+    return { total, pending };
+  }, [companies]);
+
   const summaryCards = [
     {
       title: "Active Users",
-      value: "12,478",
-      subtitle: "Across all roles",
+      value: userStats.active.toLocaleString(),
+      subtitle: `${userStats.total.toLocaleString()} accross all roles`,
       icon: <FiUsers className="w-6 h-6 text-white" />,
       gradient: "bg-gradient-to-r from-[#004B5B] to-[#008195]",
+      link: "/dashboard/super-admin/users",
     },
     {
       title: "Listed Companies",
-      value: "184",
-      subtitle: "7 pending review",
+      value: companyStats.total.toLocaleString(),
+      subtitle: companyStats.pending > 0 ? `${companyStats.pending} pending review` : "All approved",
       icon: <FiBriefcase className="w-6 h-6 text-blue-400" />,
       accent: "bg-blue-100 text-blue-500",
+      link: "/dashboard/super-admin/companies",
     },
     {
       title: "System Health",
@@ -97,6 +109,7 @@ export default function SuperAdminDashboard() {
       subtitle: "Uptime last 30 days",
       icon: <FiCpu className="w-6 h-6 text-green-400" />,
       accent: "bg-green-100 text-green-600",
+      link: null,
     },
     {
       title: "Security Alerts",
@@ -104,6 +117,7 @@ export default function SuperAdminDashboard() {
       subtitle: "Require attention",
       icon: <FiLock className="w-6 h-6 text-red-400" />,
       accent: "bg-red-100 text-red-600",
+      link: null,
     },
   ];
 
@@ -173,22 +187,30 @@ export default function SuperAdminDashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slideInRight">
           {summaryCards.map((card) => (
-            <Card key={card.title} className="p-6 hover:shadow-lg transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base font-medium text-gray-500 mb-5">{card.title}</p>
-                  <p className="text-xl font-semibold text-gray-700">{card.value}</p>
-                  <p className="text-sm text-gray-400">{card.subtitle}</p>
+            <div
+              key={card.title}
+              className={card.link ? "cursor-pointer" : ""}
+              onClick={() => card.link && router.push(card.link)}
+            >
+              <Card className={`p-6 hover:shadow-lg transition-all ${
+                card.link ? "hover:scale-105" : ""
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-base font-medium text-gray-500 mb-5">{card.title}</p>
+                    <p className="text-xl font-semibold text-gray-700">{card.value}</p>
+                    <p className="text-sm text-gray-400">{card.subtitle}</p>
+                  </div>
+                  <div
+                    className={`w-11 h-11 rounded-full flex items-center justify-center ${
+                      card.gradient || card.accent || "bg-gray-100"
+                    }`}
+                  >
+                    {card.icon}
+                  </div>
                 </div>
-                <div
-                  className={`w-11 h-11 rounded-full flex items-center justify-center ${
-                    card.gradient || card.accent || "bg-gray-100"
-                  }`}
-                >
-                  {card.icon}
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
           ))}
         </div>
 

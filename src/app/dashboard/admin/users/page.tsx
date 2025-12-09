@@ -149,7 +149,7 @@ const MODE_CONFIG: Record<ManagementMode, ModeConfig> = {
     subtitle: "Create accounts and assign roles across the platform.",
     addButtonLabel: "Add user",
     itemNoun: "user",
-  itemPlural: "users",
+     itemPlural: "users",
     allowedCreateRoles: ROLE_ORDER,
     allowedEditRoles: ROLE_ORDER,
     defaultCreateRole: "CLIENT",
@@ -162,7 +162,7 @@ const MODE_CONFIG: Record<ManagementMode, ModeConfig> = {
     subtitle: "Invite team members and keep client access up to date.",
     addButtonLabel: "Add user",
     itemNoun: "user",
-  itemPlural: "users",
+    itemPlural: "users",
     allowedCreateRoles: ["ADMIN", "TELLER", "COMPANY", "CLIENT"],
     allowedEditRoles: ["ADMIN", "TELLER", "COMPANY", "CLIENT"],
     defaultCreateRole: "CLIENT",
@@ -412,6 +412,23 @@ export default function UserManagementPage() {
     const unique = new Set<ApiUserRole>([editForm.role, ...config.allowedEditRoles]);
     return Array.from(unique);
   }, [editForm, config.allowedEditRoles]);
+
+  const userStats = useMemo(() => {
+    const stats = {
+      total: users.length,
+      active: 0,
+      inactive: 0,
+      byRole: {} as Record<ApiUserRole, number>,
+    };
+
+    users.forEach((user) => {
+      if (user.isVerified) stats.active++;
+      else stats.inactive++;
+      stats.byRole[user.role] = (stats.byRole[user.role] || 0) + 1;
+    });
+
+    return stats;
+  }, [users]);
 
   const filteredUsers = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();

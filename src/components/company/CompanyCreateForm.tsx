@@ -12,6 +12,7 @@ import { CountryCode, getCountryCallingCode } from "libphonenumber-js";
 export interface CompanySummary {
   id: string;
   name: string;
+  status:string;
   description: string | null;
   sector: string | null;
   sharePrice: string | null;

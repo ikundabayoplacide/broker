@@ -2,11 +2,11 @@
   "name": "broker",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
-    "start": "next start",
-    "lint": "eslint"
+ "scripts": {
+    "build": "prisma generate && next build",
+    "start": "next start -p 3000",
+    "prod": "npm run build && npm start",
+    "dev": "next dev"
   },
   "dependencies": {
     "@ckeditor/ckeditor5-build-classic": "^41.4.2",
@@ -55,6 +55,6 @@
     "typescript": "^5"
   },
   "overrides": {
-    "undici": "^5.9.0"
+    "undici": "^7.12.0"
   }
 }
