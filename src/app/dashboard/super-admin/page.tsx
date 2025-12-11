@@ -96,7 +96,7 @@ export default function SuperAdminDashboard() {
       link: "/dashboard/super-admin/users",
     },
     {
-      title: "Listed Companies",
+      title: "All Companies",
       value: companyStats.total.toLocaleString(),
       subtitle: companyStats.pending > 0 ? `${companyStats.pending} pending review` : "All approved",
       icon: <FiBriefcase className="w-6 h-6 text-blue-400" />,
@@ -296,7 +296,7 @@ export default function SuperAdminDashboard() {
 
         {showCreateModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 ">
-            <div className="w-full max-w-4xl max-h-[100vh] overflow-y-auto">
+            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <CompanyCreateForm 
                 authToken={token} 
                 onCreated={handleCompanyCreated}

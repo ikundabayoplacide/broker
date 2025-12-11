@@ -99,6 +99,42 @@ export async function POST(request: Request) {
         },
       });
 
+      // Create a notification for all admins / super-admins to inform them of the new company
+      try {
+        const recipients = await tx.user.findMany({
+          where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
+          select: { id: true },
+        });
+
+        if (recipients.length > 0) {
+          // Create notifications in batch to avoid duplicates
+          const notificationData = recipients.map(recipient => ({
+            userId: recipient.id,
+            title: "New company created",
+            message: `Company ${newCompany.name} was created`,
+            type: "INFO",
+            metadata: { companyId: newCompany.id, event: "company_created" },
+          }));
+
+          // Check for existing notifications to prevent duplicates
+          const existingNotifications = await tx.notification.findMany({
+            where: {
+              userId: { in: recipients.map(r => r.id) },
+              title: "New company created",
+              message: `Company ${newCompany.name} was created`,
+            },
+          });
+
+          if (existingNotifications.length === 0) {
+            await tx.notification.createMany({
+              data: notificationData,
+            });
+          }
+        }
+      } catch (notifyErr) {
+        console.error("Failed to create company notifications:", notifyErr);
+      }
+
       return newCompany;
     });
 
