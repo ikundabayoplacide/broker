@@ -122,10 +122,9 @@ export async function GET(request: Request) {
 		const auth = await requireUserManagementRole(request, MANAGEMENT_ROLES);
 		const where =
 			auth.role === "TELLER"
-				? {
-					role: "CLIENT",
-					createdById: auth.id,
-				  }
+				? { role: "CLIENT", createdById: auth.id }
+				: auth.role === "ADMIN"
+				? { role: { in: ["TELLER", "CLIENT"] } }
 				: undefined;
 		const users = (await prisma.user.findMany({
 			where: where as never,
@@ -242,5 +241,31 @@ export async function POST(request: Request) {
 		return NextResponse.json({ data: newUser }, { status: 201 });
 	} catch (error) {
 		return handleError(error, "Failed to create user");
+	}
+}
+
+// implement logic of getting a single user by id in src/app/api/user/route.ts
+
+export async function GETUSER(request: Request, { params }: { params: { userId: string } }) {
+	try {
+		const auth = await requireUserManagementRole(request, MANAGEMENT_ROLES);
+		const { userId } = params;
+
+		const user = (await prisma.user.findUnique({
+			where: { id: userId },
+			select: userSelect as never,
+		})) as unknown as UserResponse | null;
+
+		if (!user) {
+			return NextResponse.json({ error: "User not found" }, { status: 404 });
+		}
+
+		if (auth.role === "TELLER" && user.role !== "CLIENT") {
+			return NextResponse.json({ error: "Tellers can only access client accounts" }, { status: 403 });
+		}
+
+		return NextResponse.json({ data: user });
+	} catch (error) {
+		return handleError(error, "Failed to fetch user");
 	}
 }

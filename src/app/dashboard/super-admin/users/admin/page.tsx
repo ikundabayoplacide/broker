@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, type ChangeEvent, type FormEvent } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Pencil, Trash2, UserPlus, Search, Eye, RefreshCcw, Loader2, Mail, Phone, MapPin, Calendar, Shield } from "lucide-react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
+import { Search, Eye, RefreshCcw, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -60,13 +61,14 @@ interface UserRow {
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [roleFilter, setRoleFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [viewUser, setViewUser] = useState<UserRow | null>(null);
   const rowsPerPage = 5;
 
   const { displayName, email } = useMemo(() => {
@@ -83,14 +85,20 @@ export default function AdminUsersPage() {
     setError(null);
 
     try {
-      const response = await api.get<{ data: ApiUser[] }>("/user");
-      const fetchedUsers = Array.isArray(response.data) ? response.data : [];
-      // Filter only ADMIN users
-      const adminUsers = fetchedUsers.filter(user => user.role === "ADMIN");
-      setUsers(adminUsers);
+      const response = await api.get("/user");
+      // API responses may be in the shape: ApiUser[] OR { data: ApiUser[] }
+      const raw = response.data;
+      const fetchedUsers: ApiUser[] = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.data)
+        ? raw.data
+        : [];
+
+      // Backend now restricts ADMIN to TELLER and CLIENT; use returned users directly
+      setUsers(fetchedUsers);
       setCurrentPage(1);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load admin users";
+      const message = err instanceof Error ? err.message : "Failed to load users";
       setError(message);
     } finally {
       setLoading(false);
@@ -106,7 +114,16 @@ export default function AdminUsersPage() {
       id: user.id,
       name: user.fullName?.trim() || user.email,
       email: user.email,
-      role: "Admin",
+      role:
+        user.role === "TELLER"
+          ? "Teller"
+          : user.role === "CLIENT"
+          ? "Client"
+          : user.role === "ADMIN"
+          ? "Admin"
+          : user.role === "SUPER_ADMIN"
+          ? "Super Admin"
+          : user.role,
       status: user.isVerified ? "Active" : "Inactive",
       raw: user,
     }));
@@ -121,9 +138,10 @@ export default function AdminUsersPage() {
         user.name.toLowerCase().includes(normalizedSearch) ||
         user.email.toLowerCase().includes(normalizedSearch);
       const matchStatus = statusFilter === "All" || user.status === statusFilter;
-      return matchSearch && matchStatus;
+      const matchRole = roleFilter === "All" || user.role === roleFilter;
+      return matchSearch && matchStatus && matchRole;
     });
-  }, [userRows, search, statusFilter]);
+  }, [userRows, search, statusFilter, roleFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / rowsPerPage));
   const paginatedUsers = filteredUsers.slice(
@@ -157,8 +175,8 @@ export default function AdminUsersPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-[#004B5B]">Admin Users</h1>
-            <p className="text-sm text-gray-500">Manage administrator accounts and permissions.</p>
+            <h1 className="text-2xl font-semibold text-[#004B5B]">Manage Users</h1>
+            <p className="text-sm text-gray-500">Manage teller and client accounts.</p>
           </div>
           <Button
             variant="secondary"
@@ -189,6 +207,18 @@ export default function AdminUsersPage() {
           <div className="flex gap-4 flex-wrap justify-center w-full md:w-auto">
             <select
               className="border border-[#004B5B]/50 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-[#004B5B]"
+              value={roleFilter}
+              onChange={(e) => {
+                setRoleFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="All">All Roles</option>
+              <option value="Teller">Teller</option>
+              <option value="Client">Client</option>
+            </select>
+            <select
+              className="border border-[#004B5B]/50 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-[#004B5B]"
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
@@ -207,7 +237,7 @@ export default function AdminUsersPage() {
               whileFocus={{ scale: 1.03 }}
               transition={{ type: "spring", stiffness: 200 }}
               type="text"
-              placeholder="Search admin users..."
+              placeholder="Search users..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -236,7 +266,7 @@ export default function AdminUsersPage() {
                   <td colSpan={5} className="p-6 text-center text-[#004B5B]">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="h-5 w-5 animate-spin" />
-                      Loading admin users...
+                      Loading users...
                     </div>
                   </td>
                 </tr>
@@ -245,7 +275,7 @@ export default function AdminUsersPage() {
               {!loading && paginatedUsers.length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-gray-500">
-                    No admin users found. Adjust your filters or refresh the list.
+                    No users found. Adjust your filters or refresh the list.
                   </td>
                 </tr>
               )}
@@ -276,7 +306,7 @@ export default function AdminUsersPage() {
                     <Button
                       variant="outline"
                       className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800"
-                      onClick={() => setViewUser(user)}
+                      onClick={() => router.push(`/dashboard/super-admin/users/${user.id}`)}
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -319,88 +349,7 @@ export default function AdminUsersPage() {
           </div>
         </Card>
 
-        {/* View User Modal */}
-        {viewUser && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl"
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-semibold text-[#004B5B]">Admin User Details</h2>
-                  <p className="text-sm text-gray-500">Review the administrator profile information</p>
-                </div>
-                <Button variant="outline" className="px-3 py-1" onClick={() => setViewUser(null)}>
-                  Close
-                </Button>
-              </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/60">
-                  <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#004B5B]">
-                    <Shield className="h-4 w-4" /> Identity
-                  </h3>
-                  <ul className="space-y-1 text-sm text-gray-700">
-                    <li><span className="font-medium">Name:</span> {viewUser.raw.fullName}</li>
-                    <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-gray-400" /> {viewUser.raw.email}</li>
-                    <li className="flex items-center gap-2"><Calendar className="h-4 w-4 text-gray-400" /> {formatDate(viewUser.raw.dateOfBirth)}</li>
-                    <li><span className="font-medium">ID Number:</span> {viewUser.raw.idNumber || "—"}</li>
-                  </ul>
-                </div>
-
-                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/60">
-                  <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#004B5B]">
-                    <Phone className="h-4 w-4" /> Contact
-                  </h3>
-                  <ul className="space-y-1 text-sm text-gray-700">
-                    <li>{formatPhone(viewUser.raw)}</li>
-                    <li className="flex items-center gap-2"><MapPin className="h-4 w-4 text-gray-400" /> {viewUser.raw.city}, {viewUser.raw.country}</li>
-                    <li><span className="font-medium">Occupation:</span> {viewUser.raw.occupation || "—"}</li>
-                  </ul>
-                </div>
-
-                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/60">
-                  <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#004B5B]">
-                    <Shield className="h-4 w-4" /> Access & Status
-                  </h3>
-                  <ul className="space-y-1 text-sm text-gray-700">
-                    <li><span className="font-medium">Role:</span> Administrator</li>
-                    <li><span className="font-medium">Verified:</span> {viewUser.raw.isVerified ? "Yes" : "No"}</li>
-                    <li><span className="font-medium">CSD Number:</span> {viewUser.raw.csdNumber ?? "—"}</li>
-                    <li><span className="font-medium">Created:</span> {formatDate(viewUser.raw.createdAt)}</li>
-                  </ul>
-                </div>
-
-                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/60">
-                  <h3 className="mb-2 text-sm font-semibold text-[#004B5B]">Notification Preferences</h3>
-                  <div className="text-sm text-gray-700">
-                    {viewUser.raw.notificationPreferences ? (
-                      <ul className="space-y-1">
-                        {Object.entries(viewUser.raw.notificationPreferences).map(([key, value]) => (
-                          <li key={key} className="flex justify-between">
-                            <span className="capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</span>
-                            <span className="font-medium">{String(value)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span>No preferences set</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
       </div>
     </DashboardLayout>
   );

@@ -2,26 +2,29 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Eye, Users, Loader2, Shield, Mail, Phone, MapPin, Calendar } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Eye, Users, Loader2 } from "lucide-react";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import api from "@/lib/axios";
 
-interface ClientUser {
+interface ApiUser {
   id: string;
   fullName: string;
   email: string;
-  phoneNumber: string;
-  countryCode: string;
-  dateOfBirth: string;
+  phoneCountryCode: string;
+  phone: string;
+  dateOfBirth: Date | null;
   city: string;
   country: string;
-  occupation?: string;
-  idNumber?: string;
+  occupation?: string | null;
+  idNumber?: string | null;
   isVerified: boolean;
-  csdNumber?: string;
-  createdAt: string;
-  notificationPreferences?: Record<string, boolean>;
+  csdNumber?: string | null;
+  createdAt: Date;
+  role: string;
+  notificationPreferences?: Record<string, boolean> | null;
 }
 
 interface ProcessedUser {
@@ -30,7 +33,7 @@ interface ProcessedUser {
   email: string;
   role: string;
   status: string;
-  raw: ClientUser;
+  raw: ApiUser;
 }
 
 export default function ClientsPage() {
@@ -38,7 +41,7 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewUser, setViewUser] = useState<ProcessedUser | null>(null);
+  const router = useRouter();
   const rowsPerPage = 10;
 
   useEffect(() => {
@@ -48,19 +51,19 @@ export default function ClientsPage() {
   const fetchClientUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/users?role=client");
-      if (response.ok) {
-        const data = await response.json();
-        const processedUsers: ProcessedUser[] = data.users.map((user: ClientUser) => ({
-          id: user.id,
-          name: user.fullName,
-          email: user.email,
-          role: "Client",
-          status: user.isVerified ? "Active" : "Inactive",
-          raw: user,
-        }));
-        setUsers(processedUsers);
-      }
+      const response = await api.get("/user");
+      const allUsers = Array.isArray(response.data) ? response.data : [];
+      // Filter only CLIENT users
+      const clientUsers = allUsers.filter((user: ApiUser) => user.role === "CLIENT");
+      const processedUsers: ProcessedUser[] = clientUsers.map((user: ApiUser) => ({
+        id: user.id,
+        name: user.fullName,
+        email: user.email,
+        role: "Client",
+        status: user.isVerified ? "Active" : "Inactive",
+        raw: user,
+      }));
+      setUsers(processedUsers);
     } catch (error) {
       console.error("Error fetching client users:", error);
     } finally {
@@ -90,17 +93,7 @@ export default function ClientsPage() {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
 
-  const formatPhone = (user: ClientUser) => {
-    return `${user.countryCode} ${user.phoneNumber}`;
-  };
 
   return (
     <DashboardLayout>
@@ -195,7 +188,7 @@ export default function ClientsPage() {
                     <Button
                       variant="outline"
                       className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800"
-                      onClick={() => setViewUser(user)}
+                      onClick={() => router.push(`/dashboard/super-admin/users/${user.id}`)}
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -238,88 +231,7 @@ export default function ClientsPage() {
           </div>
         </Card>
 
-        {/* View User Modal */}
-        {viewUser && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl"
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-semibold text-[#004B5B]">Client User Details</h2>
-                  <p className="text-sm text-gray-500">Review the client profile information</p>
-                </div>
-                <Button variant="outline" className="px-3 py-1" onClick={() => setViewUser(null)}>
-                  Close
-                </Button>
-              </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/60">
-                  <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#004B5B]">
-                    <Shield className="h-4 w-4" /> Identity
-                  </h3>
-                  <ul className="space-y-1 text-sm text-gray-700">
-                    <li><span className="font-medium">Name:</span> {viewUser.raw.fullName}</li>
-                    <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-gray-400" /> {viewUser.raw.email}</li>
-                    <li className="flex items-center gap-2"><Calendar className="h-4 w-4 text-gray-400" /> {formatDate(viewUser.raw.dateOfBirth)}</li>
-                    <li><span className="font-medium">ID Number:</span> {viewUser.raw.idNumber || "—"}</li>
-                  </ul>
-                </div>
-
-                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/60">
-                  <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#004B5B]">
-                    <Phone className="h-4 w-4" /> Contact
-                  </h3>
-                  <ul className="space-y-1 text-sm text-gray-700">
-                    <li>{formatPhone(viewUser.raw)}</li>
-                    <li className="flex items-center gap-2"><MapPin className="h-4 w-4 text-gray-400" /> {viewUser.raw.city}, {viewUser.raw.country}</li>
-                    <li><span className="font-medium">Occupation:</span> {viewUser.raw.occupation || "—"}</li>
-                  </ul>
-                </div>
-
-                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/60">
-                  <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#004B5B]">
-                    <Shield className="h-4 w-4" /> Access & Status
-                  </h3>
-                  <ul className="space-y-1 text-sm text-gray-700">
-                    <li><span className="font-medium">Role:</span> Client</li>
-                    <li><span className="font-medium">Verified:</span> {viewUser.raw.isVerified ? "Yes" : "No"}</li>
-                    <li><span className="font-medium">CSD Number:</span> {viewUser.raw.csdNumber ?? "—"}</li>
-                    <li><span className="font-medium">Created:</span> {formatDate(viewUser.raw.createdAt)}</li>
-                  </ul>
-                </div>
-
-                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/60">
-                  <h3 className="mb-2 text-sm font-semibold text-[#004B5B]">Notification Preferences</h3>
-                  <div className="text-sm text-gray-700">
-                    {viewUser.raw.notificationPreferences ? (
-                      <ul className="space-y-1">
-                        {Object.entries(viewUser.raw.notificationPreferences).map(([key, value]) => (
-                          <li key={key} className="flex justify-between">
-                            <span className="capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</span>
-                            <span className="font-medium">{String(value)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span>No preferences set</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
       </div>
     </DashboardLayout>
   );

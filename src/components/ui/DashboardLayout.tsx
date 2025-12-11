@@ -64,6 +64,7 @@ export default function DashboardLayout({
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
+  const [adminUsersOpen, setAdminUsersOpen] = useState(false);
   // notification dropdown is handled by `NotificationBell`
   const router = useRouter();
   const pathname = usePathname();
@@ -73,6 +74,9 @@ export default function DashboardLayout({
   useEffect(() => {
     if (pathname?.startsWith('/dashboard/super-admin/users')) {
       setUserManagementOpen(true);
+    }
+    if (pathname?.startsWith('/dashboard/admin/') && (pathname.includes('tellers') || pathname.includes('clients') || pathname.includes('users'))) {
+      setAdminUsersOpen(true);
     }
   }, [pathname]);
 
@@ -158,8 +162,16 @@ export default function DashboardLayout({
       case "admin":
         return [
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/admin" },
-          { name: "Users", icon: FiUsers, href: "/dashboard/admin/users" },
-          { name: "Tellers", icon: FiHome, href: "/dashboard/admin/tellers" },
+          {
+            name: "Users",
+            icon: FiUsers,
+            hasChildren: true,
+            children: [
+              { name: "All Users", href: "/dashboard/admin/users", icon: FiUsers },
+              { name: "Tellers", href: "/dashboard/admin/tellers", icon: FiUserCheck },
+              { name: "Clients", href: "/dashboard/admin/clients", icon: FiUser },
+            ]
+          },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/admin/companies" },
           { name: "Transactions", icon: FiDollarSign, href: "/dashboard/admin/transactions" },
           { name: "Reports", icon: FiTrendingUp, href: "/dashboard/admin/reports" },
@@ -231,10 +243,17 @@ export default function DashboardLayout({
             const hasChildren = item.hasChildren;
 
             if (hasChildren) {
+              const isUserManagement = item.name === "User Management";
+              const isAdminUsers = item.name === "Users" && derivedRole === "admin";
+              const isOpen = isUserManagement ? userManagementOpen : (isAdminUsers ? adminUsersOpen : false);
+              const toggleOpen = isUserManagement 
+                ? () => setUserManagementOpen(!userManagementOpen)
+                : (isAdminUsers ? () => setAdminUsersOpen(!adminUsersOpen) : () => {});
+
               return (
                 <div key={item.name} className="mb-2">
                   <button
-                    onClick={() => setUserManagementOpen(!userManagementOpen)}
+                    onClick={toggleOpen}
                     className="flex items-center justify-between w-full px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
@@ -242,13 +261,13 @@ export default function DashboardLayout({
                       <Icon className="text-xl" />
                       <span className="font-medium">{item.name}</span>
                     </div>
-                    <FiChevronDown className={`text-lg transition-transform duration-200 ${userManagementOpen ? 'rotate-180' : ''
+                    <FiChevronDown className={`text-lg transition-transform duration-200 ${isOpen ? 'rotate-180' : ''
                       }`} />
                   </button>
 
-                  {userManagementOpen && (
+                  {isOpen && (
                     <div className="relative ml-6 mt-2 space-y-1">
-                      <div className="absolute left-2 top-0 bottom-0 w-px bg-white "></div>
+                      <div className="absolute left-1 top-0 bottom-0 w-px bg-white "></div>
                       {item.children?.map((child, childIndex) => {
                         const ChildIcon = child.icon;
                         return (
