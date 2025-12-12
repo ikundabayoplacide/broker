@@ -3,16 +3,14 @@
 import { useState, useEffect, useCallback, type ChangeEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { 
-  ArrowLeft, Shield, Mail, Phone, MapPin, Calendar, Edit, Trash2, 
+  ArrowLeft, Shield, Mail, Phone, MapPin, Edit, Trash2, 
   Building2, Activity, Lock, AlertTriangle, User, Clock, 
-  Globe, CheckCircle, XCircle, Eye, Settings, Loader2 
+  Globe, CheckCircle, XCircle, Settings, Loader2 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import { InputField } from "@/components/ui/InputField";
-import { FileUploadField } from "@/components/ui/FileUploadField";
 import api from "@/lib/axios";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
@@ -24,7 +22,7 @@ import {
   GENDER_VALUES,
   validateProfileDetails,
 } from "@/lib/validations/signupValidation";
-import { EditUserModal } from "@/components/modals/UserModals";
+import { EditUserModal } from "@/components/models/UserModals";
 
 interface User {
   id: string;
@@ -77,28 +75,6 @@ const COUNTRY_CODES: Array<{ value: string; label: string }> = [
   { value: "+61", label: "Australia (+61)" },
   { value: "+81", label: "Japan (+81)" },
 ];
-
-const INVESTMENT_EXPERIENCE_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "", label: "Select experience level" },
-  { value: "beginner", label: "Beginner (0-1 years)" },
-  { value: "intermediate", label: "Intermediate (1-5 years)" },
-  { value: "experienced", label: "Experienced (5+ years)" },
-];
-
-const GENDER_LABELS: Record<(typeof GENDER_VALUES)[number], string> = {
-  male: "Male",
-  female: "Female",
-};
-
-const GENDER_OPTIONS = GENDER_VALUES.map((value) => ({ value, label: GENDER_LABELS[value] }));
-
-const ROLE_LABELS: Record<ApiUserRole, string> = {
-  SUPER_ADMIN: "Super Admin",
-  ADMIN: "Admin",
-  TELLER: "Teller",
-  COMPANY: "Company",
-  CLIENT: "Client",
-};
 
 const updateUserSchema = baseSignupSchema
   .extend({
@@ -175,17 +151,6 @@ export default function ViewUserPage() {
   const [editErrors, setEditErrors] = useState<Partial<Record<keyof EditFormState, string>>>({});
   const [pendingDelete, setPendingDelete] = useState<User | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [emailChangeVerification, setEmailChangeVerification] = useState<{
-    show: boolean;
-    newEmail: string;
-    userId: string;
-  } | null>(null);
-  const [selectedCompany, setSelectedCompany] = useState<{
-    id: number;
-    name: string;
-    role: string;
-    joinDate: string;
-  } | null>(null);
 
   const userId = params.view as string;
 
@@ -241,15 +206,9 @@ export default function ViewUserPage() {
   const mockData = {
     lastLogin: '2024-01-15 14:30:25',
     status: 'Active',
-    assignedBranches: 2,
-    branches: [
-      { id: 1, name: 'Bank of Kigali', role: 'Primary Admin', joinDate: '2023-06-15' },
-      { id: 2, name: 'Equity Bank Rwanda', role: 'Secondary Admin', joinDate: '2023-08-20' }
-    ],
     activityLogs: [
       { id: 1, timestamp: '2024-01-15 14:25:10', action: 'Approved client KYC for John Doe', entity: 'Client KYC', ip: '192.168.1.100', status: 'Success' },
       { id: 2, timestamp: '2024-01-15 13:45:22', action: 'Edited company shares for Bank of Kigali', entity: 'Company Shares', ip: '192.168.1.100', status: 'Success' },
-      { id: 3, timestamp: '2024-01-15 11:20:15', action: 'Reset teller password', entity: 'User Management', ip: '192.168.1.100', status: 'Success' },
       { id: 4, timestamp: '2024-01-14 16:30:45', action: 'Placed trade override for Client #104', entity: 'Trade Override', ip: '192.168.1.100', status: 'Failed' }
     ],
     security: {
@@ -269,7 +228,6 @@ export default function ViewUserPage() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: User },
-    { id: 'branches', label: 'Branches', icon: Building2 },
     { id: 'activity', label: 'Activity Logs', icon: Activity },
     { id: 'security', label: 'Security', icon: Lock },
     { id: 'danger', label: 'Danger Zone', icon: AlertTriangle }
@@ -349,10 +307,6 @@ export default function ViewUserPage() {
                   <label className="text-sm font-medium text-gray-500">Account Created</label>
                   <p className="text-gray-900">{formatDate(user.createdAt.toString())}</p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Branches</label>
-                  <p className="text-gray-900">{mockData.assignedBranches} Branches</p>
-                </div>
               </div>
             </Card>
 
@@ -392,36 +346,6 @@ export default function ViewUserPage() {
               </div>
             </Card>
           </div>
-        );
-
-      case 'branches':
-        return (
-          <Card className="p-6">
-            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[#004B5B]">
-              <Building2 className="h-5 w-5" /> Branches
-            </h3>
-            <div className="space-y-4">
-              {mockData.branches.map((company) => (
-                <div key={company.id} className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold text-gray-900">{company.name}</h4>
-                      <p className="text-sm text-gray-600">{company.role}</p>
-                      <p className="text-xs text-gray-500 mt-1">Joined: {company.joinDate}</p>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      className="text-xs"
-                      onClick={() => openBranch(company)}
-                    >
-                      <Eye className="h-3 w-3 mr-1" />
-                      View Details
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
         );
 
       case 'activity':
@@ -677,13 +601,6 @@ export default function ViewUserPage() {
       updateEditField(field as keyof EditFormState, event.target.value as any);
     };
 
-  const openBranch = (company: { id: number; name: string; role: string; joinDate: string }) => {
-    router.push(`/dashboard/super-admin/users/admin/${company.id}`);
-  };
-
-  const closeCompanyModal = () => {
-    setSelectedCompany(null);
-  };
 
   const confirmEdit = async () => {
     if (!editUser || !editForm || !editBaseline) return;
@@ -851,10 +768,6 @@ export default function ViewUserPage() {
                       <p className="font-medium text-xs sm:text-sm">{mockData.lastLogin}</p>
                     </div>
                     <div>
-                      <span className="text-gray-500">Assigned Branches:</span>
-                      <p className="font-medium">{mockData.assignedBranches} branches</p>
-                    </div>
-                    <div>
                       <span className="text-gray-500">Account Created:</span>
                       <p className="font-medium">{formatDate(user.createdAt.toString())}</p>
                     </div>
@@ -871,16 +784,7 @@ export default function ViewUserPage() {
                 <CheckCircle className="h-8 w-8 text-green-500" />
                 <div>
                   <p className="text-sm text-gray-500">Account Status</p>
-                  <p className="font-semibold">{mockData.status}</p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <Building2 className="h-8 w-8 text-blue-500" />
-                <div>
-                  <p className="text-sm text-gray-500">branches</p>
-                  <p className="font-semibold">{mockData.assignedBranches}</p>
+                  <p className="font-semibold">{user.isVerified ? 'Active' : 'Inactive'}</p>
                 </div>
               </div>
             </Card>

@@ -21,12 +21,13 @@ import {
   FiChevronDown,
   FiShield,
   FiUserCheck,
-  FiUser
+  FiUser,
+  FiMapPin
 } from "react-icons/fi";
+import { BsHousesFill } from "react-icons/bs";
 import { useAuth } from "@/hooks/useAuth";
 import NotificationBell from '@/components/ui/NotificationBell';
-import { FaT } from "react-icons/fa6";
-import { FaTrash } from "react-icons/fa";
+
 
 type DashboardRole = "client" | "teller" | "admin" | "super-admin" | "company";
 
@@ -192,6 +193,7 @@ export default function DashboardLayout({
             ]
           },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/super-admin/companies" },
+          {name:"Branches",icon:FiMenu,href:"/dashboard/super-admin/branches"},
           { name: "Settings", icon: FiSettings, href: "/dashboard/super-admin/settings" },
         ];
       case "company":

@@ -94,8 +94,9 @@ export default function AdminUsersPage() {
         ? raw.data
         : [];
 
-      // Backend now restricts ADMIN to TELLER and CLIENT; use returned users directly
-      setUsers(fetchedUsers);
+      // Filter to show only ADMIN users
+      const adminUsers = fetchedUsers.filter(user => user.role === "ADMIN");
+      setUsers(adminUsers);
       setCurrentPage(1);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load users";
@@ -138,8 +139,7 @@ export default function AdminUsersPage() {
         user.name.toLowerCase().includes(normalizedSearch) ||
         user.email.toLowerCase().includes(normalizedSearch);
       const matchStatus = statusFilter === "All" || user.status === statusFilter;
-      const matchRole = roleFilter === "All" || user.role === roleFilter;
-      return matchSearch && matchStatus && matchRole;
+      return matchSearch && matchStatus;
     });
   }, [userRows, search, statusFilter, roleFilter]);
 
@@ -175,8 +175,8 @@ export default function AdminUsersPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-[#004B5B]">Manage Users</h1>
-            <p className="text-sm text-gray-500">Manage teller and client accounts.</p>
+            <h1 className="text-2xl font-semibold text-[#004B5B]">Admin Users</h1>
+            <p className="text-sm text-gray-500">Manage admin accounts.</p>
           </div>
           <Button
             variant="secondary"
@@ -205,18 +205,6 @@ export default function AdminUsersPage() {
         {/* Filters & Search */}
         <Card className="p-4 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex gap-4 flex-wrap justify-center w-full md:w-auto">
-            <select
-              className="border border-[#004B5B]/50 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-[#004B5B]"
-              value={roleFilter}
-              onChange={(e) => {
-                setRoleFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="All">All Roles</option>
-              <option value="Teller">Teller</option>
-              <option value="Client">Client</option>
-            </select>
             <select
               className="border border-[#004B5B]/50 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-[#004B5B]"
               value={statusFilter}

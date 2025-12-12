@@ -1,13 +1,49 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import SettingsLayout, { type SettingsLayoutNavItem } from "@/components/ui/SettingsLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { InputField } from "@/components/ui/InputField";
-import { Activity, ShieldCheck, Network } from "lucide-react";
+import { Activity, ShieldCheck, Network, User, Loader2 } from "lucide-react";
+import { FileUploadField } from "@/components/ui/FileUploadField";
+// Local constants for form options
+const GENDER_OPTIONS = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+];
+
+const phoneCountryOptions = [
+  { value: "+250", label: "+250 (Rwanda)" },
+  { value: "+1", label: "+1 (US/Canada)" },
+  { value: "+44", label: "+44 (UK)" },
+];
+
+const countryOptions = [
+  { value: "RW", label: "Rwanda" },
+  { value: "US", label: "United States" },
+  { value: "UK", label: "United Kingdom" },
+];
+
+const INVESTMENT_EXPERIENCE_OPTIONS = [
+  { value: "beginner", label: "Beginner (0-1 years)" },
+  { value: "intermediate", label: "Intermediate (2-5 years)" },
+  { value: "advanced", label: "Advanced (5+ years)" },
+];
+
+type OptionType = {
+  value: string;
+  label: string;
+};
 
 const navItems: SettingsLayoutNavItem[] = [
+    {
+      id: "profile",
+      label: "Profile",
+      description: "Update your personal details",
+      icon: <User className="h-4 w-4" aria-hidden="true" />,
+    },
   {
     id: "platform",
     label: "Platform controls",
@@ -46,8 +82,30 @@ type MonitoringForm = {
   notifyChannels: Record<string, boolean>;
 };
 
+type ProfileForm = {
+  fullName?: string;
+  gender?: string;
+  phoneCountryCode?: string;
+  phone?: string;
+  country?: string;
+  city?: string;
+  idNumber?: string;
+  occupation?: string;
+  dateOfBirth?: string;
+  investmentExperience?: string;
+  passportPhoto?: string;
+  idDocument?: string;
+};
+
+type ProfileErrors = Partial<Record<keyof ProfileForm, string>>;
+type ProfileStatus = "idle" | "saving" | "success" | "error";
+
 export default function SuperAdminSettingsPage() {
   const [activeSection, setActiveSection] = useState<string>(navItems[0]?.id ?? "platform");
+  const [profileForm, setProfileForm] = useState<ProfileForm>({});
+  const [profileErrors, setProfileErrors] = useState<ProfileErrors>({});
+  const [profileStatus, setProfileStatus] = useState<ProfileStatus>("idle");
+  const [profileMessage, setProfileMessage] = useState<string>("");
   const [platformForm, setPlatformForm] = useState<PlatformForm>({
     primaryContact: "",
     supportEmail: "",
@@ -98,6 +156,263 @@ export default function SuperAdminSettingsPage() {
     }));
   };
 
+  const handleProfileInputChange = (field: keyof ProfileForm) => (event: ChangeEvent<HTMLInputElement>) => {
+    const { value } = event.target;
+    setProfileForm((prev) => ({ ...prev, [field]: value }));
+    if (profileErrors[field]) {
+      setProfileErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleProfileSelectChange = (field: keyof ProfileForm) => (event: ChangeEvent<HTMLSelectElement>) => {
+    const { value } = event.target;
+    setProfileForm((prev) => ({ ...prev, [field]: value }));
+    if (profileErrors[field]) {
+      setProfileErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleProfileFileChange = (field: keyof ProfileForm) => (value: string) => {
+    setProfileForm((prev) => ({ ...prev, [field]: value }));
+    if (profileErrors[field]) {
+      setProfileErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleProfileSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setProfileStatus("saving");
+    // Simulate API call
+    setTimeout(() => {
+      setProfileStatus("success");
+      setProfileMessage("Profile updated successfully!");
+    }, 1000);
+  };
+
+
+  const renderProfile = () => (
+    <Card className="p-6" hover={false}>
+      <form className="flex flex-col gap-6" onSubmit={handleProfileSubmit}>
+        <header>
+          <h2 className="text-xl font-semibold text-[#004B5B]">Personal details</h2>
+          <p className="mt-1 text-base text-slate-600">
+            Keep your contact information up to date and add any supporting documents required by our compliance team.
+          </p>
+        </header>
+
+        {profileMessage && (
+          <div
+            className={`rounded-md border px-4 py-3 text-base ${
+              profileStatus === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
+            {profileMessage}
+          </div>
+        )}
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <InputField
+            name="fullName"
+            label="Full name"
+            type="text"
+            placeholder="Enter your full name"
+            value={profileForm.fullName ?? ""}
+            onChange={handleProfileInputChange("fullName")}
+            error={profileErrors.fullName}
+          />
+          <div className="flex flex-col gap-2">
+            <label htmlFor="gender" className="text-sm font-medium text-[#004B5B]">
+              Gender
+            </label>
+            <select
+              id="gender"
+              name="gender"
+              value={profileForm.gender ?? "male"}
+              onChange={handleProfileSelectChange("gender")}
+              className={`w-full rounded-full px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${
+                profileErrors.gender
+                  ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
+                  : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
+              }`}
+            >
+              {GENDER_OPTIONS.map((option: OptionType) => (
+                <option key={option.value} value={option.value} className="text-[#004B5B]">
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {profileErrors.gender && <p className="text-sm text-red-500 ml-2">{profileErrors.gender}</p>}
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="phoneCountryCode" className="text-sm font-medium text-[#004B5B]">
+              Phone country code
+            </label>
+            <select
+              id="phoneCountryCode"
+              name="phoneCountryCode"
+              value={profileForm.phoneCountryCode ?? ""}
+              onChange={handleProfileSelectChange("phoneCountryCode")}
+              className={`w-full rounded-full px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${
+                profileErrors.phoneCountryCode
+                  ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
+                  : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
+              }`}
+            >
+              <option value="" disabled className="text-slate-400">
+                Select code
+              </option>
+              {phoneCountryOptions.map((option: OptionType) => (
+                <option key={option.value} value={option.value} className="text-[#004B5B]">
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {profileErrors.phoneCountryCode && (
+              <p className="text-sm text-red-500 ml-2">{profileErrors.phoneCountryCode}</p>
+            )}
+          </div>
+          <InputField
+            name="phone"
+            label="Phone number"
+            type="tel"
+            placeholder="Add phone"
+            value={profileForm.phone ?? ""}
+            onChange={handleProfileInputChange("phone")}
+            error={profileErrors.phone}
+          />
+          <div className="flex flex-col gap-2">
+            <label htmlFor="country" className="text-sm font-medium text-[#004B5B]">
+              Country of residence
+            </label>
+            <select
+              id="country"
+              name="country"
+              value={profileForm.country ?? ""}
+              onChange={handleProfileSelectChange("country")}
+              className={`w-full rounded-full px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${
+                profileErrors.country
+                  ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
+                  : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
+              }`}
+            >
+              <option value="" disabled className="text-slate-400">
+                Select country
+              </option>
+              {countryOptions.map((option: OptionType) => (
+                <option key={option.value} value={option.value} className="text-[#004B5B]">
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {profileErrors.country && <p className="text-sm text-red-500 ml-2">{profileErrors.country}</p>}
+          </div>
+          <InputField
+            name="city"
+            label="City"
+            type="text"
+            placeholder="Enter your city"
+            value={profileForm.city ?? ""}
+            onChange={handleProfileInputChange("city")}
+            error={profileErrors.city}
+          />
+          <InputField
+            name="idNumber"
+            label="National ID number"
+            type="text"
+            placeholder="Enter your ID number"
+            value={profileForm.idNumber ?? ""}
+            onChange={handleProfileInputChange("idNumber")}
+            error={profileErrors.idNumber}
+          />
+          <InputField
+            name="occupation"
+            label="Occupation"
+            type="text"
+            placeholder="What do you do?"
+            value={profileForm.occupation ?? ""}
+            onChange={handleProfileInputChange("occupation")}
+            error={profileErrors.occupation}
+          />
+          <InputField
+            name="dateOfBirth"
+            label="Date of birth"
+            type="date"
+            value={profileForm.dateOfBirth ?? ""}
+            onChange={handleProfileInputChange("dateOfBirth")}
+            error={profileErrors.dateOfBirth}
+          />
+          <div className="flex flex-col gap-2">
+            <label htmlFor="investmentExperience" className="text-sm font-medium text-[#004B5B]">
+              Investment experience
+            </label>
+            <select
+              id="investmentExperience"
+              name="investmentExperience"
+              value={profileForm.investmentExperience ?? ""}
+              onChange={handleProfileSelectChange("investmentExperience")}
+              className={`w-full rounded-full px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${
+                profileErrors.investmentExperience
+                  ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
+                  : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
+              }`}
+            >
+              {INVESTMENT_EXPERIENCE_OPTIONS.map((option: OptionType) => (
+                <option key={option.value} value={option.value} className="text-[#004B5B]">
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {profileErrors.investmentExperience && (
+              <p className="text-sm text-red-500 ml-2">{profileErrors.investmentExperience}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="md:grid-cols-2">
+          <FileUploadField
+            name="passportPhoto"
+            label="Passport photo"
+            value={profileForm.passportPhoto ?? ""}
+            onChange={handleProfileFileChange("passportPhoto")}
+            error={profileErrors.passportPhoto}
+            accept="image/*"
+            helperText="Upload a clear passport-style photo (JPEG, PNG, WEBP)"
+          />
+          <FileUploadField
+            name="idDocument"
+            label="Identification document"
+            value={profileForm.idDocument ?? ""}
+            onChange={handleProfileFileChange("idDocument")}
+            error={profileErrors.idDocument}
+            accept="image/*,application/pdf"
+            helperText="Provide a copy of your ID document (image or PDF)"
+          />
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={profileStatus === "saving"}
+            className="min-w-40"
+          >
+            {profileStatus === "saving" ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </span>
+            ) : (
+              "Update profile"
+            )}
+          </Button>
+        </div>
+      </form>
+    </Card>
+  );
+
+  
   const renderPlatform = () => (
     <Card className="p-6" hover={false}>
       <h2 className="text-xl font-semibold text-[#004B5B]">Platform wide defaults</h2>
@@ -134,7 +449,6 @@ export default function SuperAdminSettingsPage() {
       </div>
     </Card>
   );
-
   const renderSecurity = () => (
     <Card className="p-6" hover={false}>
       <h2 className="text-xl font-semibold text-[#004B5B]">Security posture</h2>
@@ -216,6 +530,8 @@ export default function SuperAdminSettingsPage() {
 
   const renderContent = () => {
     switch (activeSection) {
+      case "profile":
+        return renderProfile();
       case "platform":
         return renderPlatform();
       case "security":
@@ -223,7 +539,7 @@ export default function SuperAdminSettingsPage() {
       case "monitoring":
         return renderMonitoring();
       default:
-        return null;
+        return renderProfile();
     }
   };
 
