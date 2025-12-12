@@ -2,7 +2,7 @@
   "name": "broker",
   "version": "0.1.0",
   "private": true,
- "scripts": {
+  "scripts": {
     "build": "prisma generate && next build",
     "start": "next start -p 3000",
     "prod": "npm run build && npm start",
@@ -15,6 +15,8 @@
     "@prisma/client": "^6.19.0",
     "@types/cheerio": "^0.22.35",
     "bcryptjs": "^3.0.2",
+    "chart.js": "^4.5.1",
+    "chartjs-plugin-datalabels": "^2.2.0",
     "cheerio": "^1.1.0",
     "cloudinary": "^2.8.0",
     "country-list": "^2.2.0",
@@ -27,10 +29,11 @@
     "next": "15.5.4",
     "nodemailer": "^7.0.11",
     "react": "18.3.1",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "18.3.1",
     "react-hot-toast": "^2.6.0",
     "react-icons": "^5.5.0",
-    "recharts": "^3.3.0",
+    "recharts": "^3.5.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.1.12"

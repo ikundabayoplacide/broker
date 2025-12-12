@@ -25,6 +25,17 @@ import {
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { FaBuilding } from "react-icons/fa";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Doughnut } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip as ChartTooltip,
+  Legend,
+} from "chart.js";
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+
+ChartJS.register(ArcElement, ChartTooltip, Legend, ChartDataLabels);
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
@@ -93,6 +104,45 @@ export default function SuperAdminDashboard() {
     return { total, pending };
   }, [companies]);
 
+  const tradingVolumeData = [
+    { date: "Jan 15", volume: 1850000 },
+    { date: "Jan 16", volume: 1920000 },
+    { date: "Jan 17", volume: 1780000 },
+    { date: "Jan 18", volume: 2100000 },
+    { date: "Jan 19", volume: 1950000 },
+    { date: "Jan 20", volume: 2200000 },
+    { date: "Jan 21", volume: 2004000 },
+  ];
+
+  const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16", "#f97316"];
+  
+  const companySharesData = useMemo(() => {
+    // Debug: log raw data
+
+    const validCompanies = companies.filter(company => {
+      const shares = Number(company.availableShares) || 0;
+      return shares > 0;
+    });
+    
+    
+    const totalAvailableShares = validCompanies.reduce((sum, company) => {
+      return sum + (Number(company.availableShares) || 0);
+    }, 0);
+    
+    
+    return validCompanies.map((company, index) => {
+      const shares = Number(company.availableShares) || 0;
+      const percentage = totalAvailableShares > 0 ? ((shares / totalAvailableShares) * 100).toFixed(1) : '0';
+      console.log(`${company.name}: ${shares} shares = ${percentage}%`);
+      return {
+        name: company.name,
+        shares,
+        percentage: Number(percentage),
+        color: colors[index % colors.length]
+      };
+    });
+  }, [companies]);
+
   const summaryCards = [
     {
       title: "Active Users",
@@ -144,7 +194,7 @@ export default function SuperAdminDashboard() {
     },
     {
       title: "Total Market Shares",
-      value: "200,000",
+      value: companies.reduce((sum, c) => sum + (Number(c.totalShares) || 0), 0).toLocaleString(),
       subtitle: "All issued shares",
       icon: <FiPieChart className="w-6 h-6 text-white" />,
       gradient: "bg-gradient-to-r from-teal-500 to-teal-600",
@@ -152,11 +202,11 @@ export default function SuperAdminDashboard() {
     },
     {
       title: "Available for Trading",
-      value: "200,000",
+      value: companySharesData.reduce((sum, c) => sum + c.shares, 0).toLocaleString(),
       subtitle: "Shares ready to trade",
       icon: <FiShoppingBag className="w-6 h-6 text-white" />,
       gradient: "bg-gradient-to-r from-rose-500 to-rose-600",
-      link: null,
+      link: "/dashboard/super-admin/shares",
     },
   ];
 
@@ -251,6 +301,184 @@ export default function SuperAdminDashboard() {
           ))}
         </div>
 
+        <Card className="p-6 mb-6 animate-fadeInUp">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-500">Trading Volume Trends</h2>
+            <Button variant="outline" className="text-sm">
+              View full report
+            </Button>
+          </div>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={tradingVolumeData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#6b7280"
+                  fontSize={12}
+                />
+                <YAxis 
+                  stroke="#6b7280"
+                  fontSize={12}
+                  tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
+                />
+                <Tooltip 
+                  formatter={(value) => [`${Number(value).toLocaleString()} RWF`, "Volume"]}
+                  labelStyle={{ color: "#374151" }}
+                  contentStyle={{ 
+                    backgroundColor: "white", 
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px"
+                  }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="volume" 
+                  stroke="#10b981" 
+                  strokeWidth={3}
+                  dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, stroke: "#10b981", strokeWidth: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <div className="grid lg:grid-cols-3 gap-6 mb-6">
+          <Card className="p-6 lg:col-span-2 animate-fadeInUp">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-500">Company Shares Distribution</h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  Total Available: {companySharesData.reduce((sum, c) => sum + c.shares, 0).toLocaleString()} shares
+                </p>
+              </div>
+              <Button variant="outline" className="text-sm">
+                View details
+              </Button>
+            </div>
+            {companySharesData.length > 0 ? (
+              <div className="flex items-center justify-between">
+                <div className="w-80 h-80">
+                  <Doughnut
+                    data={{
+                      labels: companySharesData.map(company => company.name),
+                      datasets: [
+                        {
+                          data: companySharesData.map(company => company.shares),
+                          backgroundColor: companySharesData.map(company => company.color),
+                          borderWidth: 2,
+                          borderColor: '#ffffff',
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: false,
+                        },
+                        tooltip: {
+                          callbacks: {
+                            label: function(context) {
+                              const total = context.dataset.data.reduce((a: any, b: any) => (Number(a) || 0) + (Number(b) || 0), 0);
+                              const parsed = Number(context.parsed) || 0;
+                              const percentage = total > 0 ? ((parsed / total) * 100).toFixed(1) : '0';
+                              return `${context.label}: ${parsed.toLocaleString()} shares (${percentage}%)`;
+                            }
+                          }
+                        },
+                        datalabels: {
+                          display: true,
+                          color: 'white',
+                          font: {
+                            weight: 'bold',
+                            size: 14
+                          },
+                          formatter: (value, context) => {
+                            const companyIndex = context.dataIndex;
+                            const company = companySharesData[companyIndex];
+                            return company && company.percentage > 3 ? `${company.percentage.toFixed(1)}%` : '';
+                          }
+                        }
+                      },
+                      cutout: '50%',
+                    }}
+                  />
+                </div>
+                <div className="flex-1 ml-8">
+                  <div className="space-y-4">
+                    {companySharesData.map((company) => {
+                      const totalShares = companySharesData.reduce((sum, c) => sum + c.shares, 0);
+                      const percentage = ((company.shares / totalShares) * 100).toFixed(1);
+                      return (
+                        <div key={company.name} className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div 
+                              className="w-4 h-4 rounded-full mr-3" 
+                              style={{ backgroundColor: company.color }}
+                            ></div>
+                            <span className="text-sm font-medium text-gray-700">{company.name}</span>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-gray-800">{percentage}%</div>
+                            <div className="text-xs text-gray-600">{company.shares.toLocaleString()} shares</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="border-t pt-4 mt-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-700">Total</span>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-gray-900">
+                            {(() => {
+                              const totalShares = companySharesData.reduce((sum, c) => sum + c.shares, 0);
+                              const sumPercentages = companySharesData.reduce((sum, c) => {
+                                const pct = Number(((c.shares / totalShares) * 100).toFixed(1)) || 0;
+                                return sum + pct;
+                              }, 0);
+                              return `${sumPercentages.toFixed(1)}%`;
+                            })()}
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            {companySharesData.reduce((sum, c) => sum + c.shares, 0).toLocaleString()} shares
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-80 text-gray-400">
+                <p>No companies with available shares found</p>
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-6 animate-slideInRight">
+            <h3 className="text-lg font-semibold text-gray-600 mb-4">Quick Actions</h3>
+            <div className="space-y-3">
+              {quickActions.map((action) => (
+                <Button
+                  key={action.label}
+                  className="w-full justify-start h-auto py-3"
+                  variant="outline"
+                  onClick={() => handleQuickActionClick(action)}
+                >
+                  <span className="mr-3 text-[#004B5B]">{action.icon}</span>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-gray-600">{action.label}</p>
+                    <p className="text-xs text-gray-400">{action.description}</p>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </Card>
+        </div>
+
         <div className="grid lg:grid-cols-3 gap-6 items-start">
           <Card className="p-6 lg:col-span-2 animate-fadeInUp">
             <div className="flex items-center justify-between mb-6">
@@ -279,56 +507,34 @@ export default function SuperAdminDashboard() {
             </div>
           </Card>
 
-          <div className="space-y-6 animate-slideInRight">
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-600 mb-4">Quick Actions</h3>
-              <div className="space-y-4">
-                {quickActions.map((action) => (
-                  <Button
-                    key={action.label}
-                    className="w-full justify-start"
-                    variant="outline"
-                    onClick={() => handleQuickActionClick(action)}
+          <Card className="p-6 animate-slideInRight">
+            <h3 className="text-lg font-semibold text-gray-600 mb-4">Recently Listed Companies</h3>
+            {companiesLoading ? (
+              <p className="text-sm text-gray-400">Loading companies…</p>
+            ) : companiesError ? (
+              <p className="text-sm text-red-500">{companiesError}</p>
+            ) : companies.length === 0 ? (
+              <p className="text-sm text-gray-400">
+                No companies listed yet. Use the quick action above to add one.
+              </p>
+            ) : (
+              <ul className="space-y-4">
+                {companies.slice(0, 5).map((company) => (
+                  <li
+                    key={company.id}
+                    className="flex items-start justify-between rounded-lg border border-gray-100 p-4 hover:border-[#004B5B]/40 transition"
                   >
-                    <span className="mr-3 text-[#004B5B]">{action.icon}</span>
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-gray-600">{action.label}</p>
-                      <p className="text-xs text-gray-400">{action.description}</p>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700">{company.name}</p>
+                      {company.sector && (
+                        <p className="text-xs uppercase tracking-wide text-[#004B5B]">{company.sector}</p>
+                      )}
                     </div>
-                  </Button>
+                  </li>
                 ))}
-              </div>
-            </Card>
-
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-600 mb-4">Recently Listed Companies</h3>
-              {companiesLoading ? (
-                <p className="text-sm text-gray-400">Loading companies…</p>
-              ) : companiesError ? (
-                <p className="text-sm text-red-500">{companiesError}</p>
-              ) : companies.length === 0 ? (
-                <p className="text-sm text-gray-400">
-                  No companies listed yet. Use the quick action above to add one.
-                </p>
-              ) : (
-                <ul className="space-y-4">
-                  {companies.slice(0, 5).map((company) => (
-                    <li
-                      key={company.id}
-                      className="flex items-start justify-between rounded-lg border border-gray-100 p-4 hover:border-[#004B5B]/40 transition"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-gray-700">{company.name}</p>
-                        {company.sector && (
-                          <p className="text-xs uppercase tracking-wide text-[#004B5B]">{company.sector}</p>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-          </div>
+              </ul>
+            )}
+          </Card>
         </div>
 
         {showCreateModal && (
