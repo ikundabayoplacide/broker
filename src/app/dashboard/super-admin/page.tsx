@@ -16,8 +16,15 @@ import {
   FiSettings,
   FiPlus,
   FiAlertTriangle,
+  FiTrendingUp,
+  FiMapPin,
+  FiDollarSign,
+  FiPercent,
+  FiPieChart,
+  FiShoppingBag,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
+import { FaBuilding } from "react-icons/fa";
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
@@ -90,33 +97,65 @@ export default function SuperAdminDashboard() {
     {
       title: "Active Users",
       value: userStats.active.toLocaleString(),
-      subtitle: `${userStats.total.toLocaleString()} accross all roles`,
+      subtitle: `${userStats.total.toLocaleString()} across all roles`,
       icon: <FiUsers className="w-6 h-6 text-white" />,
-      gradient: "bg-gradient-to-r from-[#004B5B] to-[#008195]",
+      gradient: "bg-gradient-to-r from-blue-500 to-blue-600",
       link: "/dashboard/super-admin/users",
     },
     {
-      title: "All Companies",
+      title: "Registered Companies",
       value: companyStats.total.toLocaleString(),
       subtitle: companyStats.pending > 0 ? `${companyStats.pending} pending review` : "All approved",
-      icon: <FiBriefcase className="w-6 h-6 text-blue-400" />,
-      accent: "bg-blue-100 text-blue-500",
+      icon: <FiBriefcase className="w-6 h-6 text-white" />,
+      gradient: "bg-gradient-to-r from-purple-500 to-purple-600",
       link: "/dashboard/super-admin/companies",
     },
     {
-      title: "System Health",
+      title: "System Uptime",
       value: "99.99%",
-      subtitle: "Uptime last 30 days",
-      icon: <FiCpu className="w-6 h-6 text-green-400" />,
-      accent: "bg-green-100 text-green-600",
+      subtitle: "Last 30 days performance",
+      icon: <FiCpu className="w-6 h-6 text-white" />,
+      gradient: "bg-gradient-to-r from-green-500 to-green-600",
       link: null,
     },
     {
-      title: "Security Alerts",
+      title: "Daily Trading Volume",
+      value: "2,004,000 RWF",
+      change: "+8.5% from yesterday",
+      icon: <FiDollarSign className="w-6 h-6 text-white" />,
+      gradient: "bg-gradient-to-r from-emerald-500 to-emerald-600",
+      link: null,
+    },
+    {
+      title: "Active Branches",
       value: "2",
-      subtitle: "Require attention",
-      icon: <FiLock className="w-6 h-6 text-red-400" />,
-      accent: "bg-red-100 text-red-600",
+      subtitle: "Trading locations",
+      icon: <FaBuilding className="w-6 h-6 text-white" />,
+      gradient: "bg-gradient-to-r from-indigo-500 to-indigo-600",
+      link: null,
+    },
+    {
+      title: "Current Trading Rate",
+      value: "1.25%",
+      subtitle: "Market commission",
+      icon: <FiPercent className="w-6 h-6 text-white" />,
+      gradient: "bg-gradient-to-r from-orange-500 to-orange-600",
+      link: null,
+    },
+    {
+      title: "Total Market Shares",
+      value: "200,000",
+      subtitle: "All issued shares",
+      icon: <FiPieChart className="w-6 h-6 text-white" />,
+      gradient: "bg-gradient-to-r from-teal-500 to-teal-600",
+      link: null,
+    },
+    {
+      title: "Available for Trading",
+      value: "200,000",
+      subtitle: "Shares ready to trade",
+      icon: <FiShoppingBag className="w-6 h-6 text-white" />,
+      gradient: "bg-gradient-to-r from-rose-500 to-rose-600",
       link: null,
     },
   ];
@@ -192,19 +231,17 @@ export default function SuperAdminDashboard() {
               className={card.link ? "cursor-pointer" : ""}
               onClick={() => card.link && router.push(card.link)}
             >
-              <Card className={`p-6 hover:shadow-lg transition-all ${
-                card.link ? "hover:scale-105" : ""
-              }`}>
+              <Card className={`p-6 hover:shadow-lg transition-all ${card.link ? "hover:scale-105" : ""
+                }`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-base font-medium text-gray-500 mb-5">{card.title}</p>
                     <p className="text-xl font-semibold text-gray-700">{card.value}</p>
-                    <p className="text-sm text-gray-400">{card.subtitle}</p>
+                    <p className="text-sm text-gray-500 mt-1">{card.subtitle || card.change}</p>
                   </div>
                   <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center ${
-                      card.gradient || card.accent || "bg-gray-100"
-                    }`}
+                    className={`w-11 h-11 rounded-full flex items-center justify-center ${card.gradient || "bg-gray-100"
+                      }`}
                   >
                     {card.icon}
                   </div>
@@ -297,8 +334,8 @@ export default function SuperAdminDashboard() {
         {showCreateModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 ">
             <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <CompanyCreateForm 
-                authToken={token} 
+              <CompanyCreateForm
+                authToken={token}
                 onCreated={handleCompanyCreated}
                 onCancel={() => setShowCreateModal(false)}
               />
