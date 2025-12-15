@@ -47,6 +47,7 @@ interface BranchDetails {
     growth: number;
     satisfaction: number;
     efficiency: number;
+    tellerCount: number;
   };
 }
 
@@ -81,7 +82,8 @@ const mockBranchDetails: BranchDetails = {
     revenue: 12500000,
     growth: 15.5,
     satisfaction: 4.7,
-    efficiency: 92
+    efficiency: 92,
+    tellerCount: 10
   }
 };
 
@@ -97,6 +99,13 @@ const topClients = [
   { id: "2", name: "Investment Fund B", trades: 32, volume: 4200000, status: "VIP" },
   { id: "3", name: "Individual Investor C", trades: 28, volume: 2800000, status: "Premium" },
   { id: "4", name: "Pension Fund D", trades: 22, volume: 3100000, status: "VIP" },
+];
+
+const branchTellers = [
+  { id: "1", name: "Alice Uwimana", email: "alice@broker.rw", phone: "+250 788 111 222", clientsServed: 45, tradesProcessed: 128, efficiency: 95, status: "Active", joinDate: "2023-01-15" },
+  { id: "2", name: "Jean Baptiste", email: "jean@broker.rw", phone: "+250 788 333 444", clientsServed: 38, tradesProcessed: 102, efficiency: 92, status: "Active", joinDate: "2023-03-20" },
+  { id: "3", name: "Marie Mukamana", email: "marie@broker.rw", phone: "+250 788 555 666", clientsServed: 52, tradesProcessed: 145, efficiency: 98, status: "Active", joinDate: "2022-11-10" },
+  { id: "4", name: "Paul Nkurunziza", email: "paul@broker.rw", phone: "+250 788 777 888", clientsServed: 29, tradesProcessed: 87, efficiency: 88, status: "On Leave", joinDate: "2023-06-05" },
 ];
 
 export default function BranchDetailsPage() {
@@ -158,7 +167,8 @@ export default function BranchDetailsPage() {
                 revenue: 12500000,
                 growth: 15.5,
                 satisfaction: 4.7,
-                efficiency: 92
+                efficiency: 92,
+                tellerCount: 10
               }
             };
             setBranchDetails(transformedBranch);
@@ -409,18 +419,7 @@ export default function BranchDetailsPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Daily Volume</p>
-                <p className="text-2xl font-semibold text-gray-700">{formatCurrency(branchDetails.tradingStats.dailyVolume)}</p>
-                <p className="text-sm text-green-600">+12.5% from yesterday</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </Card>
+       
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -430,6 +429,31 @@ export default function BranchDetailsPage() {
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                 <Users className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+           
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Teller</p>
+                <p className="text-2xl font-semibold text-gray-700">{mockBranchDetails.performance.tellerCount}</p>
+                <p className="text-sm text-blue-600">Supporting tellers</p>
+              </div>
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                <Users className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+             <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Daily Volume</p>
+                <p className="text-2xl font-semibold text-gray-700">{formatCurrency(branchDetails.tradingStats.dailyVolume)}</p>
+                <p className="text-sm text-green-600">+12.5% from yesterday</p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-green-600" />
               </div>
             </div>
           </Card>
@@ -445,18 +469,7 @@ export default function BranchDetailsPage() {
               </div>
             </div>
           </Card>
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Efficiency</p>
-                <p className="text-2xl font-semibold text-gray-700">{mockBranchDetails.performance.efficiency}%</p>
-                <p className="text-sm text-orange-600">Operational score</p>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                <Activity className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </Card>
+         
         </div>
 
         {/* Tabs */}
@@ -466,6 +479,7 @@ export default function BranchDetailsPage() {
               { id: "overview", label: "Overview", icon: BarChart3 },
               { id: "trading", label: "Trading Activity", icon: TrendingUp },
               { id: "clients", label: "Client Management", icon: Users },
+              { id: "tellers", label: "Tellers", icon: Users },
               { id: "performance", label: "Performance", icon: PieChart },
             ].map((tab) => (
               <button
@@ -631,6 +645,71 @@ export default function BranchDetailsPage() {
                               <Eye className="w-3 h-3" />
                               View
                             </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {activeTab === "tellers" && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <Card className="p-6">
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Total Tellers</h4>
+                  <p className="text-2xl font-semibold">{branchTellers.length}</p>
+                </Card>
+                <Card className="p-6">
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Active Tellers</h4>
+                  <p className="text-2xl font-semibold">{branchTellers.filter(t => t.status === "Active").length}</p>
+                </Card>
+                <Card className="p-6">
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Avg Efficiency</h4>
+                  <p className="text-2xl font-semibold">{Math.round(branchTellers.reduce((acc, t) => acc + t.efficiency, 0) / branchTellers.length)}%</p>
+                </Card>
+                <Card className="p-6">
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Total Trades</h4>
+                  <p className="text-2xl font-semibold">{branchTellers.reduce((acc, t) => acc + t.tradesProcessed, 0)}</p>
+                </Card>
+              </div>
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-[#004B5B] mb-4">Teller Performance</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left p-3">Teller Name</th>
+                        <th className="text-left p-3">Email</th>
+                        <th className="text-left p-3">Clients Served</th>
+                        <th className="text-left p-3">Trades Processed</th>
+                        <th className="text-left p-3">Efficiency</th>
+                        <th className="text-left p-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {branchTellers.map((teller) => (
+                        <tr key={teller.id} className="border-b">
+                          <td className="p-3 font-medium">{teller.name}</td>
+                          <td className="p-3 text-gray-600">{teller.email}</td>
+                          <td className="p-3">{teller.clientsServed}</td>
+                          <td className="p-3">{teller.tradesProcessed}</td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <span>{teller.efficiency}%</span>
+                              <div className="w-16 bg-gray-200 rounded-full h-2">
+                                <div className="bg-green-600 h-2 rounded-full" style={{ width: `${teller.efficiency}%` }}></div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <span className={`px-2 py-1 text-xs rounded ${
+                              teller.status === "Active" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                            }`}>
+                              {teller.status}
+                            </span>
                           </td>
                         </tr>
                       ))}

@@ -23,6 +23,7 @@ import {
   validateProfileDetails,
 } from "@/lib/validations/signupValidation";
 import { EditUserModal } from "@/components/models/UserModals";
+import UserActions from "@/components/models/UserActions";
 
 interface User {
   id: string;
@@ -718,24 +719,13 @@ export default function ViewUserPage() {
           </div>
           
           {/* Actions */}
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2 text-sm"
-              onClick={() => openEditModal()}
-            >
-              <Edit className="h-4 w-4" />
-              <span className="inline">Edit</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50 text-sm"
-              onClick={() => openDeleteModal()}
-            >
-              <Trash2 className="h-4 w-4" />
-              <span className="inline">Delete</span>
-            </Button>
-          </div>
+          <UserActions
+            user={user as any}
+            onUserUpdated={fetchUser}
+            showView={false}
+            showEdit={true}
+            showDelete={true}
+          />
         </div>
 
         {/* Overview Summary */}
@@ -827,22 +817,6 @@ export default function ViewUserPage() {
         <div className="mt-6">
           {renderTabContent()}
         </div>
-
-        {/* Modals */}
-        {editUser && editForm && (
-          <EditUserModal
-            editUser={editUser}
-            editForm={editForm}
-            editError={editError}
-            editErrors={editErrors}
-            savingEdit={savingEdit}
-            closeEditModal={closeEditModal}
-            confirmEdit={confirmEdit}
-            handleEditTextChange={handleEditTextChange}
-            updateEditField={updateEditField}
-            COUNTRY_CODES={COUNTRY_CODES}
-          />
-        )}
       </div>
     </DashboardLayout>
   );

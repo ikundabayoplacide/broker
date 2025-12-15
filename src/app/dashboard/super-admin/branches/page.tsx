@@ -331,6 +331,14 @@ export default function BranchesPage() {
         </Card>
 
         {/* Branches Grid */}
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#004B5B] mx-auto"></div>
+              <p className="mt-4 text-gray-500">Loading branches...</p>
+            </div>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {paginatedBranches.map((branch) => (
             <motion.div
@@ -392,6 +400,7 @@ export default function BranchesPage() {
             </motion.div>
           ))}
         </div>
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (

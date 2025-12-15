@@ -2,28 +2,15 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Search, RefreshCcw, Loader2 } from "lucide-react";
-import UserActions from "@/components/models/UserActions";
+import { Search, RefreshCcw, Loader2, Users } from "lucide-react";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import { InputField } from "@/components/ui/InputField";
-import { FileUploadField } from "@/components/ui/FileUploadField";
-import { z } from "zod";
-import {
-  userCreationSchema,
-  baseSignupSchema,
-  validateDateOfBirth,
-  validatePhoneNumber,
-  validatePasswordConfirmation,
-  GENDER_VALUES,
-  validateProfileDetails,
-  type UserCreationPayload,
-} from "@/lib/validations/signupValidation";
-import api, { authApi } from "@/lib/axios";
+import UserActions from "@/components/models/UserActions";
+import api from "@/lib/axios";
 import { useAuth } from "@/hooks/useAuth";
 
-type ApiUserRole = "SUPER_ADMIN" | "ADMIN" | "TELLER" | "COMPANY" | "CLIENT";
+type ApiUserRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER" | "CLIENT";
 
 interface ApiUser {
   id: string;
@@ -59,11 +46,10 @@ interface UserRow {
   raw: ApiUser;
 }
 
-export default function AdminUsersPage() {
+export default function ManagerUsersPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [roleFilter, setRoleFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -93,9 +79,9 @@ export default function AdminUsersPage() {
         ? raw.data
         : [];
 
-      // Filter to show only ADMIN users
-      const adminUsers = fetchedUsers.filter(user => user.role === "ADMIN");
-      setUsers(adminUsers);
+      // Filter to show only MANAGER users
+      const managerUsers = fetchedUsers.filter(user => user.role === "MANAGER");
+      setUsers(managerUsers);
       setCurrentPage(1);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load users";
@@ -114,16 +100,7 @@ export default function AdminUsersPage() {
       id: user.id,
       name: user.fullName?.trim() || user.email,
       email: user.email,
-      role:
-        user.role === "TELLER"
-          ? "Teller"
-          : user.role === "CLIENT"
-          ? "Client"
-          : user.role === "ADMIN"
-          ? "Admin"
-          : user.role === "SUPER_ADMIN"
-          ? "Super Admin"
-          : user.role,
+      role: "Manager",
       status: user.isVerified ? "Active" : "Inactive",
       raw: user,
     }));
@@ -140,7 +117,7 @@ export default function AdminUsersPage() {
       const matchStatus = statusFilter === "All" || user.status === statusFilter;
       return matchSearch && matchStatus;
     });
-  }, [userRows, search, statusFilter, roleFilter]);
+  }, [userRows, search, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / rowsPerPage));
   const paginatedUsers = filteredUsers.slice(
@@ -157,33 +134,31 @@ export default function AdminUsersPage() {
   const handlePrevious = () => setCurrentPage((p) => Math.max(p - 1, 1));
   const handleNext = () => setCurrentPage((p) => Math.min(p + 1, totalPages));
 
-  const formatDate = (value?: string | null) => {
-    if (!value) return "—";
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
-  };
-
-  const formatPhone = (user: ApiUser) => {
-    if (!user.phoneCountryCode && !user.phone) return "—";
-    return `${user.phoneCountryCode ?? ""}${user.phone ?? ""}`.trim();
-  };
-
   return (
     <DashboardLayout userRole="super-admin" userName={displayName} userEmail={email}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-[#004B5B]">Admin Users</h1>
-            <p className="text-sm text-gray-500">Manage admin accounts.</p>
+            <h1 className="text-2xl font-bold text-[#004B5B] flex items-center gap-2">
+              <Users className="h-6 w-6" />
+              Manager Users
+            </h1>
+            <p className="text-gray-600 mt-1">Manage and monitor manager accounts</p>
           </div>
-          <Button
-            variant="secondary"
-            className="flex items-center gap-2 px-4 py-2 bg-white text-[#004B5B] border border-[#004B5B] hover:bg-[#004B5B]/10"
-            onClick={() => void fetchUsers()}
-          >
-            <RefreshCcw className="h-4 w-4" /> Refresh
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <span className="font-medium">{filteredUsers.length}</span>
+              <span>total managers</span>
+            </div>
+            <Button
+              variant="secondary"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-[#004B5B] border border-[#004B5B] hover:bg-[#004B5B]/10"
+              onClick={() => void fetchUsers()}
+            >
+              <RefreshCcw className="h-4 w-4" /> Refresh
+            </Button>
+          </div>
         </div>
 
         {error && (
@@ -224,7 +199,7 @@ export default function AdminUsersPage() {
               whileFocus={{ scale: 1.03 }}
               transition={{ type: "spring", stiffness: 200 }}
               type="text"
-              placeholder="Search users..."
+              placeholder="Search managers by name or email..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -253,7 +228,7 @@ export default function AdminUsersPage() {
                   <td colSpan={5} className="p-6 text-center text-[#004B5B]">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="h-5 w-5 animate-spin" />
-                      Loading users...
+                      Loading manager users...
                     </div>
                   </td>
                 </tr>
@@ -262,7 +237,7 @@ export default function AdminUsersPage() {
               {!loading && paginatedUsers.length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-gray-500">
-                    No users found. Adjust your filters or refresh the list.
+                    No manager users found. Adjust your filters or refresh the list.
                   </td>
                 </tr>
               )}
@@ -332,8 +307,6 @@ export default function AdminUsersPage() {
             </div>
           </div>
         </Card>
-
-
       </div>
     </DashboardLayout>
   );

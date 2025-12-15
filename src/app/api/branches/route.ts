@@ -9,7 +9,7 @@ export async function GET() {
   try {
     const branches = await db.branch.findMany({
       include: {
-        manager: { select: { id: true, fullName: true, email: true, phone: true, phoneCountryCode: true } },
+        manager: { select: { id: true, fullName: true } },
         _count: { select: { employees: true } }
       },
       orderBy: { createdAt: 'desc' }

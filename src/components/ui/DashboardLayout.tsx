@@ -29,7 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
 import NotificationBell from '@/components/ui/NotificationBell';
 
 
-type DashboardRole = "client" | "teller" | "admin" | "super-admin" | "company";
+type DashboardRole = "client" | "teller" | "manager" | "admin" | "super-admin" | "company";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -187,7 +187,8 @@ export default function DashboardLayout({
             hasChildren: true,
             children: [
               { name: "All Users", href: "/dashboard/super-admin/users", icon: FiUsers },
-              { name: "Admin", href: "/dashboard/super-admin/users/admin", icon: FiShield },
+              { name: "Admin [H.O]", href: "/dashboard/super-admin/users/admin", icon: FiShield },
+              { name: "Branch Managers", icon: FiMapPin, href: "/dashboard/super-admin/users/manager" },
               { name: "Teller", href: "/dashboard/super-admin/users/teller", icon: FiUserCheck },
               { name: "Client", href: "/dashboard/super-admin/users/client", icon: FiUser },
             ]
@@ -323,7 +324,12 @@ export default function DashboardLayout({
                     alt={derivedName ?? "User"}
                     width={64}
                     height={64}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover rounded-full"
+                    onError={(e) => {
+                      console.log('Image failed to load:', derivedPassportPhoto);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                    unoptimized
                   />
                 ) : (
                   <span className="font-semibold text-white text-xl">

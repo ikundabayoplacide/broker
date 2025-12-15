@@ -341,6 +341,7 @@ model Branch {
 enum Role {
   SUPER_ADMIN
   ADMIN
+  MANAGER
   TELLER
   CLIENT
 }

@@ -25,7 +25,7 @@ export default function AdminDashboard() {
   const { displayName, email, dashboardRole } = useMemo((): {
     displayName: string;
     email: string;
-  dashboardRole: "client" | "teller" | "admin" | "super-admin" | "company";
+  dashboardRole: "client" | "teller" | "admin" | "manager" | "super-admin" | "company";
   } => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
     const fallbackName = user?.email ? user.email.split("@")[0] : "Admin";

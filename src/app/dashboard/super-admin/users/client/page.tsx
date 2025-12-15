@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
-import { Search, Eye, Users, Loader2 } from "lucide-react";
+import { Search, Users, Loader2 } from "lucide-react";
+import UserActions from "@/components/models/UserActions";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import api from "@/lib/axios";
+
+type ApiUserRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER" | "COMPANY" | "CLIENT";
 
 interface ApiUser {
   id: string;
@@ -15,16 +17,18 @@ interface ApiUser {
   email: string;
   phoneCountryCode: string;
   phone: string;
-  dateOfBirth: Date | null;
+  dateOfBirth?: string | null;
+  gender: string;
   city: string;
   country: string;
   occupation?: string | null;
   idNumber?: string | null;
   isVerified: boolean;
   csdNumber?: string | null;
-  createdAt: Date;
-  role: string;
-  notificationPreferences?: Record<string, boolean> | null;
+  createdAt: string;
+  updatedAt: string;
+  role: ApiUserRole;
+  notificationPreferences: Record<string, unknown> | null;
 }
 
 interface ProcessedUser {
@@ -41,7 +45,6 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const router = useRouter();
   const rowsPerPage = 10;
 
   useEffect(() => {
@@ -184,14 +187,11 @@ export default function ClientsPage() {
                       {user.status}
                     </span>
                   </td>
-                  <td className="p-3 flex justify-center gap-3">
-                    <Button
-                      variant="outline"
-                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800"
-                      onClick={() => router.push(`/dashboard/super-admin/users/${user.id}`)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                  <td className="p-3">
+                    <UserActions
+                      user={user.raw}
+                      onUserUpdated={fetchClientUsers}
+                    />
                   </td>
                 </motion.tr>
               ))}

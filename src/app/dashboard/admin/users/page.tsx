@@ -22,11 +22,11 @@ import {
 import api, { authApi } from "@/lib/axios";
 import { useAuth } from "@/hooks/useAuth";
 
-type ApiUserRole = "SUPER_ADMIN" | "ADMIN" | "TELLER" | "COMPANY" | "CLIENT";
+type ApiUserRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER" | "COMPANY" | "CLIENT";
 
 type ManagementMode = "SUPER_ADMIN" | "ADMIN" | "TELLER";
 
-type UserDisplayRole = "Super Admin" | "Admin" | "Teller" | "Company" | "Client";
+type UserDisplayRole = "Super Admin" | "Admin" | "Manager" | "Teller" | "Company" | "Client";
 
 interface ApiUser {
   id: string;
@@ -83,7 +83,7 @@ interface EditFormState {
 
 type NotificationPreferences = Record<string, boolean>;
 
-const roleEnum = z.enum(["SUPER_ADMIN", "ADMIN", "TELLER", "COMPANY", "CLIENT"]);
+const roleEnum = z.enum(["SUPER_ADMIN", "ADMIN", "MANAGER", "TELLER", "COMPANY", "CLIENT"]);
 
 type AdminSignupFormData = z.input<typeof baseSignupSchema>;
 
@@ -119,14 +119,15 @@ const OTP_LENGTH = 6;
 const ROLE_LABELS: Record<ApiUserRole, UserDisplayRole> = {
   SUPER_ADMIN: "Super Admin",
   ADMIN: "Admin",
+  MANAGER: "Manager",
   TELLER: "Teller",
   COMPANY: "Company",
   CLIENT: "Client",
 };
 
-const ROLE_ORDER: ApiUserRole[] = ["SUPER_ADMIN", "ADMIN", "TELLER", "COMPANY", "CLIENT"];
+const ROLE_ORDER: ApiUserRole[] = ["SUPER_ADMIN", "ADMIN", "MANAGER", "TELLER", "COMPANY", "CLIENT"];
 
-type DashboardRole = "client" | "teller" | "admin" | "super-admin" | "company";
+type DashboardRole = "client" | "teller" | "admin" | "manager" | "super-admin" | "company";
 
 interface ModeConfig {
   dashboardRole: DashboardRole;

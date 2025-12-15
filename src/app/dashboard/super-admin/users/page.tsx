@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useEffect, useCallback, type ChangeEvent, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Pencil, Trash2, UserPlus, Search, Eye, RefreshCcw, Loader2, Mail, Phone, MapPin, Calendar, Shield } from "lucide-react";
+import { UserPlus, Search, RefreshCcw, Loader2, Mail, Phone, MapPin, Calendar, Shield } from "lucide-react";
+import UserActions from "@/components/models/UserActions";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -22,12 +23,11 @@ import {
 import api, { authApi } from "@/lib/axios";
 import { useAuth } from "@/hooks/useAuth";
 
-type ApiUserRole = "SUPER_ADMIN" | "ADMIN" | "TELLER" | "COMPANY" | "CLIENT";
+type ApiUserRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER" | "COMPANY" | "CLIENT";
 
 type ManagementMode = "SUPER_ADMIN" | "ADMIN" | "TELLER";
 
-type UserDisplayRole = "Super Admin" | "Admin" | "Teller" | "Company" | "Client";
-
+type UserDisplayRole = "Super Admin" | "Admin" | "Manager" | "Teller" | "Company" | "Client";
 interface ApiUser {
   id: string;
   fullName: string;
@@ -119,6 +119,7 @@ const OTP_LENGTH = 6;
 const ROLE_LABELS: Record<ApiUserRole, UserDisplayRole> = {
   SUPER_ADMIN: "Super Admin",
   ADMIN: "Admin",
+  MANAGER: "Manager",
   TELLER: "Teller",
   COMPANY: "Company",
   CLIENT: "Client",
@@ -126,7 +127,7 @@ const ROLE_LABELS: Record<ApiUserRole, UserDisplayRole> = {
 
 const ROLE_ORDER: ApiUserRole[] = ["SUPER_ADMIN", "ADMIN", "TELLER", "COMPANY", "CLIENT"];
 
-type DashboardRole = "client" | "teller" | "admin" | "super-admin" | "company";
+type DashboardRole = "client" | "teller" | "admin" | "manager" | "super-admin" | "company";
 
 interface ModeConfig {
   dashboardRole: DashboardRole;
@@ -1114,32 +1115,10 @@ export default function UserManagementPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-300"
-                        onClick={() => setViewUser(user)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="h-8 w-8 p-0 text-yellow-600 hover:text-yellow-800 border-yellow-200 hover:border-yellow-300"
-                        onClick={() => openEditModal(user)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-800 border-red-200 hover:border-red-300"
-                        onClick={() => openDeleteModal(user)}
-                        disabled={config.deleteBlockedRoles.includes(user.raw.role)}
-                      >
-                        {deletingId === user.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
+                      <UserActions
+                        user={user.raw}
+                        onUserUpdated={fetchUsers}
+                      />
                     </div>
                   </div>
                 </motion.div>
@@ -1205,32 +1184,10 @@ export default function UserManagementPage() {
                     </td>
                     <td className="p-4">
                       <div className="flex justify-center gap-2">
-                        <Button
-                          variant="outline"
-                          className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-300"
-                          onClick={() => setViewUser(user)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="h-8 w-8 p-0 text-yellow-600 hover:text-yellow-800 border-yellow-200 hover:border-yellow-300"
-                          onClick={() => openEditModal(user)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-800 border-red-200 hover:border-red-300"
-                          onClick={() => openDeleteModal(user)}
-                          disabled={config.deleteBlockedRoles.includes(user.raw.role)}
-                        >
-                          {deletingId === user.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
+                        <UserActions
+                          user={user.raw}
+                          onUserUpdated={fetchUsers}
+                        />
                       </div>
                     </td>
                   </motion.tr>

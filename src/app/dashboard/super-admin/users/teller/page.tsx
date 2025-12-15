@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
-import { Search, Eye, Users, Loader2 } from "lucide-react";
+import { Search, Users, Loader2 } from "lucide-react";
+import UserActions from "@/components/models/UserActions";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -41,7 +41,6 @@ export default function TellerPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const router = useRouter();
   const rowsPerPage = 10;
 
   useEffect(() => {
@@ -184,14 +183,11 @@ export default function TellerPage() {
                       {user.status}
                     </span>
                   </td>
-                  <td className="p-3 flex justify-center gap-3">
-                    <Button
-                      variant="outline"
-                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800"
-                      onClick={() => router.push(`/dashboard/super-admin/users/${user.id}`)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                  <td className="p-3">
+                    <UserActions
+                      user={user.raw}
+                      onUserUpdated={fetchTellerUsers}
+                    />
                   </td>
                 </motion.tr>
               ))}
