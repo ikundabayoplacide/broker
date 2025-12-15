@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, MapPin, Phone, Mail, Users, TrendingUp, 
   DollarSign, Activity, Clock, Building, Eye, Edit,
-  BarChart3, PieChart, Calendar, AlertCircle, Trash2
+  BarChart3, PieChart, Calendar, AlertCircle, Trash2, Printer
 } from "lucide-react";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
@@ -341,7 +341,10 @@ export default function BranchDetailsPage() {
 
   return (
     <DashboardLayout userRole="super-admin" userName={displayName} userEmail={email}>
-      <div className="space-y-6">
+      <div className="space-y-6 print:space-y-4">
+        <div className="hidden print:block print:mb-4 text-right">
+          <p className="text-sm text-gray-600">{new Date().toLocaleDateString()}</p>
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -363,23 +366,43 @@ export default function BranchDetailsPage() {
             <span className={`px-3 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full ${getStatusColor(branchDetails.status)}`}>
               {branchDetails.status}
             </span>
-            <Button 
-              size="sm" 
-              className="flex items-center gap-2"
-              onClick={() => setShowEditModal(true)}
-            >
-              <Edit className="w-4 h-4" />
-              Edit Branch
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              className="flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50"
-              onClick={() => setShowDeleteModal(true)}
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete Branch
-            </Button>
+            <div className="print:hidden flex items-center gap-3">
+              <Button 
+                size="sm" 
+                variant="outline"
+                className="flex items-center gap-2"
+                onClick={() => alert('Analytics coming soon')}
+              >
+                <BarChart3 className="w-4 h-4" />
+                Analytics
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline"
+                className="flex items-center gap-2"
+                onClick={() => window.print()}
+              >
+                <Printer className="w-4 h-4" />
+                Print
+              </Button>
+              <Button 
+                size="sm" 
+                className="flex items-center gap-2"
+                onClick={() => setShowEditModal(true)}
+              >
+                <Edit className="w-4 h-4" />
+                Edit 
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline"
+                className="flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                onClick={() => setShowDeleteModal(true)}
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -418,7 +441,7 @@ export default function BranchDetailsPage() {
         </Card>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 print:grid-cols-2 print:gap-2">
        
           <Card className="p-6">
             <div className="flex items-center justify-between">
@@ -473,7 +496,7 @@ export default function BranchDetailsPage() {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 print:hidden">
           <nav className="flex space-x-8">
             {[
               { id: "overview", label: "Overview", icon: BarChart3 },
@@ -498,16 +521,13 @@ export default function BranchDetailsPage() {
           </nav>
         </div>
 
-        {/* Tab Content */}
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          {activeTab === "overview" && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="p-6">
+        {/* Print-only: All Tab Content */}
+        <div className="hidden print:block space-y-6">
+          {/* Overview Section */}
+          <div>
+            <h2 className="text-xl font-semibold text-[#004B5B] mb-4 border-b pb-2">Branch Overview</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
+              <Card className="p-6 print:break-inside-avoid">
                 <h3 className="text-lg font-semibold text-[#004B5B] mb-4">Services Offered</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {mockBranchDetails.services.map((service) => (
@@ -518,7 +538,161 @@ export default function BranchDetailsPage() {
                   ))}
                 </div>
               </Card>
+              <Card className="p-6 print:break-inside-avoid">
+                <h3 className="text-lg font-semibold text-[#004B5B] mb-4">Branch Metrics</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Employee Count</span>
+                    <span className="font-semibold">{mockBranchDetails.employeeCount}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Customer Satisfaction</span>
+                    <span className="font-semibold">{mockBranchDetails.performance.satisfaction}/5.0</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Operational Efficiency</span>
+                    <span className="font-semibold">{mockBranchDetails.performance.efficiency}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Established</span>
+                    <span className="font-semibold">{new Date(mockBranchDetails.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+
+          {/* Trading Activity Section */}
+          <div>
+            <h2 className="text-xl font-semibold text-[#004B5B] mb-4 border-b pb-2">Trading Activity</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:grid-cols-3 print:gap-2 mb-6">
               <Card className="p-6">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Total Trades</h4>
+                <p className="text-2xl font-semibold">{mockBranchDetails.tradingStats.totalTrades}</p>
+              </Card>
+              <Card className="p-6">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Monthly Volume</h4>
+                <p className="text-2xl font-semibold">{formatCurrency(mockBranchDetails.tradingStats.monthlyVolume)}</p>
+              </Card>
+              <Card className="p-6">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Avg Trade Size</h4>
+                <p className="text-2xl font-semibold">{formatCurrency(mockBranchDetails.tradingStats.avgTradeSize)}</p>
+              </Card>
+            </div>
+            <Card className="p-6 print:break-inside-avoid">
+              <h3 className="text-lg font-semibold text-[#004B5B] mb-4">Recent Trades</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left p-3">Client</th>
+                      <th className="text-left p-3">Type</th>
+                      <th className="text-left p-3">Stock</th>
+                      <th className="text-left p-3">Amount</th>
+                      <th className="text-left p-3">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentTrades.map((trade) => (
+                      <tr key={trade.id} className="border-b">
+                        <td className="p-3 font-medium">{trade.client}</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-1 text-xs rounded ${
+                            trade.type === "Buy" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                          }`}>
+                            {trade.type}
+                          </span>
+                        </td>
+                        <td className="p-3">{trade.stock}</td>
+                        <td className="p-3">{formatCurrency(trade.amount)}</td>
+                        <td className="p-3 text-gray-500">{trade.time}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+
+          {/* Tellers Section */}
+          <div>
+            <h2 className="text-xl font-semibold text-[#004B5B] mb-4 border-b pb-2">Teller Performance</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 print:grid-cols-2 print:gap-2 mb-6">
+              <Card className="p-6">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Total Tellers</h4>
+                <p className="text-2xl font-semibold">{branchTellers.length}</p>
+              </Card>
+              <Card className="p-6">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Active Tellers</h4>
+                <p className="text-2xl font-semibold">{branchTellers.filter(t => t.status === "Active").length}</p>
+              </Card>
+              <Card className="p-6">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Avg Efficiency</h4>
+                <p className="text-2xl font-semibold">{Math.round(branchTellers.reduce((acc, t) => acc + t.efficiency, 0) / branchTellers.length)}%</p>
+              </Card>
+              <Card className="p-6">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Total Trades</h4>
+                <p className="text-2xl font-semibold">{branchTellers.reduce((acc, t) => acc + t.tradesProcessed, 0)}</p>
+              </Card>
+            </div>
+            <Card className="p-6 print:break-inside-avoid">
+              <h3 className="text-lg font-semibold text-[#004B5B] mb-4">Teller Details</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left p-3">Teller Name</th>
+                      <th className="text-left p-3">Clients Served</th>
+                      <th className="text-left p-3">Trades Processed</th>
+                      <th className="text-left p-3">Efficiency</th>
+                      <th className="text-left p-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {branchTellers.map((teller) => (
+                      <tr key={teller.id} className="border-b">
+                        <td className="p-3 font-medium">{teller.name}</td>
+                        <td className="p-3">{teller.clientsServed}</td>
+                        <td className="p-3">{teller.tradesProcessed}</td>
+                        <td className="p-3">{teller.efficiency}%</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-1 text-xs rounded ${
+                            teller.status === "Active" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                          }`}>
+                            {teller.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        {/* Interactive Tab Content (Screen Only) */}
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="print:hidden"
+        >
+          {activeTab === "overview" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:block print:space-y-4">
+              <Card className="p-6 print:break-inside-avoid">
+                <h3 className="text-lg font-semibold text-[#004B5B] mb-4">Services Offered</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {mockBranchDetails.services.map((service) => (
+                    <div key={service} className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
+                      <Building className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium">{service}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              <Card className="p-6 print:break-inside-avoid">
                 <h3 className="text-lg font-semibold text-[#004B5B] mb-4">Branch Metrics</h3>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">

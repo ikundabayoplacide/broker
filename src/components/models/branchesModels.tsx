@@ -112,9 +112,7 @@ export default function BranchCreateModal({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleNext = () => {
     if (validateStep(1)) {
       setCurrentStep(2);
     }

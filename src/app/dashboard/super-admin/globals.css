@@ -35,17 +35,32 @@
     break-inside: avoid !important;
   }
 
-  /* Hide navigation, sidebar, and header elements */
+  /* Hide navigation, sidebar, header, footer, and UI elements */
   aside,
   nav,
   .sidebar,
   header,
   .header,
+  footer,
+  .footer,
   [class*="notification"],
   [class*="language"],
   [class*="dropdown"],
-  [class*="menu"] {
+  [class*="menu"],
+  [class*="toast"],
+  [class*="alert"],
+  [role="banner"],
+  [role="navigation"],
+  [role="contentinfo"] {
     display: none !important;
+  }
+
+  /* Hide browser default headers and footers */
+  @page {
+    margin-top: 0.75cm;
+    margin-bottom: 0.75cm;
+    margin-left: 0.75cm;
+    margin-right: 0.75cm;
   }
 
   /* Adjust main content for print */

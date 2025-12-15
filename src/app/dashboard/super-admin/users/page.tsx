@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback, type ChangeEvent, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserPlus, Search, RefreshCcw, Loader2, Mail, Phone, MapPin, Calendar, Shield } from "lucide-react";
+import { UserPlus, Search, RefreshCcw, Loader2, Mail, Phone, MapPin, Calendar, Shield, FileText } from "lucide-react";
 import UserActions from "@/components/models/UserActions";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
@@ -22,6 +22,8 @@ import {
 } from "@/lib/validations/signupValidation";
 import api, { authApi } from "@/lib/axios";
 import { useAuth } from "@/hooks/useAuth";
+import ReportModal, { type ReportConfig } from "@/components/models/ReportModal";
+import { ReportGenerator } from "@/utils/reportGenerator";
 
 type ApiUserRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER" | "COMPANY" | "CLIENT";
 
@@ -339,6 +341,8 @@ export default function UserManagementPage() {
   const [otpInfo, setOtpInfo] = useState<string | null>(null);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [resendingOtp, setResendingOtp] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportFormat, setReportFormat] = useState<'pdf' | 'word'>('pdf');
   const rowsPerPage = 5;
 
   useEffect(() => {
@@ -360,8 +364,8 @@ export default function UserManagementPage() {
   };
 
   const formatPhone = (user: ApiUser) => {
-    if (!user.phoneCountryCode && !user.phone) return "—";
-    return `${user.phoneCountryCode ?? ""}${user.phone ?? ""}`.trim();
+    if (!user.phone) return "—";
+    return user.phone.trim();
   };
 
   const roleLabel = (role: ApiUserRole): UserRow["role"] => ROLE_LABELS[role];
@@ -952,6 +956,76 @@ export default function UserManagementPage() {
     }
   };
 
+  const availableReportFields = [
+    { key: 'fullName', label: 'Full Name' },
+    { key: 'email', label: 'Email' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'role', label: 'Role' },
+    { key: 'status', label: 'Status' },
+    { key: 'country', label: 'Country' },
+    { key: 'city', label: 'City' },
+    { key: 'dateOfBirth', label: 'Date of Birth' },
+    { key: 'occupation', label: 'Occupation' },
+    { key: 'investmentExperience', label: 'Investment Experience' },
+    { key: 'isVerified', label: 'Verified Status' },
+    { key: 'csdNumber', label: 'CSD Number' },
+    { key: 'createdAt', label: 'Created Date' },
+  ];
+
+  const handleReportGenerate = async (config: ReportConfig) => {
+    try {
+      // Filter users by date range
+      const startDate = new Date(config.startDate);
+      const endDate = new Date(config.endDate);
+      endDate.setHours(23, 59, 59, 999); // Include full end date
+      
+      const filteredData = users.filter(user => {
+        const userDate = new Date(user.createdAt);
+        return userDate >= startDate && userDate <= endDate;
+      });
+
+      // Transform data for report
+      const reportData = filteredData.map(user => ({
+        fullName: user.fullName || '',
+        email: user.email || '',
+        role: ROLE_LABELS[user.role] || '',
+        status: user.isVerified ? 'Active' : 'Inactive',
+        phone: formatPhone(user),
+        country: user.country || '',
+        city: user.city || '',
+        dateOfBirth: formatDate(user.dateOfBirth),
+        occupation: user.occupation || '',
+        investmentExperience: user.investmentExperience || '',
+        isVerified: user.isVerified ? 'Yes' : 'No',
+        csdNumber: user.csdNumber || '',
+        createdAt: formatDate(user.createdAt),
+      }));
+
+      const reportInfo = {
+        title: 'Users Report',
+        data: reportData,
+        fields: availableReportFields,
+        dateRange: { start: config.startDate, end: config.endDate }
+      };
+
+      if (config.format === 'pdf') {
+        await ReportGenerator.generatePDF(reportInfo, config);
+      } else {
+        await ReportGenerator.generateWord(reportInfo, config);
+      }
+
+      setFlashMessage({
+        type: 'success',
+        message: `${config.format.toUpperCase()} report generated successfully!`
+      });
+    } catch (error) {
+      setFlashMessage({
+        type: 'error',
+        message: `Failed to generate report: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    }
+  };
+
   return (
     <DashboardLayout userRole={config.dashboardRole} userName={displayName} userEmail={email}>
       <div className="space-y-6">
@@ -1050,6 +1124,31 @@ export default function UserManagementPage() {
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
               </select>
+            </div>
+
+            {/* Export Buttons */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowReportModal(true)}
+                className="flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-50"
+              >
+                <FileText className="h-4 w-4" />
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setReportFormat('word');
+                  setShowReportModal(true);
+                }}
+                className="flex items-center gap-2 border-blue-200 text-blue-600 hover:bg-blue-50"
+              >
+                <FileText className="h-4 w-4" />
+                Word
+              </Button>
             </div>
 
             {/* Search Input */}
@@ -2103,6 +2202,20 @@ export default function UserManagementPage() {
                 </form>
               </motion.div>
             </motion.div>
+          )}
+
+          {showReportModal && (
+            <ReportModal
+              isOpen={showReportModal}
+              onClose={() => {
+                setShowReportModal(false);
+                setReportFormat('pdf');
+              }}
+              onGenerate={handleReportGenerate}
+              title="Users"
+              availableFields={availableReportFields}
+              format={reportFormat}
+            />
           )}
         </AnimatePresence>
       </div>
