@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import "./globals.css";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStats } from "@/hooks/useUserStats";
 import { CompanyCreateForm, type CompanySummary } from "@/components/company/CompanyCreateForm";
@@ -22,6 +23,7 @@ import {
   FiPercent,
   FiPieChart,
   FiShoppingBag,
+  FiPrinter,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { FaBuilding } from "react-icons/fa";
@@ -264,17 +266,36 @@ export default function SuperAdminDashboard() {
     setShowCreateModal(false);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
-      <div className="space-y-6">
+      <div className="space-y-6 print:space-y-4">
+        <div className="hidden print:block print:mb-4 text-right">
+          <p className="text-sm text-gray-600">{new Date().toLocaleDateString()}</p>
+        </div>
         <div className="animate-fadeInUp space-y-2">
-          <h1 className="text-2xl font-bold text-gray-600">Super Admin Overview</h1>
-          <p className="text-base text-gray-400">
-            Govern user access, company listings, and platform health from a single control centre.
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-600">Super Admin Overview</h1>
+              <p className="text-base text-gray-400">
+                Govern user access, company listings, and platform health from a single control centre.
+              </p>
+            </div>
+            <Button
+              onClick={handlePrint}
+              variant="outline"
+              className="print:hidden flex items-center gap-2"
+            >
+              <FiPrinter className="w-4 h-4" />
+              Print Report
+            </Button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slideInRight">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slideInRight print:grid-cols-2 print:gap-2">
           {summaryCards.map((card) => (
             <div
               key={card.title}
@@ -301,25 +322,27 @@ export default function SuperAdminDashboard() {
           ))}
         </div>
 
-        <Card className="p-6 mb-6 animate-fadeInUp">
+        <Card className="p-6 mb-6 animate-fadeInUp print:break-inside-avoid">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-gray-500">Trading Volume Trends</h2>
             <Button variant="outline" className="text-sm">
               View full report
             </Button>
           </div>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={tradingVolumeData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <div className="h-80 w-full overflow-hidden">
+            <ResponsiveContainer width="100%" height={320} minHeight={320}>
+              <LineChart data={tradingVolumeData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="1 1" stroke="#f0f0f0" />
                 <XAxis 
                   dataKey="date" 
                   stroke="#6b7280"
                   fontSize={12}
+                  tick={{ fontSize: 12 }}
                 />
                 <YAxis 
                   stroke="#6b7280"
                   fontSize={12}
+                  tick={{ fontSize: 12 }}
                   tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
                 />
                 <Tooltip 
@@ -344,7 +367,7 @@ export default function SuperAdminDashboard() {
           </div>
         </Card>
 
-        <div className="grid lg:grid-cols-3 gap-6 mb-6">
+        <div className="grid lg:grid-cols-3 gap-6 mb-6 print:block print:space-y-4">
           <Card className="p-6 lg:col-span-2 animate-fadeInUp">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -353,13 +376,13 @@ export default function SuperAdminDashboard() {
                   Total Available: {companySharesData.reduce((sum, c) => sum + c.shares, 0).toLocaleString()} shares
                 </p>
               </div>
-              <Button variant="outline" className="text-sm">
+              <Button variant="outline" className="text-sm print:hidden">
                 View details
               </Button>
             </div>
             {companySharesData.length > 0 ? (
               <div className="flex items-center justify-between">
-                <div className="w-80 h-80">
+                <div className="w-80 h-80 flex-shrink-0">
                   <Doughnut
                     data={{
                       labels: companySharesData.map(company => company.name),
@@ -374,7 +397,8 @@ export default function SuperAdminDashboard() {
                     }}
                     options={{
                       responsive: true,
-                      maintainAspectRatio: false,
+                      maintainAspectRatio: true,
+                      aspectRatio: 1,
                       plugins: {
                         legend: {
                           display: false,
@@ -458,7 +482,7 @@ export default function SuperAdminDashboard() {
             )}
           </Card>
 
-          <Card className="p-6 animate-slideInRight">
+          <Card className="p-6 animate-slideInRight print:hidden">
             <h3 className="text-lg font-semibold text-gray-600 mb-4">Quick Actions</h3>
             <div className="space-y-3">
               {quickActions.map((action) => (
@@ -479,11 +503,11 @@ export default function SuperAdminDashboard() {
           </Card>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6 items-start">
+        <div className="grid lg:grid-cols-3 gap-6 items-start print:block print:space-y-4">
           <Card className="p-6 lg:col-span-2 animate-fadeInUp">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-500">Platform Oversight</h2>
-              <Button variant="outline" className="text-sm">
+              <Button variant="outline" className="text-sm print:hidden">
                 View detailed report
               </Button>
             </div>
@@ -507,7 +531,7 @@ export default function SuperAdminDashboard() {
             </div>
           </Card>
 
-          <Card className="p-6 animate-slideInRight">
+          <Card className="p-6 animate-slideInRight print:break-inside-avoid">
             <h3 className="text-lg font-semibold text-gray-600 mb-4">Recently Listed Companies</h3>
             {companiesLoading ? (
               <p className="text-sm text-gray-400">Loading companies…</p>

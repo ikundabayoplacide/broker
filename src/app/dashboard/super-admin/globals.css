@@ -1,0 +1,158 @@
+@media print {
+  @page {
+    size: A4;
+    margin: 0.75cm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    line-height: 1.4;
+  }
+
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  .print\\:block {
+    display: block !important;
+  }
+
+  .print\\:break-after {
+    break-after: page;
+  }
+
+  .print\\:break-before {
+    break-before: page;
+  }
+
+  .print\\:break-inside-avoid {
+    break-inside: avoid !important;
+  }
+
+  /* Hide navigation, sidebar, and header elements */
+  aside,
+  nav,
+  .sidebar,
+  header,
+  .header,
+  [class*="notification"],
+  [class*="language"],
+  [class*="dropdown"],
+  [class*="menu"] {
+    display: none !important;
+  }
+
+  /* Adjust main content for print */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+
+  /* Ensure cards print with borders */
+  .card,
+  [class*="card"] {
+    border: 1px solid #e5e7eb !important;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem !important;
+    font-size: 0.875rem !important;
+    page-break-inside: auto;
+  }
+
+  /* Compact card content */
+  .card p,
+  [class*="card"] p {
+    margin-bottom: 0.25rem !important;
+  }
+
+  .card .text-xl {
+    font-size: 1.125rem !important;
+  }
+
+  /* Chart containers - allow breaking */
+  .recharts-wrapper,
+  canvas {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+
+  /* Grid adjustments for print */
+  .print\:grid-cols-2 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  .print\:grid-cols-2 > * {
+    width: 100% !important;
+  }
+
+  .print\:gap-2 {
+    gap: 0.5rem !important;
+  }
+
+  .grid:not(.print\:grid-cols-2) {
+    display: block !important;
+  }
+
+  .grid:not(.print\:grid-cols-2) > * {
+    margin-bottom: 0.75rem;
+    width: 100% !important;
+  }
+
+  /* Space adjustments */
+  .space-y-6 > * {
+    margin-bottom: 0.75rem !important;
+  }
+
+  .space-y-4 > * {
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Typography adjustments */
+  h1, h2, h3 {
+    color: #374151 !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  h1 {
+    font-size: 1.5rem !important;
+  }
+
+  h2 {
+    font-size: 1.25rem !important;
+  }
+
+  h3 {
+    font-size: 1.1rem !important;
+  }
+
+  /* Button hiding */
+  button:not(.print\\:show) {
+    display: none !important;
+  }
+
+  /* Ensure backgrounds print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Fix overflow issues on last page */
+  div[class*="space-y"] {
+    overflow: visible !important;
+  }
+
+  /* Prevent text cutoff */
+  p, li, span, div {
+    orphans: 2;
+    widows: 2;
+  }
+}
