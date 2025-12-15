@@ -863,8 +863,8 @@ export default function UserManagementPage() {
     compareAndSet("gender", (value) => String(value ?? "").trim().toLowerCase());
     compareAndSet("occupation", (value) => String(value ?? "").trim());
     compareAndSet("investmentExperience", (value) => String(value ?? "").trim());
-  compareAndSet("passportPhoto", (value) => String(value ?? "").trim());
-  compareAndSet("idDocument", (value) => String(value ?? "").trim());
+    compareAndSet("passportPhoto", (value) => String(value ?? "").trim());
+    compareAndSet("idDocument", (value) => String(value ?? "").trim());
     compareAndSet("role", (value) => value);
     compareAndSet("isVerified", (value) => value);
     compareAndSet("dateOfBirth", (value) => (value ? new Date(value as string).toISOString() : undefined));
@@ -1028,6 +1028,8 @@ export default function UserManagementPage() {
                 }}
               >
                 <option value="All">All roles</option>
+                <option value="Teller">Teller</option>
+                <option value="Client">Client</option>
                 {availableRoleFilters.map((label) => (
                   <option key={label} value={label}>
                     {label}

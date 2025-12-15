@@ -2,15 +2,16 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, MapPin, Phone, Mail, Users, TrendingUp, 
   DollarSign, Activity, Clock, Building, Eye, Edit,
-  BarChart3, PieChart, Calendar, AlertCircle
+  BarChart3, PieChart, Calendar, AlertCircle, Trash2
 } from "lucide-react";
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import BranchCreateModal from "@/components/models/branchesModels";
 import { useAuth } from "@/hooks/useAuth";
 
 interface BranchDetails {
@@ -28,6 +29,7 @@ interface BranchDetails {
   openingHours: string;
   services: string[];
   createdAt: string;
+  managerData?: { id: string; fullName: string; email: string; phone: string; phoneCountryCode: string };
   tradingStats: {
     dailyVolume: number;
     monthlyVolume: number;
@@ -105,6 +107,11 @@ export default function BranchDetailsPage() {
   const [branchDetails, setBranchDetails] = useState<BranchDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Fetch branch details on component mount
   useEffect(() => {
@@ -133,6 +140,7 @@ export default function BranchDetailsPage() {
               openingHours: `${branch.startTime} - ${branch.endTime}`,
               services: branch.services || [],
               createdAt: branch.createdAt,
+              managerData: branch.manager,
               // Mock data for stats (you can add these to your API later)
               tradingStats: {
                 dailyVolume: 2500000,
@@ -203,6 +211,95 @@ export default function BranchDetailsPage() {
     }).format(amount);
   };
 
+  const handleDeleteBranch = async () => {
+    if (!branchDetails || deleteConfirmName !== branchDetails.name) {
+      setDeleteError(`Please type "${branchDetails?.name}" to confirm deletion`);
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch(`/api/branches/${branchDetails.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        router.push('/dashboard/super-admin/branches');
+      } else {
+        setDeleteError('Failed to delete branch');
+      }
+    } catch (err) {
+      setDeleteError('Error deleting branch');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteConfirmName("");
+    setDeleteError(null);
+  };
+
+  const handleEditSubmit = async (formData: any) => {
+    try {
+      const updateData: any = {};
+      if (formData.name) updateData.name = formData.name;
+      if (formData.location) updateData.location = formData.location;
+      if (formData.phone) updateData.phone = formData.phone;
+      if (formData.email) updateData.email = formData.email;
+      if (formData.startTime) updateData.startTime = formData.startTime;
+      if (formData.endTime) updateData.endTime = formData.endTime;
+      if (formData.managerName) updateData.managerName = formData.managerName;
+      if (formData.managerEmail) updateData.managerEmail = formData.managerEmail;
+      if (formData.managerPhone) updateData.managerPhone = formData.managerPhone;
+      if (formData.managerCountryCode) updateData.managerCountryCode = formData.managerCountryCode;
+      
+      const response = await fetch(`/api/branches/${branchDetails?.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      });
+
+      if (response.ok) {
+        const updatedBranch = await response.json();
+        setBranchDetails(prev => prev ? {
+          ...prev,
+          name: updatedBranch.name,
+          address: updatedBranch.address,
+          phone: updatedBranch.phone,
+          email: updatedBranch.email,
+          openingHours: `${updatedBranch.startTime} - ${updatedBranch.endTime}`,
+          manager: updatedBranch.manager?.fullName || prev.manager,
+          managerData: updatedBranch.manager
+        } : null);
+        setShowEditModal(false);
+      }
+    } catch (error) {
+      console.error('Error updating branch:', error);
+    }
+  };
+
+  const getEditFormData = () => {
+    if (!branchDetails) return undefined;
+    return {
+      name: branchDetails.name,
+      location: branchDetails.address,
+      phone: branchDetails.phone,
+      email: branchDetails.email,
+      startTime: branchDetails.openingHours.split(' - ')[0] || '08:00',
+      endTime: branchDetails.openingHours.split(' - ')[1] || '18:00',
+      managerName: branchDetails.managerData?.fullName || branchDetails.manager,
+      managerEmail: branchDetails.managerData?.email || '',
+      managerPhone: branchDetails.managerData?.phone || '',
+      managerCountryCode: branchDetails.managerData?.phoneCountryCode || '+250',
+      country: branchDetails.country,
+      services: branchDetails.services || []
+    };
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout userRole="super-admin" userName={displayName} userEmail={email}>
@@ -253,12 +350,25 @@ export default function BranchDetailsPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusColor(branchDetails.status)}`}>
+            <span className={`px-3 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full ${getStatusColor(branchDetails.status)}`}>
               {branchDetails.status}
             </span>
-            <Button size="sm" className="flex items-center gap-2">
+            <Button 
+              size="sm" 
+              className="flex items-center gap-2"
+              onClick={() => setShowEditModal(true)}
+            >
               <Edit className="w-4 h-4" />
               Edit Branch
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              className="flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50"
+              onClick={() => setShowDeleteModal(true)}
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Branch
             </Button>
           </div>
         </div>
@@ -276,15 +386,15 @@ export default function BranchDetailsPage() {
             <div className="flex items-center gap-3">
               <Phone className="w-5 h-5 text-gray-500" />
               <div>
-                <p className="text-sm text-gray-500">Phone</p>
-                <p className="font-medium">{branchDetails.phone}</p>
+                <p className="text-sm text-gray-500">Manager's Phone</p>
+                <p className="font-medium">{branchDetails.managerData?.phone}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Users className="w-5 h-5 text-gray-500" />
               <div>
                 <p className="text-sm text-gray-500">Manager</p>
-                <p className="font-medium">{branchDetails.manager}</p>
+                <p className="font-medium">{branchDetails.managerData?.fullName}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -585,6 +695,88 @@ export default function BranchDetailsPage() {
             </div>
           )}
         </motion.div>
+
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {showDeleteModal && branchDetails && (
+            <motion.div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 200, damping: 20 }}
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                    <Trash2 className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Delete Branch</h2>
+                    <p className="text-sm text-gray-500">This action cannot be undone</p>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-3">
+                    Are you sure you want to delete <strong>{branchDetails.name}</strong>? 
+                    This will permanently remove the branch and all associated data.
+                  </p>
+                  <p className="text-sm text-gray-600 mb-3">
+                    To confirm, please type <strong>{branchDetails.name}</strong> in the field below:
+                  </p>
+                  <input
+                    type="text"
+                    value={deleteConfirmName}
+                    onChange={(e) => {
+                      setDeleteConfirmName(e.target.value);
+                      setDeleteError(null);
+                    }}
+                    placeholder={`Type "${branchDetails.name}" to confirm`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    disabled={isDeleting}
+                  />
+                  {deleteError && (
+                    <p className="text-sm text-red-600 mt-2">{deleteError}</p>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={closeDeleteModal}
+                    disabled={isDeleting}
+                    className="px-4 py-2"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleDeleteBranch}
+                    disabled={isDeleting || deleteConfirmName !== branchDetails.name}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    {isDeleting ? "Deleting..." : "Delete Branch"}
+                  </Button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Edit Modal */}
+        <BranchCreateModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSubmit={handleEditSubmit}
+          managers={[]}
+          initialData={getEditFormData()}
+          isEdit={true}
+        />
       </div>
     </DashboardLayout>
   );

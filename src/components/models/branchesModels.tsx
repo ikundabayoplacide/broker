@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { X, Building, MapPin, Phone, Mail, Users, Clock } from "lucide-react";
 import Card from "@/components/ui/Card";
@@ -27,6 +27,8 @@ interface BranchCreateModalProps {
   onClose: () => void;
   onSubmit: (data: BranchFormData) => void;
   managers: Array<{ id: string; name: string; email: string }>;
+  initialData?: BranchFormData;
+  isEdit?: boolean;
 }
 
 const availableServices = [
@@ -42,10 +44,12 @@ export default function BranchCreateModal({
   isOpen, 
   onClose, 
   onSubmit,
-  managers = []
+  managers = [],
+  initialData,
+  isEdit = false
 }: BranchCreateModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<BranchFormData>({
+  const [formData, setFormData] = useState<BranchFormData>(initialData || {
     name: "",
     location: "",
     phone: "",
@@ -62,6 +66,12 @@ export default function BranchCreateModal({
 
   const [errors, setErrors] = useState<Partial<BranchFormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+    }
+  }, [initialData]);
 
   const handleInputChange = (field: keyof BranchFormData) => (
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -102,7 +112,9 @@ export default function BranchCreateModal({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
+  const handleNext = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (validateStep(1)) {
       setCurrentStep(2);
     }
@@ -115,30 +127,32 @@ export default function BranchCreateModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateStep(2)) return;
+    if (currentStep !== 2 || !validateStep(2)) return;
 
     setIsSubmitting(true);
     try {
       await onSubmit(formData);
-      // Reset form on success
-      setFormData({
-        name: "",
-        location: "",
-        phone: "",
-        email: "",
-        startTime: "08:00",
-        endTime: "18:00",
-        managerName: "",
-        managerEmail: "",
-        managerPhone: "",
-        managerCountryCode: "+250",
-        country: "Rwanda",
-        services: ["Trading", "Customer Support"]
-      });
+      if (!isEdit) {
+        // Reset form on success for create mode
+        setFormData({
+          name: "",
+          location: "",
+          phone: "",
+          email: "",
+          startTime: "08:00",
+          endTime: "18:00",
+          managerName: "",
+          managerEmail: "",
+          managerPhone: "",
+          managerCountryCode: "+250",
+          country: "Rwanda",
+          services: ["Trading", "Customer Support"]
+        });
+      }
       setCurrentStep(1);
       onClose();
     } catch (error) {
-      console.error("Error creating branch:", error);
+      console.error("Error submitting branch:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -161,8 +175,8 @@ export default function BranchCreateModal({
                 <Building className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-[#004B5B]">Create New Branch</h2>
-                <p className="text-sm text-gray-500">Add a new branch location to the network</p>
+                <h2 className="text-xl font-semibold text-[#004B5B]">{isEdit ? 'Edit Branch' : 'Create New Branch'}</h2>
+                <p className="text-sm text-gray-500">{isEdit ? 'Update branch information' : 'Add a new branch location to the network'}</p>
               </div>
             </div>
             <Button
@@ -389,6 +403,7 @@ export default function BranchCreateModal({
                     type="button"
                     onClick={handleNext}
                     className="min-w-32"
+                    disabled={isSubmitting}
                   >
                     Next
                   </Button>
@@ -398,7 +413,7 @@ export default function BranchCreateModal({
                     disabled={isSubmitting}
                     className="min-w-32"
                   >
-                    {isSubmitting ? "Creating..." : "Create Branch"}
+                    {isSubmitting ? (isEdit ? "Updating..." : "Creating...") : (isEdit ? "Update Branch" : "Create Branch")}
                   </Button>
                 )}
               </div>
