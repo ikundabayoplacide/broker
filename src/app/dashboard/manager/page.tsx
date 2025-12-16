@@ -17,7 +17,11 @@ import {
   FiFileText,
   FiAlertTriangle,
   FiX,
+  FiPrinter,
 } from "react-icons/fi";
+import toast from "react-hot-toast";
+import { generateManagerDashboardPrint } from "@/utils/printing/managerDashboardPrint";
+import { executePrint } from "@/utils/printing/printUtils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function AdminDashboard() {
@@ -55,14 +59,30 @@ export default function AdminDashboard() {
     };
   }, [user?.email, user?.fullName, user?.role]);
 
+  const handlePrint = () => {
+    const printContent = generateManagerDashboardPrint();
+    executePrint(printContent);
+  };
+
   return (
         <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
           <div className="space-y-6">
-            <div className="animate-fadeInUp">
-              <h1 className="text-2xl font-bold text-gray-500">Manager's Dashboard [ manager of branches]</h1>
+            <div className="flex justify-between items-start animate-fadeInUp">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-500">Manager's Dashboard [ manager of branches]</h1>
                 <p className="text-base text-gray-400">
-                Manage clients, tellers, and oversee platform operations. for specific branch
-              </p>
+                  Manage clients, tellers, and oversee platform operations. for specific branch
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                onClick={handlePrint}
+              >
+                <FiPrinter className="h-4 w-4" />
+                Print
+              </Button>
             </div>
 
             <div className=" grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slideInRight">
