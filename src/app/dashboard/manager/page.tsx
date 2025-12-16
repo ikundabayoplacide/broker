@@ -18,6 +18,7 @@ import {
   FiAlertTriangle,
   FiX,
 } from "react-icons/fi";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -36,6 +37,8 @@ export default function AdminDashboard() {
           return "client";
         case "TELLER":
           return "teller";
+        case "MANAGER":
+          return "manager";
         case "SUPER_ADMIN":
           return "super-admin";
         case "COMPANY":
@@ -56,9 +59,9 @@ export default function AdminDashboard() {
         <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
           <div className="space-y-6">
             <div className="animate-fadeInUp">
-              <h1 className="text-2xl font-bold text-gray-500">Admin Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-500">Manager's Dashboard [ manager of branches]</h1>
                 <p className="text-base text-gray-400">
-                Manage clients, tellers, and oversee platform operations.
+                Manage clients, tellers, and oversee platform operations. for specific branch
               </p>
             </div>
 
@@ -88,12 +91,29 @@ export default function AdminDashboard() {
                   textColor: "text-green-600",
                 },
                 {
+                  title: "Monthly Trading Volume",
+                  value: "156,000,000 Rwf",
+                  change: "+8.5% from yesterday",
+                  icon: <FiTrendingUp className="w-6 h-6 text-indigo-400" />,
+                  bg: "bg-indigo-100",
+                  textColor: "text-indigo-600",
+                },
+                {
                   title: "Pending KYC",
                   value: "23",
                   change: "Requires review",
                   icon: <FiShield className="w-6 h-6 text-orange-400" />,
                   bg: "bg-orange-100",
                   textColor: "text-orange-600",
+                },
+
+                {
+                  title: "Reports Generated",
+                  value: "42",
+                  change: "This month",
+                  icon: <FiFileText className="w-6 h-6 text-purple-400" />,
+                  bg: "bg-purple-100",
+                  textColor: "text-purple-600",
                 },
                 {
                   title: "Platform Healthy",
@@ -103,22 +123,7 @@ export default function AdminDashboard() {
                   bg: "bg-green-100",
                   textColor: "text-green-600",
                 },
-                {
-                  title: "New Clients",
-                  value: "156",
-                  change: "Joined this week",
-                  icon: <FiUserCheck className="w-6 h-6 text-indigo-400" />,
-                  bg: "bg-indigo-100",
-                  textColor: "text-indigo-600",
-                },
-                {
-                  title: "Reports Generated",
-                  value: "42",
-                  change: "This month",
-                  icon: <FiFileText className="w-6 h-6 text-purple-400" />,
-                  bg: "bg-purple-100",
-                  textColor: "text-purple-600",
-                },
+             
                 {
                   title: "System Alerts",
                   value: "4",
@@ -147,6 +152,54 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
               ))}
+            </div>
+
+            {/* Trading Volume Charts */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-gray-500 mb-4">Daily Trading Volume</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={[
+                      { day: "Mon", volume: 1850000 },
+                      { day: "Tue", volume: 2100000 },
+                      { day: "Wed", volume: 1950000 },
+                      { day: "Thu", volume: 2200000 },
+                      { day: "Fri", volume: 2004000 },
+                      { day: "Sat", volume: 1800000 },
+                      { day: "Sun", volume: 1600000 }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="day" stroke="#6b7280" fontSize={12} />
+                      <YAxis stroke="#6b7280" fontSize={12} tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`} />
+                      <Tooltip formatter={(value) => [`${Number(value).toLocaleString()} RWF`, "Volume"]} />
+                      <Line type="monotone" dataKey="volume" stroke="#10b981" strokeWidth={2} dot={{ fill: "#10b981", r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+              
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-gray-500 mb-4">Monthly Trading Volume</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={[
+                      { month: "Jan", volume: 45000000 },
+                      { month: "Feb", volume: 52000000 },
+                      { month: "Mar", volume: 48000000 },
+                      { month: "Apr", volume: 61000000 },
+                      { month: "May", volume: 58000000 },
+                      { month: "Jun", volume: 67000000 }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
+                      <YAxis stroke="#6b7280" fontSize={12} tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`} />
+                      <Tooltip formatter={(value) => [`${Number(value).toLocaleString()} RWF`, "Volume"]} />
+                      <Line type="monotone" dataKey="volume" stroke="#3b82f6" strokeWidth={2} dot={{ fill: "#3b82f6", r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
             </div>
 
             <div className="grid lg:grid-cols-3 gap-6">

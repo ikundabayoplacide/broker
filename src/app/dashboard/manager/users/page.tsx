@@ -943,7 +943,7 @@ export default function UserManagementPage() {
   };
 
   return (
-    <DashboardLayout userRole={config.dashboardRole} userName={displayName} userEmail={email}>
+    <DashboardLayout userName={displayName} userEmail={email}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
@@ -1057,6 +1057,7 @@ export default function UserManagementPage() {
           <table className="w-full text-sm text-left">
             <thead className="bg-[#004B5B]/10 text-[#004B5B] uppercase text-xs">
               <tr>
+                <th className="p-3">No</th>
                 <th className="p-3">Name</th>
                 <th className="p-3">Email</th>
                 <th className="p-3">Role</th>
@@ -1091,7 +1092,8 @@ export default function UserManagementPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
                   className="border-b hover:bg-gray-50"
-                >
+                > 
+                  <td className="p-3">{userRows.indexOf(user) + 1 + (currentPage - 1) * rowsPerPage}</td>
                   <td className="p-3 font-medium">{user.name}</td>
                   <td className="p-3">{user.email}</td>
                   <td className="p-3">{user.role}</td>

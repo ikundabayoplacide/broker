@@ -3,6 +3,7 @@ import { verifyToken } from "@/lib/auth";
 export const USER_MANAGEMENT_ROLES = [
   "SUPER_ADMIN",
   "ADMIN",
+  "MANAGER",
   "TELLER",
   "COMPANY",
   "CLIENT",

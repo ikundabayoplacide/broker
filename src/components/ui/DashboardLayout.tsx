@@ -48,11 +48,14 @@ const toDashboardRole = (role?: string | null): DashboardRole => {
       return "teller";
     case "ADMIN":
       return "admin";
+    case "MANAGER":
+      return "manager";
     case "SUPER_ADMIN":
       return "super-admin";
     case "COMPANY":
       return "company";
     default:
+      console.warn('Unknown role:', role, 'normalized:', normalized);
       return "client";
   }
 };
@@ -76,7 +79,7 @@ export default function DashboardLayout({
     if (pathname?.startsWith('/dashboard/super-admin/users')) {
       setUserManagementOpen(true);
     }
-    if (pathname?.startsWith('/dashboard/admin/') && (pathname.includes('tellers') || pathname.includes('clients') || pathname.includes('users'))) {
+    if (pathname?.startsWith('/dashboard/manager/') && (pathname.includes('admin') || pathname.includes('tellers') || pathname.includes('clients') || pathname.includes('users'))) {
       setAdminUsersOpen(true);
     }
   }, [pathname]);
@@ -145,7 +148,7 @@ export default function DashboardLayout({
         return [
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/client" },
           { name: "Investments", icon: FiBriefcase, href: "/dashboard/client/investments" },
-          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/client/trade" },
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
           { name: "Wallet", icon: FiCreditCard, href: "/dashboard/client/wallet" },
           { name: "History", icon: FiClipboard, href: "/dashboard/client/history" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/client/settings" },
@@ -153,30 +156,32 @@ export default function DashboardLayout({
       case "teller":
         return [
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/teller" },
+          { name: "Users", icon: FiUsers, href: "/dashboard/teller/users" },
+          { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
           { name: "Orders", icon: FiClipboard, href: "/dashboard/teller/orders" },
           { name: "Executions", icon: FiZap, href: "/dashboard/teller/executions" },
-          { name: "Users", icon: FiUsers, href: "/dashboard/teller/users" },
-          { name: "Companies", icon: FiBriefcase, href: "/dashboard/teller/companies" },
           { name: "Reports", icon: FiTrendingUp, href: "/dashboard/teller/reports" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/teller/settings" },
         ];
-      case "admin":
+      case "manager":
         return [
-          { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/admin" },
+          { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/manager" },
           {
             name: "Users",
             icon: FiUsers,
             hasChildren: true,
             children: [
-              { name: "All Users", href: "/dashboard/admin/users", icon: FiUsers },
-              { name: "Tellers", href: "/dashboard/admin/tellers", icon: FiUserCheck },
-              { name: "Clients", href: "/dashboard/admin/clients", icon: FiUser },
+              { name: "All Users", href: "/dashboard/manager/users", icon: FiUsers },
+              { name: "Tellers", href: "/dashboard/manager/tellers", icon: FiUserCheck },
+              { name: "Clients", href: "/dashboard/manager/clients", icon: FiUser },
             ]
           },
-          { name: "Companies", icon: FiBriefcase, href: "/dashboard/admin/companies" },
-          { name: "Transactions", icon: FiDollarSign, href: "/dashboard/admin/transactions" },
-          { name: "Reports", icon: FiTrendingUp, href: "/dashboard/admin/reports" },
-          { name: "Settings", icon: FiSettings, href: "/dashboard/admin/settings" },
+          { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade"},
+          { name: "Transactions", icon: FiDollarSign, href: "/dashboard/manager/transactions" },
+          { name: "Reports", icon: FiTrendingUp, href: "/dashboard/manager/reports" },
+          { name: "Settings", icon: FiSettings, href: "/dashboard/manager/settings" },
         ];
       case "super-admin":
         return [
@@ -193,7 +198,8 @@ export default function DashboardLayout({
               { name: "Client", href: "/dashboard/super-admin/users/client", icon: FiUser },
             ]
           },
-          { name: "Companies", icon: FiBriefcase, href: "/dashboard/super-admin/companies" },
+          { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
           {name:"Branches",icon:FiMenu,href:"/dashboard/super-admin/branches"},
           { name: "Settings", icon: FiSettings, href: "/dashboard/super-admin/settings" },
         ];
@@ -201,7 +207,7 @@ export default function DashboardLayout({
         return [
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/company" },
           { name: "Investments", icon: FiBriefcase, href: "/dashboard/company/investments" },
-          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/company/trade" },
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
           { name: "Wallet", icon: FiCreditCard, href: "/dashboard/company/wallet" },
           { name: "History", icon: FiClipboard, href: "/dashboard/company/history" },
           { name: "Share Movement", icon: FiZap, href: "/dashboard/company/share-movement" },
@@ -247,11 +253,12 @@ export default function DashboardLayout({
 
             if (hasChildren) {
               const isUserManagement = item.name === "User Management";
+              const isManagerUsers = item.name === "Users" && derivedRole === "manager";
               const isAdminUsers = item.name === "Users" && derivedRole === "admin";
-              const isOpen = isUserManagement ? userManagementOpen : (isAdminUsers ? adminUsersOpen : false);
+              const isOpen = isUserManagement ? userManagementOpen : (isManagerUsers || isAdminUsers ? adminUsersOpen : false);
               const toggleOpen = isUserManagement 
                 ? () => setUserManagementOpen(!userManagementOpen)
-                : (isAdminUsers ? () => setAdminUsersOpen(!adminUsersOpen) : () => {});
+                : (isManagerUsers || isAdminUsers ? () => setAdminUsersOpen(!adminUsersOpen) : () => {});
 
               return (
                 <div key={item.name} className="mb-2">
@@ -278,12 +285,7 @@ export default function DashboardLayout({
                             key={child.name}
                             href={child.href}
                             className="relative flex items-center px-4 py-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200 text-sm group"
-                            onClick={(e) => {
-                              // Don't close sidebar on desktop, only on mobile
-                              if (window.innerWidth < 768) {
-                                setSidebarOpen(false);
-                              }
-                            }}
+                            onClick={() => setSidebarOpen(false)}
                           >
                             <div className="absolute left-2 w-4 font-bold h-px bg-white group-hover:bg-white/40"></div>
                             <div className="flex items-center space-x-3 ml-4">
@@ -348,8 +350,7 @@ export default function DashboardLayout({
       </aside>
 
       <div
-        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 
-        ${sidebarOpen ? "ml-0" : "md:ml-64"}`}
+        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 md:ml-64`}
       >
         <header className="fixed top-0 left-0 md:left-64 right-0 z-[9999] bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between h-16 px-3 md:px-6 w-full max-w-full">

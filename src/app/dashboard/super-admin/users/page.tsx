@@ -1230,6 +1230,7 @@ export default function UserManagementPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-[#004B5B]/10 text-[#004B5B] uppercase text-xs">
                 <tr>
+                  <th className="p-4 font-semibold">No</th>
                   <th className="p-4 font-semibold">Name</th>
                   <th className="p-4 font-semibold">Email</th>
                   <th className="p-4 font-semibold">Role</th>
@@ -1257,7 +1258,7 @@ export default function UserManagementPage() {
                   </tr>
                 )}
 
-                {paginatedUsers.map((user) => (
+                {paginatedUsers.map((user, index) => (
                   <motion.tr
                     key={user.id}
                     initial={{ opacity: 0, y: 8 }}
@@ -1265,6 +1266,7 @@ export default function UserManagementPage() {
                     transition={{ duration: 0.3 }}
                     className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                   >
+                    <td className="p-4 text-sm text-gray-600">{(currentPage - 1) * rowsPerPage + index + 1}</td>
                     <td className="p-4">
                       <div className="font-medium text-sm text-gray-900">{user.name}</div>
                     </td>

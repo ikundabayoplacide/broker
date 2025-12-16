@@ -12,9 +12,9 @@ import { Search, Filter, RefreshCcw, Loader2, Eye, Pencil, Trash2, X, Building2,
 import toast from "react-hot-toast";
 import MarketSyncButton from "@/components/market/MarketSyncButton";
 
-type ManagementMode = "SUPER_ADMIN" | "ADMIN" | "TELLER";
+type ManagementMode = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER";
 
-type DashboardRole = "client" | "teller" | "admin" | "super-admin" | "company";
+type DashboardRole = "client" | "teller" | "admin" | "manager" | "super-admin" | "company";
 
 interface ModeConfig {
   dashboardRole: DashboardRole;
@@ -45,6 +45,15 @@ const MODE_CONFIG: Record<ManagementMode, ModeConfig> = {
     canDelete: true,
     emptyMessage: "No companies listed yet. Use the form to add one.",
   },
+  MANAGER: {
+    dashboardRole: "manager",
+    title: "Companies",
+    subtitle: "View and manage company listings.",
+    canCreate: false,
+    canEdit: true,
+    canDelete: false,
+    emptyMessage: "No companies available yet. Check back once companies are listed.",
+  },
   TELLER: {
     dashboardRole: "teller",
     title: "Company directory",
@@ -61,6 +70,8 @@ const normalizeAuthRole = (role?: string | null): ManagementMode => {
   switch (normalized) {
     case "SUPER_ADMIN":
       return "SUPER_ADMIN";
+    case "MANAGER":
+      return "MANAGER";
     case "TELLER":
       return "TELLER";
     default:
@@ -358,10 +369,12 @@ export default function CompaniesPage() {
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-[#004B5B]/10 text-xs uppercase text-[#004B5B]">
                 <tr>
+                  <th className="p-1 text-left">No</th>
                   <th className="p-3 text-left">Company</th>
                   <th className="p-3 text-left">Sector</th>
                   <th className="p-3 text-left">Share price</th>
                   <th className="p-3 text-left">Total shares</th>
+                  <th className="p-3 text-left">Available shares</th>
                   <th className="p-3 text-center">Actions</th>
                 </tr>
               </thead>
@@ -393,7 +406,7 @@ export default function CompaniesPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedCompanies.map((company) => (
+                  paginatedCompanies.map((company, index) => (
                     <motion.tr
                       key={company.id}
                       initial={{ opacity: 0, y: 6 }}
@@ -401,6 +414,7 @@ export default function CompaniesPage() {
                       transition={{ duration: 0.2 }}
                       className="border-b hover:bg-gray-50"
                     >
+                      <td className="p-3">{startIndex + index}</td>
                       <td className="p-3">
                         <div className="flex flex-col">
                           <span className="font-medium text-gray-700">{company.name}</span>
@@ -412,6 +426,7 @@ export default function CompaniesPage() {
                       <td className="p-3">{sectorLabel(company.sector)}</td>
                       <td className="p-3">{company.sharePrice ?? "—"}</td>
                       <td className="p-3">{company.totalShares?.toLocaleString() ?? "—"}</td>
+                      <td className="p-3">{company.availableShares?.toLocaleString() ?? "—"}</td>
                       <td className="p-3">
                         <div className="flex justify-center gap-3">
                           <button

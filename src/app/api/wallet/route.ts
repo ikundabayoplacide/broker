@@ -2,65 +2,78 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/apiAuth";
 
-// GET /api/wallet - Get wallet balance and recent transactions
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const auth: Awaited<ReturnType<typeof getAuthenticatedUser>> = await getAuthenticatedUser(req);
-    if (!auth || !auth.userId) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    const authResult = await getAuthenticatedUser(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const requesterId = authResult.userId || authResult.id;
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+
+    // Determine target user ID
+    let targetUserId = requesterId;
+    
+    if (userId && userId !== requesterId) {
+      // Check if requester has permission to view other user's wallet
+      const requester = await prisma.user.findUnique({
+        where: { id: requesterId },
+        select: { role: true, branchId: true }
+      });
+
+      if (!requester) {
+        return NextResponse.json({ error: "Requester not found" }, { status: 404 });
+      }
+
+      // Only tellers and managers can view client wallets
+      if (!["TELLER", "MANAGER"].includes(requester.role)) {
+        return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
+      }
+
+      // Verify the target user exists and is a client
+      const targetUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, branchId: true }
+      });
+
+      if (!targetUser || targetUser.role !== "CLIENT") {
+        return NextResponse.json({ error: "Invalid target user" }, { status: 400 });
+      }
+
+      // For tellers, ensure same branch
+      if (requester.role === "TELLER" && targetUser.branchId !== requester.branchId) {
+        return NextResponse.json({ error: "Access denied - different branch" }, { status: 403 });
+      }
+
+      targetUserId = userId;
     }
 
     // Get or create wallet
     let wallet = await prisma.wallet.findUnique({
-      where: { userId: auth.userId },
+      where: { userId: targetUserId }
     });
 
     if (!wallet) {
+      // Create wallet if it doesn't exist
       wallet = await prisma.wallet.create({
         data: {
-          userId: auth.userId,
+          userId: targetUserId,
           balance: 0,
-          lockedBalance: 0,
-        },
+          lockedBalance: 0
+        }
       });
     }
 
-    // Get recent transactions
-    const { searchParams } = new URL(req.url);
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const offset = parseInt(searchParams.get("offset") || "0");
-
-    const transactions = await prisma.transaction.findMany({
-      where: { userId: auth.userId },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
+    return NextResponse.json({
+      success: true,
+      wallet: {
+        balance: Number(wallet.balance),
+        lockedBalance: Number(wallet.lockedBalance)
+      }
     });
 
-    const totalTransactions = await prisma.transaction.count({
-      where: { userId: auth.userId },
-    });
-
-    return NextResponse.json(
-      {
-        wallet: {
-          balance: wallet.balance.toString(),
-          lockedBalance: wallet.lockedBalance.toString(),
-          availableBalance: wallet.balance.minus(wallet.lockedBalance).toString(),
-        },
-        transactions: transactions.map((t) => ({
-          ...t,
-          amount: t.amount.toString(),
-        })),
-        pagination: {
-          total: totalTransactions,
-          limit,
-          offset,
-          hasMore: offset + limit < totalTransactions,
-        },
-      },
-      { status: 200 }
-    );
   } catch (error) {
     console.error("Error fetching wallet:", error);
     return NextResponse.json(

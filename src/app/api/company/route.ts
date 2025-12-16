@@ -38,7 +38,21 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ data: serializeBigInt(companies) });
+    const serializedCompanies = serializeBigInt(companies);
+    
+    return NextResponse.json({ 
+      data: serializedCompanies, // Original format for existing pages
+      success: true, 
+      companies: serializedCompanies.map(company => ({ // New format for trade page
+        id: company.id,
+        symbol: company.symbol || '',
+        name: company.name,
+        sharePrice: Number(company.sharePrice || 0),
+        closingPrice: Number(company.closingPrice || company.sharePrice || 0),
+        priceChange: company.priceChange || '0.00',
+        availableShares: Number(company.availableShares || 0)
+      }))
+    });
   } catch (error) {
     console.error("Failed to fetch companies", error);
     return NextResponse.json({ error: "Failed to fetch companies" }, { status: 500 });

@@ -18,7 +18,11 @@ export interface CompanySummary {
   sharePrice: string | null;
   totalShares: number | null;
   availableShares: number | null;
-
+  closingPrice: string | null;
+  priceChange: string | null;
+  tradedVolume: string | null;
+  tradedValue: string | null;
+  snapshotDate: string | null;
   contract: string | null;
   createdAt: string;
   updatedAt: string;

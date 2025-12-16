@@ -148,7 +148,7 @@ export default function SuperAdminDashboard() {
   const summaryCards = [
     {
       title: "Active Users",
-      value: userStats.active.toLocaleString(),
+      value: userStats.total.toLocaleString(),
       subtitle: `${userStats.total.toLocaleString()} across all roles`,
       icon: <FiUsers className="w-6 h-6 text-white" />,
       gradient: "bg-gradient-to-r from-blue-500 to-blue-600",
@@ -160,7 +160,7 @@ export default function SuperAdminDashboard() {
       subtitle: companyStats.pending > 0 ? `${companyStats.pending} pending review` : "All approved",
       icon: <FiBriefcase className="w-6 h-6 text-white" />,
       gradient: "bg-gradient-to-r from-purple-500 to-purple-600",
-      link: "/dashboard/super-admin/companies",
+      link: "/dashboard/companies",
     },
     {
       title: "System Uptime",

@@ -1,3 +1,3 @@
 'use client';
 
-export { default } from '../../admin/users/page';
+export { default } from '../../manager/users/page';
