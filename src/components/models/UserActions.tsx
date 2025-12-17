@@ -68,7 +68,7 @@ export default function UserActions({
           <Button
             variant="outline"
             className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800"
-            onClick={() => router.push(`/dashboard/super-admin/users/${user.id}`)}
+            onClick={() => router.push(`/dashboard/commonPage/users/${user.id}`)}
           >
             <Eye className="h-4 w-4 flex justify-center" />
           </Button>

@@ -1,6 +1,138 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/apiAuth";
+import { userCreationSchema } from "@/lib/validations/signupValidation";
+import type { Role as PrismaRole } from "@prisma/client";
+import bcrypt from "bcryptjs";
+
+const defaultNotificationPreferences = {
+  email: true,
+  sms: false,
+  push: false,
+};
+
+export async function POST(req: NextRequest) {
+  try {
+    const authResult = await getAuthenticatedUser(req);
+    if (!authResult) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: authResult.userId || authResult.id },
+      select: { role: true, branchId: true }
+    });
+
+    if (!requestingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (![
+"SUPER_ADMIN", "MANAGER"].includes(requestingUser.role)) {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    }
+
+    const data = await req.json();
+    const parsed = userCreationSchema.safeParse(data);
+
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      }));
+
+      return NextResponse.json(
+        {
+          error: issues[0]?.message ?? "Invalid user data",
+          fieldErrors: issues,
+        },
+        { status: 400 }
+      );
+    }
+
+    const validated = parsed.data;
+    const {
+      fullName,
+      email,
+      phoneCountryCode,
+      phone,
+      password,
+      confirmPassword,
+      gender,
+      country,
+      city,
+      idNumber,
+      passportPhoto,
+      idDocument,
+      dateOfBirth,
+      occupation,
+      investmentExperience,
+    } = validated;
+    void confirmPassword;
+
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return NextResponse.json({ error: "Email already registered" }, { status: 400 });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    const role = (data.role as PrismaRole) || "CLIENT";
+    
+    if (requestingUser.role === "MANAGER") {
+      if (!["TELLER", "CLIENT"].includes(role)) {
+        return NextResponse.json({ error: "Managers can only create Teller and Client accounts" }, { status: 403 });
+      }
+    }
+
+    const notificationPreferences = data.notificationPreferences || defaultNotificationPreferences;
+
+    const createData: any = {
+      fullName,
+      email,
+      phoneCountryCode,
+      phone,
+      password: hashed,
+      gender,
+      country,
+      city,
+      role,
+      isVerified: data.isVerified || false,
+      notificationPreferences,
+    };
+
+    if (idNumber) createData.idNumber = idNumber;
+    if (passportPhoto) createData.passportPhoto = passportPhoto;
+    if (idDocument) createData.idDocument = idDocument;
+    if (dateOfBirth) createData.dateOfBirth = new Date(dateOfBirth);
+    if (occupation) createData.occupation = occupation;
+    if (investmentExperience) createData.investmentExperience = investmentExperience;
+
+    if (requestingUser.role === "MANAGER" && requestingUser.branchId) {
+      createData.branchId = requestingUser.branchId;
+    }
+
+    const createdUser = await prisma.user.create({
+      data: createData,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    return NextResponse.json({
+      message: "User created successfully",
+      data: createdUser,
+      id: createdUser.id,
+      email: createdUser.email,
+    });
+  } catch (err) {
+    console.error("Error creating user:", err);
+    return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {

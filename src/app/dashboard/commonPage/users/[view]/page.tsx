@@ -580,7 +580,7 @@ export default function ViewUserPage() {
     try {
       await api.delete(`/user/${userId}`);
       setPendingDelete(null);
-      router.push('/dashboard/super-admin/users');
+      router.push('/dashboard/commonPage/users');
     } catch (err) {
       console.error('Failed to delete user:', err);
     } finally {

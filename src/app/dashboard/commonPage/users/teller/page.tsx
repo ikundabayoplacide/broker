@@ -9,31 +9,13 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import api from "@/lib/axios";
 
-interface ApiUser {
-  id: string;
-  fullName: string;
-  email: string;
-  phoneCountryCode: string;
-  phone: string;
-  dateOfBirth: Date | null;
-  city: string;
-  country: string;
-  occupation?: string | null;
-  idNumber?: string | null;
-  isVerified: boolean;
-  csdNumber?: string | null;
-  createdAt: Date;
-  role: string;
-  notificationPreferences?: Record<string, boolean> | null;
-}
-
 interface ProcessedUser {
   id: string;
   name: string;
   email: string;
   role: string;
   status: string;
-  raw: ApiUser;
+  raw: any;
 }
 
 export default function TellerPage() {
@@ -53,8 +35,8 @@ export default function TellerPage() {
       const response = await api.get("/user");
       const allUsers = Array.isArray(response.data) ? response.data : [];
       // Filter only TELLER users
-      const tellerUsers = allUsers.filter((user: ApiUser) => user.role === "TELLER");
-      const processedUsers: ProcessedUser[] = tellerUsers.map((user: ApiUser) => ({
+      const tellerUsers = allUsers.filter((user: any) => user.role === "TELLER");
+      const processedUsers: ProcessedUser[] = tellerUsers.map((user: any) => ({
         id: user.id,
         name: user.fullName,
         email: user.email,

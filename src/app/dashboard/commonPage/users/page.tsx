@@ -9,16 +9,17 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { InputField } from "@/components/ui/InputField";
 import { FileUploadField } from "@/components/ui/FileUploadField";
+import AddUserModal from "@/components/models/AddUserModal";
+import DeleteUserModal from "@/components/models/DeleteUserModal";
+import OtpVerificationModal from "@/components/models/OtpVerificationModal";
 import { z } from "zod";
 import {
-  userCreationSchema,
   baseSignupSchema,
   validateDateOfBirth,
   validatePhoneNumber,
   validatePasswordConfirmation,
   GENDER_VALUES,
   validateProfileDetails,
-  type UserCreationPayload,
 } from "@/lib/validations/signupValidation";
 import api, { authApi } from "@/lib/axios";
 import { useAuth } from "@/hooks/useAuth";
@@ -83,11 +84,7 @@ interface EditFormState {
   notificationPreferences: Record<string, boolean>;
 }
 
-type NotificationPreferences = Record<string, boolean>;
-
 const roleEnum = z.enum(["SUPER_ADMIN", "ADMIN", "TELLER", "COMPANY", "CLIENT"]);
-
-type AdminSignupFormData = z.input<typeof baseSignupSchema>;
 
 const COUNTRY_CODES: Array<{ value: string; label: string }> = [
   { value: "+250", label: "Rwanda (+250)" },
@@ -115,8 +112,6 @@ const GENDER_LABELS: Record<(typeof GENDER_VALUES)[number], string> = {
 };
 
 const GENDER_OPTIONS = GENDER_VALUES.map((value) => ({ value, label: GENDER_LABELS[value] }));
-
-const OTP_LENGTH = 6;
 
 const ROLE_LABELS: Record<ApiUserRole, UserDisplayRole> = {
   SUPER_ADMIN: "Super Admin",
@@ -265,37 +260,7 @@ const updateUserSchema = baseSignupSchema
     validateProfileDetails(data, ctx);
   });
 
-const createInitialForm = (): AdminSignupFormData => ({
-  fullName: "",
-  email: "",
-  phoneCountryCode: "+250",
-  phone: "",
-  password: "",
-  confirmPassword: "",
-  gender: "male",
-  country: "",
-  city: "",
-  idNumber: "",
-  passportPhoto: "",
-  idDocument: "",
-  dateOfBirth: "",
-  occupation: "",
-  investmentExperience: "",
-});
 
-interface CreateExtras {
-  role: ApiUserRole;
-  notificationPreferences: NotificationPreferences;
-}
-
-const createInitialExtras = (defaultRole: ApiUserRole): CreateExtras => ({
-  role: defaultRole,
-  notificationPreferences: {
-    email: true,
-    sms: false,
-    push: true,
-  },
-});
 
 export default function UserManagementPage() {
   const { user } = useAuth();
@@ -318,7 +283,7 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const [pendingDelete, setPendingDelete] = useState<UserRow | null>(null);
   const [viewUser, setViewUser] = useState<UserRow | null>(null);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
@@ -328,34 +293,14 @@ export default function UserManagementPage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [editErrors, setEditErrors] = useState<Partial<Record<keyof EditFormState, string>>>({});
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<AdminSignupFormData>(createInitialForm());
-  const [createExtras, setCreateExtras] = useState<CreateExtras>(() => createInitialExtras(config.defaultCreateRole));
-  const [createErrors, setCreateErrors] = useState<Partial<Record<keyof AdminSignupFormData, string>>>({});
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [flashMessage, setFlashMessage] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
   const [otpContext, setOtpContext] = useState<{ email: string; userId: string | null }>({ email: "", userId: null });
-  const [otpCode, setOtpCode] = useState("");
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [otpInfo, setOtpInfo] = useState<string | null>(null);
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [resendingOtp, setResendingOtp] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportFormat, setReportFormat] = useState<'pdf' | 'word'>('pdf');
   const rowsPerPage = 5;
 
-  useEffect(() => {
-    setCreateExtras((prev) => {
-      if (config.allowedCreateRoles.includes(prev.role)) {
-        return prev;
-      }
-      return {
-        ...prev,
-        role: config.defaultCreateRole,
-      };
-    });
-  }, [config.allowedCreateRoles, config.defaultCreateRole]);
+
 
   const formatDate = (value?: string | null) => {
     if (!value) return "—";
@@ -465,56 +410,21 @@ export default function UserManagementPage() {
   const handlePrevious = () => setCurrentPage((p) => Math.max(p - 1, 1));
   const handleNext = () => setCurrentPage((p) => Math.min(p + 1, totalPages));
 
-  const openDeleteModal = (user: UserRow) => {
-    setPendingDelete(user);
-  };
-
   const closeDeleteModal = () => {
-    if (deletingId) return;
     setPendingDelete(null);
   };
 
-  const confirmDelete = async () => {
-    if (!pendingDelete) return;
-
-    const userId = pendingDelete.id;
-
-    if (config.deleteBlockedRoles.includes(pendingDelete.raw.role)) {
-      setError(`You don't have permission to delete ${ROLE_LABELS[pendingDelete.raw.role]} accounts.`);
-      setPendingDelete(null);
-      return;
-    }
-
-    setDeletingId(userId);
-    setError(null);
-
-    try {
-      await api.delete(`/user/${userId}`);
-      setUsers((prev) => prev.filter((user) => user.id !== userId));
-      setPendingDelete(null);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to delete user";
-      setError(message);
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
   const openCreateModal = () => {
-    setCreateForm(createInitialForm());
-    setCreateExtras(createInitialExtras(config.defaultCreateRole));
-    setCreateErrors({});
-    setCreateError(null);
     setIsCreateOpen(true);
   };
 
   const closeCreateModal = () => {
-    if (creating) return;
     setIsCreateOpen(false);
-    setCreateForm(createInitialForm());
-    setCreateExtras(createInitialExtras(config.defaultCreateRole));
-    setCreateErrors({});
-    setCreateError(null);
+  };
+
+  const handleUserCreated = (email: string, userId: string) => {
+    void fetchUsers();
+    openOtpModal(email, userId);
   };
 
   const buildEditForm = (user: UserRow): EditFormState => {
@@ -619,230 +529,28 @@ export default function UserManagementPage() {
     setEditError(null);
   };
 
-  const handleCreateInputChange = (field: keyof AdminSignupFormData) =>
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
-      setCreateForm((prev) => ({ ...prev, [field]: value }));
-      setCreateErrors((prev) => {
-        const next = { ...prev };
-        delete next[field];
-        return next;
-      });
-      setCreateError(null);
-    };
 
-  const handleCreateFileUpload = (field: "passportPhoto" | "idDocument") => (value: string) => {
-    setCreateForm((prev) => ({ ...prev, [field]: value }));
-    setCreateErrors((prev) => {
-      const next = { ...prev };
-      delete next[field];
-      return next;
-    });
-    setCreateError(null);
-  };
-
-  const handleCreateSelectChange = (field: keyof AdminSignupFormData) =>
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const value = event.target.value;
-      setCreateForm((prev) => ({ ...prev, [field]: value }));
-      setCreateErrors((prev) => {
-        const next = { ...prev };
-        delete next[field];
-        return next;
-      });
-      setCreateError(null);
-    };
-
-  const handleCreateRoleChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const value = event.target.value as ApiUserRole;
-    if (!config.allowedCreateRoles.includes(value)) {
-      return;
-    }
-    setCreateExtras((prev) => ({ ...prev, role: value }));
-  };
-
-  const handleCreateNotificationChange = (key: string) =>
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const checked = event.target.checked;
-      setCreateExtras((prev) => ({
-        ...prev,
-        notificationPreferences: {
-          ...prev.notificationPreferences,
-          [key]: checked,
-        },
-      }));
-    };
 
   const openOtpModal = (email: string, userId: string) => {
     setOtpContext({ email, userId });
-    setOtpCode("");
-    setOtpError(null);
-    setOtpInfo(null);
     setIsOtpModalOpen(true);
   };
 
-  const closeOtpModal = (force = false) => {
-    if (verifyingOtp && !force) return;
+  const closeOtpModal = () => {
     setIsOtpModalOpen(false);
     setOtpContext({ email: "", userId: null });
-    setOtpCode("");
-    setOtpError(null);
-    setOtpInfo(null);
   };
 
-  const handleOtpCodeChange = (value: string) => {
-    const sanitized = value.replace(/\D/g, "").slice(0, OTP_LENGTH);
-    setOtpCode(sanitized);
-    setOtpError(null);
+  const handleOtpVerificationSuccess = (message: string) => {
+    setUsers((prev) =>
+      prev.map((user) =>
+        user.id === otpContext.userId ? { ...user, isVerified: true } : user
+      )
+    );
+    setFlashMessage({ type: "success", message });
   };
 
-  const handleResendOtp = async () => {
-    if (!otpContext.email) return;
-    setResendingOtp(true);
-    setOtpError(null);
-    setOtpInfo(null);
 
-    try {
-      const response = await authApi.resendOtp(otpContext.email);
-      setOtpInfo(response.message ?? `A new verification code was sent to ${otpContext.email}.`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to resend verification code";
-      setOtpError(message);
-    } finally {
-      setResendingOtp(false);
-    }
-  };
-
-  const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!otpContext.email || !otpContext.userId) return;
-
-    if (otpCode.length !== OTP_LENGTH) {
-      setOtpError(`Enter the ${OTP_LENGTH}-digit code sent to ${otpContext.email}.`);
-      return;
-    }
-
-    setVerifyingOtp(true);
-    setOtpError(null);
-
-    try {
-  const response = await authApi.verifyOtp({ email: otpContext.email, otp: otpCode });
-  const successMessage = `${response.message ?? "User verified successfully."} Generated CSD number: ${response.csdNumber}.`;
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.id === otpContext.userId ? { ...user, isVerified: true } : user
-        )
-      );
-      setFlashMessage({ type: "success", message: successMessage });
-      closeOtpModal(true);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to verify OTP";
-      setOtpError(message);
-    } finally {
-      setVerifyingOtp(false);
-    }
-  };
-
-  const handleCreateSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (creating) return;
-
-    setCreateError(null);
-
-  const validation = userCreationSchema.safeParse(createForm);
-    if (!validation.success) {
-      const flattened = validation.error.flatten();
-      const fieldErrors = Object.entries(flattened.fieldErrors).reduce<
-        Partial<Record<keyof AdminSignupFormData, string>>
-      >((acc, [key, messages]) => {
-        if (messages && messages[0]) {
-          acc[key as keyof AdminSignupFormData] = messages[0];
-        }
-        return acc;
-      }, {});
-
-      setCreateErrors(fieldErrors);
-      setCreateError(flattened.formErrors[0] ?? "Please fix the highlighted fields");
-      return;
-    }
-
-  const normalized: UserCreationPayload = validation.data;
-
-    const payload: Record<string, unknown> = {
-      ...normalized,
-    };
-
-    if (Object.keys(createExtras.notificationPreferences).length > 0) {
-      payload.notificationPreferences = createExtras.notificationPreferences;
-    }
-
-    if (createExtras.role) {
-      payload.role = config.allowedCreateRoles.includes(createExtras.role)
-        ? createExtras.role
-        : config.defaultCreateRole;
-    }
-
-    payload.isVerified = false;
-
-    setCreating(true);
-
-    try {
-      const { data: newUser } = await api.post<{ data: ApiUser }, { data: ApiUser }>('/user', payload);
-      setUsers((prev) => [newUser, ...prev]);
-      setCurrentPage(1);
-
-      let otpSendError: string | null = null;
-      let resendMessage: string | null = null;
-      try {
-        const resendResponse = await authApi.resendOtp(newUser.email);
-        resendMessage = resendResponse.message ?? `Verification code sent to ${newUser.email}.`;
-      } catch (otpErr) {
-        otpSendError = otpErr instanceof Error ? otpErr.message : "Failed to send verification OTP";
-      }
-
-      setIsCreateOpen(false);
-      setCreateForm(createInitialForm());
-  setCreateExtras(createInitialExtras(config.defaultCreateRole));
-      setCreateErrors({});
-      setCreateError(null);
-      openOtpModal(newUser.email, newUser.id);
-
-      if (otpSendError) {
-        setOtpError(otpSendError);
-        setFlashMessage({
-          type: "error",
-          message: `User created, but sending verification OTP failed: ${otpSendError}`,
-        });
-      } else {
-        setOtpInfo(resendMessage ?? `Verification code sent to ${newUser.email}.`);
-        setFlashMessage({
-          type: "success",
-          message: `User created. Enter the OTP sent to ${newUser.email} to activate their account.`,
-        });
-      }
-    } catch (err) {
-      const enrichedError = err as Error & {
-        fieldErrors?: Array<{ field?: string; message: string }>;
-      };
-
-      if (Array.isArray(enrichedError.fieldErrors)) {
-        const fieldErrors = enrichedError.fieldErrors.reduce<
-          Partial<Record<keyof AdminSignupFormData, string>>
-        >((acc, issue) => {
-          if (issue.field) {
-            acc[issue.field as keyof AdminSignupFormData] = issue.message;
-          }
-          return acc;
-        }, {});
-        setCreateErrors(fieldErrors);
-        setCreateError("Please fix the highlighted fields and try again.");
-      } else {
-        setCreateError(enrichedError.message || "Failed to create user");
-      }
-    } finally {
-      setCreating(false);
-    }
-  };
 
   const confirmEdit = async () => {
     if (!editUser || !editForm || !editBaseline) return;
@@ -860,7 +568,7 @@ export default function UserManagementPage() {
       }
     };
 
-  compareAndSet("fullName", (value) => String(value ?? "").trim());
+    compareAndSet("fullName", (value) => String(value ?? "").trim());
     compareAndSet("email", (value) => String(value ?? "").trim());
     compareAndSet("idNumber", (value) => String(value ?? "").trim());
     compareAndSet("country", (value) => String(value ?? "").trim());
@@ -1331,314 +1039,13 @@ export default function UserManagementPage() {
         </Card>
 
         <AnimatePresence>
-          {isCreateOpen && (
-            <motion.div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <motion.div
-                className="flex w-full max-w-[95vw] sm:max-w-2xl md:max-w-3xl lg:max-w-5xl xl:max-w-6xl max-h-[95vh] flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 200, damping: 20 }}
-              >
-                <div className="flex items-start justify-between gap-4 p-6 border-b border-gray-100">
-                  <div className="flex-1">
-                    <h2 className="text-lg md:text-xl font-semibold text-[#004B5B]">Add new user</h2>
-                    <p className="text-sm text-gray-500 mt-1">Fill in the required information to create a user account</p>
-                  </div>
-                  <Button variant="outline" className="px-4 py-2 text-sm" onClick={closeCreateModal} disabled={creating}>
-                    Close
-                  </Button>
-                </div>
-
-                {createError && (
-                  <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                    {createError}
-                  </div>
-                )}
-
-                <div className="flex-1 overflow-y-auto">
-                  <form className="grid gap-4 lg:grid-cols-2 p-6" onSubmit={handleCreateSubmit}>
-                    <InputField
-                      name="fullName"
-                      label="Full name"
-                      type="text"
-                      value={createForm.fullName ?? ""}
-                      onChange={handleCreateInputChange("fullName")}
-                      placeholder="Enter full name"
-                      disabled={creating}
-                      error={createErrors.fullName}
-                      required
-                    />
-
-                    <InputField
-                      name="email"
-                      label="Email"
-                      type="email"
-                      value={createForm.email}
-                      onChange={handleCreateInputChange("email")}
-                      placeholder="Enter email"
-                      disabled={creating}
-                      error={createErrors.email}
-                    />
-
-                    <InputField
-                      name="idNumber"
-                      label="ID number"
-                      type="text"
-                      value={createForm.idNumber ?? ""}
-                      onChange={handleCreateInputChange("idNumber")}
-                      placeholder="Enter ID number"
-                      disabled={creating}
-                      error={createErrors.idNumber}
-                    />
-
-                    <FileUploadField
-                      name="passportPhoto"
-                      label="Passport photo"
-                      value={createForm.passportPhoto ?? ""}
-                      onChange={handleCreateFileUpload("passportPhoto")}
-                      accept="image/*"
-                      disabled={creating}
-                      error={createErrors.passportPhoto}
-                      helperText="Upload a clear passport-style photo (image up to 10MB)"
-                    />
-
-                    <FileUploadField
-                      name="idDocument"
-                      label="Identification document"
-                      value={createForm.idDocument ?? ""}
-                      onChange={handleCreateFileUpload("idDocument")}
-                      accept="image/*,application/pdf"
-                      disabled={creating}
-                      error={createErrors.idDocument}
-                      helperText="Upload the ID document (image or PDF up to 10MB)"
-                    />
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-[#004B5B]" htmlFor="create-phoneCountryCode">
-                        Phone country code
-                      </label>
-                      <select
-                        id="create-phoneCountryCode"
-                        name="phoneCountryCode"
-                        value={createForm.phoneCountryCode}
-                        onChange={handleCreateSelectChange("phoneCountryCode")}
-                        disabled={creating}
-                        className="w-full rounded-md border border-[#004B5B]/50 bg-transparent px-4 py-2 text-sm text-[#004B5B] outline-none transition-all focus:border-[#004B5B]"
-                      >
-                        {COUNTRY_CODES.map((code) => (
-                          <option key={code.value} value={code.value}>
-                            {code.label}
-                          </option>
-                        ))}
-                      </select>
-                      {createErrors.phoneCountryCode && (
-                        <p className="text-sm text-red-600 ml-2">{createErrors.phoneCountryCode}</p>
-                      )}
-                    </div>
-
-                    <InputField
-                      name="phone"
-                      label="Phone number"
-                      type="text"
-                      value={createForm.phone ?? ""}
-                      onChange={handleCreateInputChange("phone")}
-                      placeholder="Enter phone number"
-                      disabled={creating}
-                      error={createErrors.phone}
-                    />
-
-                    <InputField
-                      name="dateOfBirth"
-                      label="Date of birth"
-                      type="date"
-                      value={createForm.dateOfBirth ?? ""}
-                      onChange={handleCreateInputChange("dateOfBirth")}
-                      disabled={creating}
-                      error={createErrors.dateOfBirth}
-                    />
-
-                    <InputField
-                      name="country"
-                      label="Country"
-                      type="text"
-                      value={createForm.country ?? ""}
-                      onChange={handleCreateInputChange("country")}
-                      placeholder="Enter country"
-                      disabled={creating}
-                      error={createErrors.country}
-                    />
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-[#004B5B]" htmlFor="create-gender">
-                          Gender
-                        </label>
-                        <select
-                          id="create-gender"
-                          name="gender"
-                          value={createForm.gender}
-                          onChange={handleCreateSelectChange("gender")}
-                          disabled={creating}
-                          className={`w-full rounded-full px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${
-                            createErrors.gender
-                              ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
-                              : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
-                          } ${creating ? "opacity-50 cursor-not-allowed" : ""}`}
-                        >
-                          {GENDER_OPTIONS.map(({ value, label }) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                        {createErrors.gender && (
-                          <p className="text-sm text-red-600 ml-2">{createErrors.gender}</p>
-                        )}
-                      </div>
-
-                    <InputField
-                      name="city"
-                      label="City"
-                      type="text"
-                      value={createForm.city ?? ""}
-                      onChange={handleCreateInputChange("city")}
-                      placeholder="Enter city"
-                      disabled={creating}
-                      error={createErrors.city}
-                    />
-
-                    <InputField
-                      name="occupation"
-                      label="Occupation"
-                      type="text"
-                      value={createForm.occupation ?? ""}
-                      onChange={handleCreateInputChange("occupation")}
-                      placeholder="Enter occupation"
-                      disabled={creating}
-                      error={createErrors.occupation}
-                    />
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-[#004B5B]" htmlFor="create-investmentExperience">
-                        Investment experience
-                      </label>
-                      <select
-                        id="create-investmentExperience"
-                        name="investmentExperience"
-                        value={createForm.investmentExperience ?? ""}
-                        onChange={handleCreateSelectChange("investmentExperience")}
-                        disabled={creating}
-                        className={`w-full rounded-full px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${
-                          createErrors.investmentExperience
-                            ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
-                            : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
-                        } ${creating ? "opacity-50 cursor-not-allowed" : ""}`}
-                      >
-                        {INVESTMENT_EXPERIENCE_OPTIONS.map((option) => (
-                          <option
-                            key={option.value || "placeholder"}
-                            value={option.value}
-                            disabled={option.value === ""}
-                          >
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      {createErrors.investmentExperience && (
-                        <p className="text-sm text-red-600 ml-2">{createErrors.investmentExperience}</p>
-                      )}
-                    </div>
-
-                    <InputField
-                      name="password"
-                      label="Password"
-                      type="password"
-                      value={createForm.password}
-                      onChange={handleCreateInputChange("password")}
-                      placeholder="Enter password"
-                      disabled={creating}
-                      showVisibilityToggle
-                      error={createErrors.password}
-                    />
-
-                    <InputField
-                      name="confirmPassword"
-                      label="Confirm password"
-                      type="password"
-                      value={createForm.confirmPassword}
-                      onChange={handleCreateInputChange("confirmPassword")}
-                      placeholder="Confirm password"
-                      disabled={creating}
-                      showVisibilityToggle
-                      error={createErrors.confirmPassword}
-                    />
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-[#004B5B]">Role</label>
-                      <select
-                        value={createExtras.role}
-                        onChange={handleCreateRoleChange}
-                        disabled={creating || config.allowedCreateRoles.length <= 1}
-                        className="w-full rounded-md border border-[#004B5B]/50 bg-transparent px-4 py-2 text-sm text-[#004B5B] outline-none transition-all focus:border-[#004B5B]"
-                      >
-                        {config.allowedCreateRoles.map((role) => (
-                          <option key={role} value={role}>
-                            {ROLE_LABELS[role]}
-                          </option>
-                        ))}
-                      </select>
-                      {config.allowedCreateRoles.length <= 1 && (
-                        <p className="text-xs text-gray-500">{`Role is fixed to ${ROLE_LABELS[config.defaultCreateRole]}.`}</p>
-                      )}
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <h3 className="text-sm font-semibold text-[#004B5B]">Notification preferences</h3>
-                      <div className="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
-                        {Object.entries(createExtras.notificationPreferences).map(([key, value]) => (
-                          <label key={key} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
-                            <input
-                              type="checkbox"
-                              checked={value}
-                              onChange={handleCreateNotificationChange(key)}
-                              disabled={creating}
-                              className="h-4 w-4 rounded border-gray-300 text-[#004B5B] focus:ring-[#004B5B]"
-                            />
-                            <span className="capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="lg:col-span-2 flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-100">
-                      <Button variant="outline" className="px-6 py-2.5 w-full sm:w-auto" onClick={closeCreateModal} disabled={creating}>
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        className="px-6 py-2.5 bg-[#004B5B] hover:bg-[#006B85] text-white w-full sm:w-auto font-medium"
-                        disabled={creating}
-                      >
-                        {creating ? (
-                          <span className="flex items-center gap-2 justify-center">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Creating...
-                          </span>
-                        ) : (
-                          "Create user"
-                        )}
-                      </Button>
-                    </div>
-                  </form>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
+          <AddUserModal
+            isOpen={isCreateOpen}
+            onClose={closeCreateModal}
+            onUserCreated={handleUserCreated}
+            allowedCreateRoles={config.allowedCreateRoles}
+            defaultCreateRole={config.defaultCreateRole}
+          />
 
           {editUser && editForm && (
             <motion.div
@@ -2066,145 +1473,20 @@ export default function UserManagementPage() {
             </motion.div>
           )}
 
-          {pendingDelete && (
-            <motion.div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <motion.div
-                className="w-full max-w-[95vw] sm:max-w-md rounded-2xl bg-white p-6 shadow-xl"
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 200, damping: 20 }}
-              >
-                <h2 className="text-xl font-semibold text-[#004B5B]">Delete user</h2>
-                <p className="mt-2 text-sm text-gray-600">
-                  Are you sure you want to delete <strong>{pendingDelete.name}</strong>? This action cannot be
-                  undone.
-                </p>
+          <DeleteUserModal
+            isOpen={Boolean(pendingDelete)}
+            onClose={closeDeleteModal}
+            user={pendingDelete ? { id: pendingDelete.id, fullName: pendingDelete.name, email: pendingDelete.email, role: pendingDelete.role } : null}
+            onUserDeleted={fetchUsers}
+          />
 
-                <div className="mt-6 flex justify-end gap-3">
-                  <Button
-                    variant="outline"
-                    className="px-4 py-2"
-                    onClick={closeDeleteModal}
-                    disabled={Boolean(deletingId)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white"
-                    onClick={() => void confirmDelete()}
-                    disabled={Boolean(deletingId)}
-                  >
-                    {deletingId === pendingDelete.id ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Deleting...
-                      </span>
-                    ) : (
-                      "Delete"
-                    )}
-                  </Button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-
-          {isOtpModalOpen && (
-            <motion.div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => closeOtpModal()}
-            >
-              <motion.div
-                className="w-full max-w-[95vw] sm:max-w-md rounded-2xl bg-white p-6 shadow-xl"
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <h2 className="text-xl font-semibold text-[#004B5B]">Verify new account</h2>
-                <p className="mt-2 text-sm text-gray-600">
-                  Enter the {OTP_LENGTH}-digit verification code sent to <strong>{otpContext.email}</strong> to
-                  activate their access.
-                </p>
-
-                <form className="mt-6 space-y-4" onSubmit={handleOtpSubmit}>
-                  <div>
-                    <label className="block text-sm font-medium text-[#004B5B]" htmlFor="otp-code">
-                      Verification code
-                    </label>
-                    <input
-                      id="otp-code"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      autoComplete="one-time-code"
-                      value={otpCode}
-                      onChange={(event) => handleOtpCodeChange(event.target.value)}
-                      disabled={verifyingOtp}
-                      className="mt-2 w-full rounded-xl border border-[#004B5B]/40 px-4 py-3 text-lg tracking-[0.5em] text-center text-[#004B5B] placeholder:text-gray-400 focus:border-[#004B5B] focus:outline-none focus:ring-2 focus:ring-[#004B5B]/30"
-                      placeholder={"•".repeat(OTP_LENGTH)}
-                    />
-                  </div>
-
-                  {otpError && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                      {otpError}
-                    </div>
-                  )}
-
-                  {otpInfo && (
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                      {otpInfo}
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <button
-                      type="button"
-                      onClick={() => void handleResendOtp()}
-                      disabled={resendingOtp || verifyingOtp}
-                      className="text-sm font-semibold text-[#004B5B] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {resendingOtp ? "Sending a new code..." : "Resend verification code"}
-                    </button>
-                    <div className="flex justify-end gap-3">
-                      <Button
-                        variant="outline"
-                        className="px-4 py-2"
-                        onClick={() => closeOtpModal()}
-                        disabled={verifyingOtp}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        className="px-4 py-2 bg-[#004B5B] hover:bg-[#006B85] text-white"
-                        disabled={verifyingOtp}
-                      >
-                        {verifyingOtp ? (
-                          <span className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Verifying...
-                          </span>
-                        ) : (
-                          "Verify"
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              </motion.div>
-            </motion.div>
-          )}
+          <OtpVerificationModal
+            isOpen={isOtpModalOpen}
+            onClose={closeOtpModal}
+            email={otpContext.email}
+            userId={otpContext.userId}
+            onVerificationSuccess={handleOtpVerificationSuccess}
+          />
 
           {showReportModal && (
             <ReportModal

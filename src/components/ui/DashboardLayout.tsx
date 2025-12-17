@@ -68,21 +68,11 @@ export default function DashboardLayout({
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
-  const [adminUsersOpen, setAdminUsersOpen] = useState(false);
+  const [managerUsersOpen, setManagerUsersOpen] = useState(false);
   // notification dropdown is handled by `NotificationBell`
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading, isAuthenticated } = useAuth();
-
-  // Keep User Management dropdown open when on user management pages
-  useEffect(() => {
-    if (pathname?.startsWith('/dashboard/super-admin/users')) {
-      setUserManagementOpen(true);
-    }
-    if (pathname?.startsWith('/dashboard/manager/') && (pathname.includes('admin') || pathname.includes('tellers') || pathname.includes('clients') || pathname.includes('users'))) {
-      setAdminUsersOpen(true);
-    }
-  }, [pathname]);
 
   // `NotificationBell` component fetches and renders notifications for the current user
 
@@ -109,6 +99,17 @@ export default function DashboardLayout({
     if (userRole) return userRole;
     return toDashboardRole(user?.role);
   }, [userRole, user?.role]);
+
+  // Keep dropdowns open when on related pages
+  useEffect(() => {
+    if (pathname?.startsWith('/dashboard/commonPage/users')) {
+      if (derivedRole === 'super-admin') {
+        setUserManagementOpen(true);
+      } else if (derivedRole === 'manager') {
+        setManagerUsersOpen(true);
+      }
+    }
+  }, [pathname, derivedRole]);
 
   const derivedName = useMemo(() => {
     if (userName) return userName;
@@ -172,9 +173,9 @@ export default function DashboardLayout({
             icon: FiUsers,
             hasChildren: true,
             children: [
-              { name: "All Users", href: "/dashboard/manager/users", icon: FiUsers },
-              { name: "Tellers", href: "/dashboard/manager/tellers", icon: FiUserCheck },
-              { name: "Clients", href: "/dashboard/manager/clients", icon: FiUser },
+              { name: "All Users", href: "/dashboard/commonPage/users", icon: FiUsers },
+              { name: "Tellers", href: "/dashboard/commonPage/users/teller", icon: FiUserCheck },
+              { name: "Clients", href: "/dashboard/commonPage/users/client", icon: FiUser },
             ]
           },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
@@ -191,11 +192,11 @@ export default function DashboardLayout({
             icon: FiUsers,
             hasChildren: true,
             children: [
-              { name: "All Users", href: "/dashboard/super-admin/users", icon: FiUsers },
-              { name: "Admin [H.O]", href: "/dashboard/super-admin/users/admin", icon: FiShield },
-              { name: "Branch Managers", icon: FiMapPin, href: "/dashboard/super-admin/users/manager" },
-              { name: "Teller", href: "/dashboard/super-admin/users/teller", icon: FiUserCheck },
-              { name: "Client", href: "/dashboard/super-admin/users/client", icon: FiUser },
+              { name: "All Users", href: "/dashboard/commonPage/users", icon: FiUsers },
+              { name: "Admin [H.O]", href: "/dashboard/commonPage/users/admin", icon: FiShield },
+              { name: "Branch Managers", icon: FiMapPin, href: "/dashboard/commonPage/users/manager" },
+              { name: "Teller", href: "/dashboard/commonPage/users/teller", icon: FiUserCheck },
+              { name: "Client", href: "/dashboard/commonPage/users/client", icon: FiUser },
             ]
           },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
@@ -254,11 +255,10 @@ export default function DashboardLayout({
             if (hasChildren) {
               const isUserManagement = item.name === "User Management";
               const isManagerUsers = item.name === "Users" && derivedRole === "manager";
-              const isAdminUsers = item.name === "Users" && derivedRole === "admin";
-              const isOpen = isUserManagement ? userManagementOpen : (isManagerUsers || isAdminUsers ? adminUsersOpen : false);
+              const isOpen = isUserManagement ? userManagementOpen : (isManagerUsers ? managerUsersOpen : false);
               const toggleOpen = isUserManagement 
                 ? () => setUserManagementOpen(!userManagementOpen)
-                : (isManagerUsers || isAdminUsers ? () => setAdminUsersOpen(!adminUsersOpen) : () => {});
+                : (isManagerUsers ? () => setManagerUsersOpen(!managerUsersOpen) : () => {});
 
               return (
                 <div key={item.name} className="mb-2">
@@ -285,7 +285,10 @@ export default function DashboardLayout({
                             key={child.name}
                             href={child.href}
                             className="relative flex items-center px-4 py-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200 text-sm group"
-                            onClick={() => setSidebarOpen(false)}
+                            onClick={() => {
+                              // Keep dropdown open when navigating to child pages
+                              setSidebarOpen(false);
+                            }}
                           >
                             <div className="absolute left-2 w-4 font-bold h-px bg-white group-hover:bg-white/40"></div>
                             <div className="flex items-center space-x-3 ml-4">

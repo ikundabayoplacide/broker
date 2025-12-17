@@ -152,7 +152,7 @@ export default function SuperAdminDashboard() {
       subtitle: `${userStats.total.toLocaleString()} across all roles`,
       icon: <FiUsers className="w-6 h-6 text-white" />,
       gradient: "bg-gradient-to-r from-blue-500 to-blue-600",
-      link: "/dashboard/super-admin/users",
+      link: "/dashboard/commonPage/users",
     },
     {
       title: "Registered Companies",

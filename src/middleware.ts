@@ -111,7 +111,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (isDashboardPage) {
-      const sharedRoutes = ["/dashboard/commonPage/companies", "/dashboard/commonPage/trade"];
+      const sharedRoutes = ["/dashboard/commonPage/companies", "/dashboard/commonPage/trade","/dashboard/commonPage/users"];
       const isSharedRoute = sharedRoutes.some(route => pathname.startsWith(route));
       
       if (!isSharedRoute) {
