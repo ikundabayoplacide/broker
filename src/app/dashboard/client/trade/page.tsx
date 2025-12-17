@@ -101,7 +101,7 @@ export default function TradePage() {
         }
 
         // Fetch wallet data
-        const walletData = await axios.get("/wallet", { headers: { Authorization: `Bearer ${token}` } }) as { wallet: { balance: string; availableBalance: string } };
+        const walletData = await axios.get(`${apiPrefix}/wallet`, { headers: { Authorization: `Bearer ${token}` } }) as { wallet: { balance: string; availableBalance: string } };
         const walletBalance = parseFloat(walletData.wallet?.balance || "0");
         const buyingPower = parseFloat(walletData.wallet?.availableBalance || "0");
 
@@ -109,7 +109,7 @@ export default function TradePage() {
         let todayTrades = 0;
         let openOrders = 0;
         try {
-          const tradesData = await axios.get("/trade/history?limit=100", { headers: { Authorization: `Bearer ${token}` } }) as { trades: Array<{ id: string; type: string; status: string; quantity: number; executedPrice: string; totalAmount: string; createdAt: string; company: { name: string; symbol: string } }> };
+          const tradesData = await axios.get(`${apiPrefix}/trade/history?limit=100`, { headers: { Authorization: `Bearer ${token}` } }) as { trades: Array<{ id: string; type: string; status: string; quantity: number; executedPrice: string; totalAmount: string; createdAt: string; company: { name: string; symbol: string } }> };
           const trades = tradesData.trades || [];
           const today = new Date().toDateString();
           todayTrades = trades.filter((t) => 
@@ -157,16 +157,21 @@ export default function TradePage() {
     validateQuantity(value);
   };
 
-  const { displayName, email, dashboardRole } = useMemo(() => {
+  const { displayName, email, dashboardRole, isCompany, apiPrefix } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
     const fallbackName = user?.email ? user.email.split("@")[0] : "Client";
     const role = user?.role?.toLowerCase();
+    const isCompany = role === "company";
     const dashboardRole =
-      role === "client" || role === "teller" || role === "admin" ? (role as "client" | "teller" | "admin") : "client";
+      role === "client" || role === "teller" || role === "admin" || role === "company" 
+        ? (role as "client" | "teller" | "admin" | "company") 
+        : "client";
     return {
       displayName: fullName || fallbackName,
       email: user?.email ?? "Not provided",
       dashboardRole,
+      isCompany,
+      apiPrefix: isCompany ? "/company" : "",
     };
   }, [user?.email, user?.fullName, user?.role]);
 
@@ -218,7 +223,7 @@ export default function TradePage() {
     setProcessing(true);
     
     try {
-      const response = await fetch("/api/trade/buy", {
+      const response = await fetch(`/api${apiPrefix}/trade/buy`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
