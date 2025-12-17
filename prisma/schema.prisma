@@ -126,9 +126,14 @@ model Company {
   updatedAt            DateTime  @updatedAt
 
   wallet               CompanyWallet?
+  paymentMethods       CompanyPaymentMethod[]
   transactions         CompanyTransaction[]
   portfolios           Portfolio[]
   trades               Trade[]
+  companyTrades        CompanyTrade[]        @relation("CompanyTrades")
+  targetCompanyTrades  CompanyTrade[]        @relation("TargetCompanyTrades")
+  companyPortfolios    CompanyPortfolio[]    @relation("CompanyPortfolios")
+  targetCompanyPortfolios CompanyPortfolio[] @relation("TargetCompanyPortfolios")
 }
 
 model PurchaseOrder {
@@ -233,6 +238,25 @@ model CompanyWallet {
   @@index([companyId])
 }
 
+model CompanyPaymentMethod {
+  id              String            @id @default(uuid())
+  companyId       String
+  type            PaymentMethodType
+  provider        String?
+  accountNumber   String
+  accountName     String?
+  isDefault       Boolean           @default(false)
+  isActive        Boolean           @default(true)
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([type])
+}
+
 model Transaction {
   id              String            @id @default(uuid())
   userId          String
@@ -320,6 +344,53 @@ model Trade {
   @@index([status])
   @@index([type])
   @@index([createdAt])
+}
+
+model CompanyTrade {
+  id               String         @id @default(uuid())
+  companyId        String
+  targetCompanyId  String
+  type             TradeType
+  status           TradeStatus    @default(PENDING)
+  priceType        OrderPriceType @default(MARKET)
+  quantity         Int
+  requestedPrice   Decimal?       @db.Decimal(18, 2)
+  executedPrice    Decimal?       @db.Decimal(18, 2)
+  executedQuantity Int?
+  totalAmount      Decimal        @db.Decimal(18, 2)
+  fees             Decimal        @default(0) @db.Decimal(18, 2)
+  transactionId    String?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  executedAt       DateTime?
+  updatedAt        DateTime       @updatedAt
+
+  company          Company        @relation("CompanyTrades", fields: [companyId], references: [id], onDelete: Cascade)
+  targetCompany    Company        @relation("TargetCompanyTrades", fields: [targetCompanyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([targetCompanyId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model CompanyPortfolio {
+  id               String   @id @default(uuid())
+  companyId        String
+  targetCompanyId  String
+  quantity         Int      @default(0)
+  averageBuyPrice  Decimal  @db.Decimal(18, 2)
+  totalInvested    Decimal  @db.Decimal(18, 2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company          Company  @relation("CompanyPortfolios", fields: [companyId], references: [id], onDelete: Cascade)
+  targetCompany    Company  @relation("TargetCompanyPortfolios", fields: [targetCompanyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, targetCompanyId])
+  @@index([companyId])
+  @@index([targetCompanyId])
 }
 
 model MarketSnapshot {
