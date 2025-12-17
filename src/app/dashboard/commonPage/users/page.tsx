@@ -189,6 +189,8 @@ const normalizeAuthRole = (role?: string | null): ManagementMode => {
       return "SUPER_ADMIN";
     case "TELLER":
       return "TELLER";
+    case "MANAGER":
+      return "ADMIN"; // Managers use ADMIN mode config
     default:
       return "ADMIN";
   }
@@ -735,7 +737,7 @@ export default function UserManagementPage() {
   };
 
   return (
-    <DashboardLayout userRole={config.dashboardRole} userName={displayName} userEmail={email}>
+    <DashboardLayout userName={displayName} userEmail={email}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">

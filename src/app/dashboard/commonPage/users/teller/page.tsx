@@ -41,7 +41,7 @@ export default function TellerPage() {
         name: user.fullName,
         email: user.email,
         role: "Teller",
-        status: user.isVerified ? "Active" : "Inactive",
+        status:user.isVerified ? 'Yes' : 'No',
         raw: user,
       }));
       setUsers(processedUsers);

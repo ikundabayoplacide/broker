@@ -96,8 +96,11 @@ export default function DashboardLayout({
   }, [loading, isAuthenticated, pathname, router]);
 
   const derivedRole = useMemo(() => {
-    if (userRole) return userRole;
-    return toDashboardRole(user?.role);
+    if (userRole) {
+      return userRole;
+    }
+    const role = toDashboardRole(user?.role);
+    return role;
   }, [userRole, user?.role]);
 
   // Keep dropdowns open when on related pages

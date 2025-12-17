@@ -187,6 +187,7 @@ export async function GET(request: NextRequest) {
         csdNumber: true,
         role: true,
         branchId: true,
+        isVerified: true,
         createdAt: true,
       },
       orderBy: {
