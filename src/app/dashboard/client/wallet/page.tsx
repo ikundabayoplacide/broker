@@ -95,16 +95,21 @@ export default function WalletPage() {
 
   const { displayName, email, dashboardRole } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
-    const fallbackName = user?.email ? user.email.split("@")[0] : "Client";
+    const fallbackName = user?.email ? user.email.split("@")[0] : "User";
     const role = user?.role?.toLowerCase();
     const dashboardRole =
-      role === "client" || role === "teller" || role === "admin" ? (role as "client" | "teller" | "admin") : "client";
+      role === "client" || role === "teller" || role === "admin" || role === "company" 
+        ? (role as "client" | "teller" | "admin" | "company") 
+        : "client";
     return {
       displayName: fullName || fallbackName,
       email: user?.email ?? "Not provided",
       dashboardRole,
     };
   }, [user?.email, user?.fullName, user?.role]);
+
+  const isCompany = useMemo(() => dashboardRole === "company", [dashboardRole]);
+  const apiPrefix = useMemo(() => isCompany ? "/company" : "", [isCompany]);
 
   // Fetch wallet data and payment methods on component mount
   useEffect(() => {
@@ -134,7 +139,7 @@ export default function WalletPage() {
   const fetchWalletData = async (page = 1) => {
     try {
       const offset = (page - 1) * transactionsPerPage;
-      const data = (await axios.get(`/wallet?limit=${transactionsPerPage}&offset=${offset}`, {
+      const data = (await axios.get(`${apiPrefix}/wallet?limit=${transactionsPerPage}&offset=${offset}`, {
         headers: { Authorization: `Bearer ${token}` },
       })) as WalletApiResponse;
       setWalletData(data.wallet);
@@ -149,7 +154,7 @@ export default function WalletPage() {
 
   const fetchPaymentMethods = async () => {
     try {
-      const data = (await axios.get("/wallet/payment-methods", {
+      const data = (await axios.get(`${apiPrefix}/wallet/payment-methods`, {
         headers: { Authorization: `Bearer ${token}` },
       })) as PaymentMethodsResponse;
       setPaymentMethods(data.paymentMethods);
@@ -170,7 +175,7 @@ export default function WalletPage() {
     setLoading(true);
     try {
       await axios.post(
-        "/wallet/payment-methods",
+        `${apiPrefix}/wallet/payment-methods`,
         {
           ...newPaymentMethod,
           isDefault: paymentMethods.length === 0, // Make first method default
@@ -208,7 +213,7 @@ export default function WalletPage() {
 
   const handleDeletePaymentMethod = async () => {
     try {
-      await axios.delete(`/wallet/payment-methods?id=${deleteModal.id}`, {
+      await axios.delete(`${apiPrefix}/wallet/payment-methods?id=${deleteModal.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       await fetchPaymentMethods();
@@ -285,7 +290,7 @@ export default function WalletPage() {
     }
     setLoading(true);
     try {
-      const endpoint = activeTab === "deposit" ? "/wallet/deposit" : "/wallet/withdraw";
+      const endpoint = activeTab === "deposit" ? `${apiPrefix}/wallet/deposit` : `${apiPrefix}/wallet/withdraw`;
       const data = (await axios.post(
         endpoint,
         {

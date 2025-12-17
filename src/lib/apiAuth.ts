@@ -53,3 +53,9 @@ export const getAuthenticatedUser = async (req: NextRequest): Promise<AuthPayloa
     return null;
   }
 };
+
+export const getAuthenticatedCompany = async (req: NextRequest): Promise<AuthPayload | null> => {
+  const auth = await getAuthenticatedUser(req);
+  if (!auth) return null;
+  return { ...auth, companyId: auth.userId };
+};
