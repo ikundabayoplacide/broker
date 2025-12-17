@@ -15,6 +15,7 @@ import {
   type UserCreationPayload,
 } from "@/lib/validations/signupValidation";
 import api, { authApi } from "@/lib/axios";
+import { useAuth } from "@/hooks/useAuth";
 
 type ApiUserRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER" | "COMPANY" | "CLIENT";
 type AdminSignupFormData = z.input<typeof baseSignupSchema>;
@@ -23,6 +24,8 @@ type NotificationPreferences = Record<string, boolean>;
 interface CreateExtras {
   role: ApiUserRole;
   notificationPreferences: NotificationPreferences;
+  branchId?: string;
+  createdById?: string;
 }
 
 interface AddUserModalProps {
@@ -31,6 +34,20 @@ interface AddUserModalProps {
   onUserCreated: (email: string, userId: string) => void;
   allowedCreateRoles: ApiUserRole[];
   defaultCreateRole: ApiUserRole;
+}
+
+interface Branch {
+  id: string;
+  name: string;
+  code: string;
+  address: string;
+}
+
+interface Teller {
+  id: string;
+  fullName: string;
+  email: string;
+  branchId?: string;
 }
 
 const COUNTRY_CODES: Array<{ value: string; label: string }> = [
@@ -94,7 +111,24 @@ const createInitialExtras = (defaultRole: ApiUserRole): CreateExtras => ({
     sms: false,
     push: true,
   },
+  branchId: undefined,
+  createdById: undefined,
 });
+
+// Role hierarchy for filtering
+const getRolesByUserRole = (userRole: string): ApiUserRole[] => {
+  switch (userRole) {
+    case 'SUPER_ADMIN':
+      return ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'TELLER', 'COMPANY', 'CLIENT'];
+    case 'ADMIN':
+    case 'MANAGER':
+      return ['MANAGER', 'TELLER', 'CLIENT'];
+    case 'TELLER':
+      return ['CLIENT'];
+    default:
+      return ['CLIENT'];
+  }
+};
 
 export default function AddUserModal({ 
   isOpen, 
@@ -103,23 +137,89 @@ export default function AddUserModal({
   allowedCreateRoles, 
   defaultCreateRole 
 }: AddUserModalProps) {
+  const { user } = useAuth();
   const [createForm, setCreateForm] = useState<AdminSignupFormData>(createInitialForm());
   const [createExtras, setCreateExtras] = useState<CreateExtras>(() => createInitialExtras(defaultCreateRole));
   const [createErrors, setCreateErrors] = useState<Partial<Record<keyof AdminSignupFormData, string>>>({});
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [tellers, setTellers] = useState<Teller[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [loadingTellers, setLoadingTellers] = useState(false);
+
+  // Get filtered roles based on current user's role
+  const filteredRoles = getRolesByUserRole(user?.role || '').filter(role => 
+    allowedCreateRoles.includes(role)
+  );
+
+  const fetchBranches = async () => {
+    setLoadingBranches(true);
+    try {
+      const response = await api.get('/branches');
+      setBranches(Array.isArray(response) ? response : []);
+    } catch (error) {
+      setBranches([]);
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
+
+  const fetchTellers = async (branchId?: string) => {
+    if (!branchId) {
+      setTellers([]);
+      return;
+    }
+    setLoadingTellers(true);
+    try {
+      const response = await api.get<{data: Teller[]}>(`/user?role=TELLER&branchId=${branchId}`);
+      console.log('Tellers API response:', response);
+      setTellers(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Error fetching tellers:', error);
+      setTellers([]);
+    } finally {
+      setLoadingTellers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchBranches();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     setCreateExtras((prev) => {
-      if (allowedCreateRoles.includes(prev.role)) {
+      if (filteredRoles.includes(prev.role)) {
         return prev;
       }
       return {
         ...prev,
-        role: defaultCreateRole,
+        role: filteredRoles[0] || defaultCreateRole,
       };
     });
-  }, [allowedCreateRoles, defaultCreateRole]);
+  }, [filteredRoles, defaultCreateRole]);
+
+  // Fetch tellers when branch changes for CLIENT role
+  useEffect(() => {
+    if (createExtras.role === 'CLIENT' && createExtras.branchId) {
+      fetchTellers(createExtras.branchId);
+    } else {
+      setTellers([]);
+    }
+  }, [createExtras.role, createExtras.branchId]);
+
+  // Calculate field visibility
+  const showBranchField = (createExtras.role === 'CLIENT' || createExtras.role === 'TELLER') && branches.length > 0;
+  const showTellerField = createExtras.role === 'CLIENT';
+
+  // Auto-select branch if user only has access to one branch
+  useEffect(() => {
+    if (branches.length === 1 && !createExtras.branchId && (createExtras.role === 'CLIENT' || createExtras.role === 'TELLER')) {
+      setCreateExtras(prev => ({ ...prev, branchId: branches[0].id }));
+    }
+  }, [branches, createExtras.branchId, createExtras.role]);
 
   const handleCreateInputChange = (field: keyof AdminSignupFormData) =>
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -157,10 +257,29 @@ export default function AddUserModal({
 
   const handleCreateRoleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value as ApiUserRole;
-    if (!allowedCreateRoles.includes(value)) {
+    if (!filteredRoles.includes(value)) {
       return;
     }
-    setCreateExtras((prev) => ({ ...prev, role: value }));
+    setCreateExtras((prev) => ({ 
+      ...prev, 
+      role: value,
+      branchId: undefined, // Reset branch when role changes
+      createdById: undefined // Reset teller when role changes
+    }));
+  };
+
+  const handleBranchChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const branchId = event.target.value || undefined;
+    setCreateExtras((prev) => ({ 
+      ...prev, 
+      branchId,
+      createdById: undefined // Reset teller when branch changes
+    }));
+  };
+
+  const handleTellerChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const createdById = event.target.value || undefined;
+    setCreateExtras((prev) => ({ ...prev, createdById }));
   };
 
   const handleCreateNotificationChange = (key: string) =>
@@ -209,9 +328,17 @@ export default function AddUserModal({
     }
 
     if (createExtras.role) {
-      payload.role = allowedCreateRoles.includes(createExtras.role)
+      payload.role = filteredRoles.includes(createExtras.role)
         ? createExtras.role
-        : defaultCreateRole;
+        : (filteredRoles[0] || defaultCreateRole);
+    }
+
+    // Add branch and teller associations
+    if (createExtras.branchId) {
+      payload.branchId = createExtras.branchId;
+    }
+    if (createExtras.createdById) {
+      payload.createdById = createExtras.createdById;
     }
 
     payload.isVerified = false;
@@ -223,9 +350,11 @@ export default function AddUserModal({
       
       // Reset form
       setCreateForm(createInitialForm());
-      setCreateExtras(createInitialExtras(defaultCreateRole));
+      setCreateExtras(createInitialExtras(filteredRoles[0] || defaultCreateRole));
       setCreateErrors({});
       setCreateError(null);
+      setBranches([]);
+      setTellers([]);
       
       // Close modal and notify parent
       onClose();
@@ -257,9 +386,11 @@ export default function AddUserModal({
   const handleClose = () => {
     if (creating) return;
     setCreateForm(createInitialForm());
-    setCreateExtras(createInitialExtras(defaultCreateRole));
+    setCreateExtras(createInitialExtras(filteredRoles[0] || defaultCreateRole));
     setCreateErrors({});
     setCreateError(null);
+    setBranches([]);
+    setTellers([]);
     onClose();
   };
 
@@ -519,19 +650,77 @@ export default function AddUserModal({
                   <select
                     value={createExtras.role}
                     onChange={handleCreateRoleChange}
-                    disabled={creating || allowedCreateRoles.length <= 1}
+                    disabled={creating || filteredRoles.length <= 1}
                     className="w-full rounded-md border border-[#004B5B]/50 bg-transparent px-4 py-2 text-sm text-[#004B5B] outline-none transition-all focus:border-[#004B5B]"
                   >
-                    {allowedCreateRoles.map((role) => (
+                    {filteredRoles.map((role) => (
                       <option key={role} value={role}>
                         {ROLE_LABELS[role]}
                       </option>
                     ))}
                   </select>
-                  {allowedCreateRoles.length <= 1 && (
-                    <p className="text-xs text-gray-500">{`Role is fixed to ${ROLE_LABELS[defaultCreateRole]}.`}</p>
+                  {filteredRoles.length <= 1 && (
+                    <p className="text-xs text-gray-500">{`Role is fixed to ${ROLE_LABELS[filteredRoles[0] || defaultCreateRole]}.`}</p>
                   )}
                 </div>
+
+                {showBranchField && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[#004B5B]">
+                      Branch {createExtras.role === 'TELLER' ? '(Work Location)' : '(Optional)'}
+                    </label>
+                    <select
+                      value={createExtras.branchId || ''}
+                      onChange={handleBranchChange}
+                      disabled={creating || loadingBranches}
+                      className="w-full rounded-md border border-[#004B5B]/50 bg-transparent px-4 py-2 text-sm text-[#004B5B] outline-none transition-all focus:border-[#004B5B]"
+                    >
+                      <option value="">Select a branch</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name} - {branch.address}
+                        </option>
+                      ))}
+                    </select>
+                    {loadingBranches && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Loading branches...
+                      </p>
+                    )}
+
+                  </div>
+                )}
+
+                {showTellerField && createExtras.branchId && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[#004B5B]">
+                      Supporting Teller (Optional)
+                    </label>
+                    <select
+                      value={createExtras.createdById || ''}
+                      onChange={handleTellerChange}
+                      disabled={creating || loadingTellers}
+                      className="w-full rounded-md border border-[#004B5B]/50 bg-transparent px-4 py-2 text-sm text-[#004B5B] outline-none transition-all focus:border-[#004B5B]"
+                    >
+                      <option value="">Select a teller</option>
+                      {tellers.map((teller) => (
+                        <option key={teller.id} value={teller.id}>
+                          {teller.fullName} - {teller.email}
+                        </option>
+                      ))}
+                    </select>
+                    {loadingTellers && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Loading tellers...
+                      </p>
+                    )}
+                    {tellers.length === 0 && !loadingTellers && createExtras.branchId && (
+                      <p className="text-xs text-gray-500">No tellers available in this branch</p>
+                    )}
+                  </div>
+                )}
 
                 <div className="sm:col-span-2">
                   <h3 className="text-sm font-semibold text-[#004B5B]">Notification preferences</h3>

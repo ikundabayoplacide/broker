@@ -32,18 +32,20 @@ export default function TellerPage() {
   const fetchTellerUsers = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/user");
+      console.log('Fetching tellers...');
+      const response = await api.get("/user?role=TELLER");
+      console.log('Teller API response:', response);
       const allUsers = Array.isArray(response.data) ? response.data : [];
-      // Filter only TELLER users
-      const tellerUsers = allUsers.filter((user: any) => user.role === "TELLER");
-      const processedUsers: ProcessedUser[] = tellerUsers.map((user: any) => ({
+      console.log('All users from API:', allUsers);
+      const processedUsers: ProcessedUser[] = allUsers.map((user: any) => ({
         id: user.id,
         name: user.fullName,
         email: user.email,
         role: "Teller",
-        status:user.isVerified ? 'Yes' : 'No',
+        status: user.isVerified ? 'Active' : 'Inactive',
         raw: user,
       }));
+      console.log('Processed users:', processedUsers);
       setUsers(processedUsers);
     } catch (error) {
       console.error("Error fetching teller users:", error);

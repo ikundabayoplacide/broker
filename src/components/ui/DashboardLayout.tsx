@@ -155,7 +155,7 @@ export default function DashboardLayout({
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
           { name: "Wallet", icon: FiCreditCard, href: "/dashboard/client/wallet" },
           { name: "History", icon: FiClipboard, href: "/dashboard/client/history" },
-          { name: "Settings", icon: FiSettings, href: "/dashboard/client/settings" },
+          { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
         ];
       case "teller":
         return [
@@ -166,7 +166,7 @@ export default function DashboardLayout({
           { name: "Orders", icon: FiClipboard, href: "/dashboard/teller/orders" },
           { name: "Executions", icon: FiZap, href: "/dashboard/teller/executions" },
           { name: "Reports", icon: FiTrendingUp, href: "/dashboard/teller/reports" },
-          { name: "Settings", icon: FiSettings, href: "/dashboard/teller/settings" },
+          { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
         ];
       case "manager":
         return [
@@ -185,7 +185,7 @@ export default function DashboardLayout({
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade"},
           { name: "Transactions", icon: FiDollarSign, href: "/dashboard/manager/transactions" },
           { name: "Reports", icon: FiTrendingUp, href: "/dashboard/manager/reports" },
-          { name: "Settings", icon: FiSettings, href: "/dashboard/manager/settings" },
+          { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
         ];
       case "super-admin":
         return [
@@ -205,7 +205,7 @@ export default function DashboardLayout({
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
           {name:"Branches",icon:FiMenu,href:"/dashboard/super-admin/branches"},
-          { name: "Settings", icon: FiSettings, href: "/dashboard/super-admin/settings" },
+          { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
         ];
       case "company":
         return [

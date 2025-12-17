@@ -27,8 +27,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    if (![
-"SUPER_ADMIN", "MANAGER"].includes(requestingUser.role)) {
+    if (!["SUPER_ADMIN", "ADMIN", "MANAGER", "TELLER"].includes(requestingUser.role)) {
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
@@ -78,9 +77,18 @@ export async function POST(req: NextRequest) {
     const hashed = await bcrypt.hash(password, 10);
     const role = (data.role as PrismaRole) || "CLIENT";
     
-    if (requestingUser.role === "MANAGER") {
+    // Role-based creation restrictions
+    if (requestingUser.role === "TELLER") {
+      if (role !== "CLIENT") {
+        return NextResponse.json({ error: "Tellers can only create Client accounts" }, { status: 403 });
+      }
+    } else if (requestingUser.role === "MANAGER") {
       if (!["TELLER", "CLIENT"].includes(role)) {
         return NextResponse.json({ error: "Managers can only create Teller and Client accounts" }, { status: 403 });
+      }
+    } else if (requestingUser.role === "ADMIN") {
+      if (!["MANAGER", "TELLER", "CLIENT"].includes(role)) {
+        return NextResponse.json({ error: "Admins cannot create Super Admin accounts" }, { status: 403 });
       }
     }
 
@@ -107,19 +115,44 @@ export async function POST(req: NextRequest) {
     if (occupation) createData.occupation = occupation;
     if (investmentExperience) createData.investmentExperience = investmentExperience;
 
-    if (requestingUser.role === "MANAGER" && requestingUser.branchId) {
+    // Handle branch assignment
+    if (data.branchId) {
+      createData.branchId = data.branchId;
+    } else if (requestingUser.role === "MANAGER" && requestingUser.branchId) {
       createData.branchId = requestingUser.branchId;
     }
 
-    const createdUser = await prisma.user.create({
-      data: createData,
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        role: true,
-        createdAt: true,
-      },
+    // Handle teller assignment for clients
+    if (data.createdById) {
+      createData.createdById = data.createdById;
+    }
+
+    const createdUser = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: createData,
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          role: true,
+          branchId: true,
+          createdAt: true,
+        },
+      });
+
+      // Update branch employee count if user is assigned to a branch
+      if (user.branchId) {
+        await tx.branch.update({
+          where: { id: user.branchId },
+          data: {
+            employeeCount: {
+              increment: 1
+            }
+          }
+        });
+      }
+
+      return user;
     });
 
     return NextResponse.json({
@@ -144,11 +177,12 @@ export async function GET(request: NextRequest) {
     const userId = authResult.userId || authResult.id;
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role");
+    const branchId = searchParams.get("branchId");
 
     // Get the requesting user's details
     const requestingUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true, branchId: true }
+      select: { id: true, role: true, branchId: true }
     });
 
     if (!requestingUser) {
@@ -162,22 +196,35 @@ export async function GET(request: NextRequest) {
       whereClause.role = role;
     }
 
-    // Branch-based filtering for tellers
+    // Branch-based filtering
+    if (branchId) {
+      whereClause.branchId = branchId;
+    }
+
+    // Role-based access control
     if (requestingUser.role === "TELLER") {
-      whereClause.branchId = requestingUser.branchId;
       // Tellers can only see clients in their branch
+      whereClause.branchId = requestingUser.branchId;
       if (!role || role === "CLIENT") {
         whereClause.role = "CLIENT";
       } else {
         return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
       }
+    } else if (requestingUser.role === "MANAGER") {
+      // Managers can see all users in their branch (tellers and clients)
+      if (requestingUser.branchId) {
+        whereClause.branchId = requestingUser.branchId;
+      } else {
+        // If manager doesn't have branchId, find branches they manage
+        const managedBranches = await prisma.branch.findMany({
+          where: { managerId: requestingUser.id },
+          select: { id: true }
+        });
+        if (managedBranches.length > 0) {
+          whereClause.branchId = { in: managedBranches.map(b => b.id) };
+        }
+      }
     }
-
-    // Managers can see users in their branch
-    if (requestingUser.role === "MANAGER") {
-      whereClause.branchId = requestingUser.branchId;
-    }
-
     const users = await prisma.user.findMany({
       where: whereClause,
       select: {
@@ -194,7 +241,6 @@ export async function GET(request: NextRequest) {
         fullName: "asc"
       }
     });
-
     return NextResponse.json({
       data: users, // Original format for existing pages
       success: true,

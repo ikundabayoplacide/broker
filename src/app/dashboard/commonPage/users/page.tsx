@@ -706,7 +706,7 @@ export default function UserManagementPage() {
         dateOfBirth: formatDate(user.dateOfBirth),
         occupation: user.occupation || '',
         investmentExperience: user.investmentExperience || '',
-        isVerified: user.isVerified ? 'Yes' : 'No',
+        isVerified: user.isVerified ? 'Active' : 'Inactive',
         csdNumber: user.csdNumber || '',
         createdAt: formatDate(user.createdAt),
       }));
@@ -1446,7 +1446,7 @@ export default function UserManagementPage() {
                     </h3>
                     <ul className="space-y-1 text-sm text-gray-700">
                       <li><span className="font-medium">Role:</span> {viewUser.role}</li>
-                      <li><span className="font-medium">Verified:</span> {viewUser.raw.isVerified ? "Yes" : "No"}</li>
+                      <li><span className="font-medium">Verified:</span> {viewUser.raw.isVerified ? "Active" : "Inactive"}</li>
                       <li><span className="font-medium">CSD Number:</span> {viewUser.raw.csdNumber ?? "—"}</li>
                       <li><span className="font-medium">Created:</span> {formatDate(viewUser.raw.createdAt)}</li>
                       <li><span className="font-medium">Updated:</span> {formatDate(viewUser.raw.updatedAt)}</li>
