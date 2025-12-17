@@ -8,13 +8,15 @@ import { CompanyManageForm } from "@/components/company/CompanyManageForm";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
-import { Search, Filter, RefreshCcw, Loader2, Eye, Pencil, Trash2, X, Building2, Plus } from "lucide-react";
+import { Search, Filter, RefreshCcw, Loader2, Eye, Pencil, Trash2, X, Building2, Plus, Printer, FileText, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import MarketSyncButton from "@/components/market/MarketSyncButton";
+import ReportModal, { ReportConfig } from "@/components/models/ReportModal";
+import { ReportGenerator } from "@/utils/reportGenerator";
 
-type ManagementMode = "SUPER_ADMIN" | "ADMIN" | "TELLER";
+type ManagementMode = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER";
 
-type DashboardRole = "client" | "teller" | "admin" | "super-admin" | "company";
+type DashboardRole = "client" | "teller" | "admin" | "manager" | "super-admin" | "company";
 
 interface ModeConfig {
   dashboardRole: DashboardRole;
@@ -45,6 +47,15 @@ const MODE_CONFIG: Record<ManagementMode, ModeConfig> = {
     canDelete: true,
     emptyMessage: "No companies listed yet. Use the form to add one.",
   },
+  MANAGER: {
+    dashboardRole: "manager",
+    title: "Companies",
+    subtitle: "View and manage company listings.",
+    canCreate: false,
+    canEdit: true,
+    canDelete: false,
+    emptyMessage: "No companies available yet. Check back once companies are listed.",
+  },
   TELLER: {
     dashboardRole: "teller",
     title: "Company directory",
@@ -61,6 +72,8 @@ const normalizeAuthRole = (role?: string | null): ManagementMode => {
   switch (normalized) {
     case "SUPER_ADMIN":
       return "SUPER_ADMIN";
+    case "MANAGER":
+      return "MANAGER";
     case "TELLER":
       return "TELLER";
     default:
@@ -111,6 +124,8 @@ export default function CompaniesPage() {
   const [pendingDelete, setPendingDelete] = useState<CompanySummary | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [pdfReportOpen, setPdfReportOpen] = useState(false);
+  const [wordReportOpen, setWordReportOpen] = useState(false);
 
   const displayMeta = useMemo(() => {
     const fullName = typeof user?.fullName === "string" ? user.fullName.trim() : "";
@@ -264,6 +279,122 @@ export default function CompaniesPage() {
     return date.toLocaleDateString();
   };
 
+  const companyReportFields = [
+    { key: 'name', label: 'Company Name' },
+    { key: 'sector', label: 'Sector' },
+    { key: 'sharePrice', label: 'Share Price' },
+    { key: 'closingPrice', label: 'Closing Price' },
+    { key: 'totalShares', label: 'Total Shares' },
+    { key: 'availableShares', label: 'Available Shares' },
+    { key: 'priceChange', label: 'Price Change' },
+    { key: 'tradedVolume', label: 'Traded Volume' },
+    { key: 'tradedValue', label: 'Traded Value' },
+    { key: 'description', label: 'Description' },
+    { key: 'snapshotDate', label: 'Snapshot Date' }
+  ];
+
+  const handlePrint = () => {
+    const printContent = `
+      <html>
+        <head>
+          <title>Companies Report</title>
+          <style>
+            @media print {
+              @page { size: A4; margin: 1in; }
+              body { font-family: Arial, sans-serif; font-size: 12px; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f5f5f5; font-weight: bold; }
+              .header { text-align: center; margin-bottom: 20px; }
+              .logo { width: 80px; height: auto; margin-bottom: 10px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <img src="${window.location.origin}/logo.svg" alt="Company Logo" class="logo" />
+            <h1>Companies Report</h1>
+            <p>Generated on: ${new Date().toLocaleDateString()}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Company</th>
+                <th>Sector</th>
+                <th>Share Price</th>
+                <th>Total Shares</th>
+                <th>Available Shares</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredCompanies.map((company, index) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${company.name}</td>
+                  <td>${sectorLabel(company.sector)}</td>
+                  <td>${company.sharePrice ?? "—"}</td>
+                  <td>${company.totalShares?.toLocaleString() ?? "—"}</td>
+                  <td>${company.availableShares?.toLocaleString() ?? "—"}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+    
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+    
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (iframeDoc) {
+      iframeDoc.write(printContent);
+      iframeDoc.close();
+      iframe.contentWindow?.print();
+      setTimeout(() => document.body.removeChild(iframe), 1000);
+    }
+  };
+
+  const handleGenerateReport = async (config: ReportConfig) => {
+    try {
+      const reportData = filteredCompanies.map(company => ({
+        name: company.name,
+        sector: sectorLabel(company.sector),
+        sharePrice: company.sharePrice ?? "—",
+        closingPrice: company.closingPrice ?? "—",
+        totalShares: company.totalShares?.toLocaleString() ?? "—",
+        availableShares: company.availableShares?.toLocaleString() ?? "—",
+        priceChange: company.priceChange ?? "—",
+        tradedVolume: company.tradedVolume ?? "—",
+        tradedValue: company.tradedValue ?? "—",
+        description: company.description ?? "—",
+        snapshotDate: formatSnapshot(company.snapshotDate)
+      }));
+
+      const reportInfo = {
+        title: 'Companies Report',
+        data: reportData,
+        fields: companyReportFields.filter(field => config.selectedFields.includes(field.key)),
+        dateRange: { start: config.startDate, end: config.endDate }
+      };
+
+      if (config.format === 'pdf') {
+        await ReportGenerator.generatePDF(reportInfo, config);
+      } else if (config.format === 'word') {
+        await ReportGenerator.generateWord(reportInfo, config);
+      }
+      
+      toast.success(`${config.format.toUpperCase()} report generated successfully`);
+    } catch (error) {
+      toast.error(`Failed to generate ${config.format} report`);
+    }
+  };
+
   return (
     <DashboardLayout
       userRole={config.dashboardRole}
@@ -280,6 +411,33 @@ export default function CompaniesPage() {
             <p className="mt-1 text-sm text-gray-500">{config.subtitle}</p>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={handlePrint}
+            >
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={() => setPdfReportOpen(true)}
+            >
+              <FileText className="h-4 w-4" />
+              PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={() => setWordReportOpen(true)}
+            >
+              <Download className="h-4 w-4" />
+              Word
+            </Button>
             <MarketSyncButton />
             {config.canCreate ? (
               <Button
@@ -358,10 +516,12 @@ export default function CompaniesPage() {
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-[#004B5B]/10 text-xs uppercase text-[#004B5B]">
                 <tr>
+                  <th className="p-1 text-left">No</th>
                   <th className="p-3 text-left">Company</th>
                   <th className="p-3 text-left">Sector</th>
                   <th className="p-3 text-left">Share price</th>
                   <th className="p-3 text-left">Total shares</th>
+                  <th className="p-3 text-left">Available shares</th>
                   <th className="p-3 text-center">Actions</th>
                 </tr>
               </thead>
@@ -393,7 +553,7 @@ export default function CompaniesPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedCompanies.map((company) => (
+                  paginatedCompanies.map((company, index) => (
                     <motion.tr
                       key={company.id}
                       initial={{ opacity: 0, y: 6 }}
@@ -401,6 +561,7 @@ export default function CompaniesPage() {
                       transition={{ duration: 0.2 }}
                       className="border-b hover:bg-gray-50"
                     >
+                      <td className="p-3">{startIndex + index}</td>
                       <td className="p-3">
                         <div className="flex flex-col">
                           <span className="font-medium text-gray-700">{company.name}</span>
@@ -412,6 +573,7 @@ export default function CompaniesPage() {
                       <td className="p-3">{sectorLabel(company.sector)}</td>
                       <td className="p-3">{company.sharePrice ?? "—"}</td>
                       <td className="p-3">{company.totalShares?.toLocaleString() ?? "—"}</td>
+                      <td className="p-3">{company.availableShares?.toLocaleString() ?? "—"}</td>
                       <td className="p-3">
                         <div className="flex justify-center gap-3">
                           <button
@@ -698,6 +860,24 @@ export default function CompaniesPage() {
           </motion.div>
         ) : null}
       </AnimatePresence>
+
+      <ReportModal
+        isOpen={pdfReportOpen}
+        onClose={() => setPdfReportOpen(false)}
+        onGenerate={handleGenerateReport}
+        title="Companies PDF"
+        availableFields={companyReportFields}
+        format="pdf"
+      />
+
+      <ReportModal
+        isOpen={wordReportOpen}
+        onClose={() => setWordReportOpen(false)}
+        onGenerate={handleGenerateReport}
+        title="Companies Word"
+        availableFields={companyReportFields}
+        format="word"
+      />
     </DashboardLayout>
   );
 }

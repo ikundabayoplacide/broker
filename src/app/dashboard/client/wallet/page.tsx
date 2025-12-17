@@ -143,11 +143,12 @@ export default function WalletPage() {
         headers: { Authorization: `Bearer ${token}` },
       })) as WalletApiResponse;
       setWalletData(data.wallet);
-      setTransactions(data.transactions);
-      setTotalPages(Math.ceil(data.pagination.total / transactionsPerPage));
+      setTransactions(data.transactions || []);
+      setTotalPages(Math.ceil((data.pagination?.total || 0) / transactionsPerPage));
       setCurrentPage(page);
     } catch (error) {
       console.error("Error fetching wallet:", error);
+      setTransactions([]);
     }
   };
 
@@ -698,7 +699,7 @@ export default function WalletPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions.map((txn, index) => (
+                    {transactions?.map((txn, index) => (
                       <tr key={txn.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                         <td className="py-3 md:py-4 px-2 text-xs md:text-sm font-medium text-slate-900">{index + 1}</td>
                         <td className="py-3 md:py-4 px-2">
@@ -742,7 +743,7 @@ export default function WalletPage() {
                         </td>
                       </tr>
                     ))}
-                    {transactions.length === 0 && (
+                    {(!transactions || transactions.length === 0) && (
                       <tr>
                         <td colSpan={6} className="py-8 text-center text-sm text-slate-500">
                           No transactions yet

@@ -10,18 +10,18 @@ export async function GET(req: NextRequest) {
     }
 
     const decoded = await verifyToken(token);
-    if (!decoded?.userId) {
+    if (!decoded?.id) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const notifications = await prisma.notification.findMany({
-      where: { userId: decoded.userId },
+      where: { userId: decoded.id as string },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
 
     const unreadCount = await prisma.notification.count({
-      where: { userId: decoded.userId, isRead: false },
+      where: { userId: decoded.id as string, isRead: false },
     });
 
     return NextResponse.json({ notifications, unreadCount });
@@ -39,14 +39,14 @@ export async function PATCH(req: NextRequest) {
     }
 
     const decoded = await verifyToken(token);
-    if (!decoded?.userId) {
+    if (!decoded?.id) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const { notificationId } = await req.json();
 
     await prisma.notification.update({
-      where: { id: notificationId, userId: decoded.userId },
+      where: { id: notificationId, userId: decoded.id as string },
       data: { isRead: true },
     });
 

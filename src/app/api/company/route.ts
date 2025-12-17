@@ -38,7 +38,21 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ data: serializeBigInt(companies) });
+    const serializedCompanies = serializeBigInt(companies);
+    
+    return NextResponse.json({ 
+      data: serializedCompanies, // Original format for existing pages
+      success: true, 
+      companies: serializedCompanies.map(company => ({ // New format for trade page
+        id: company.id,
+        symbol: company.symbol || '',
+        name: company.name,
+        sharePrice: Number(company.sharePrice || 0),
+        closingPrice: Number(company.closingPrice || company.sharePrice || 0),
+        priceChange: company.priceChange || '0.00',
+        availableShares: Number(company.availableShares || 0)
+      }))
+    });
   } catch (error) {
     console.error("Failed to fetch companies", error);
     return NextResponse.json({ error: "Failed to fetch companies" }, { status: 500 });
@@ -99,6 +113,42 @@ export async function POST(request: Request) {
         },
       });
 
+      // Create a notification for all admins / super-admins to inform them of the new company
+      try {
+        const recipients = await tx.user.findMany({
+          where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
+          select: { id: true },
+        });
+
+        if (recipients.length > 0) {
+          // Create notifications in batch to avoid duplicates
+          const notificationData = recipients.map(recipient => ({
+            userId: recipient.id,
+            title: "New company created",
+            message: `Company ${newCompany.name} was created`,
+            type: "INFO",
+            metadata: { companyId: newCompany.id, event: "company_created" },
+          }));
+
+          // Check for existing notifications to prevent duplicates
+          const existingNotifications = await tx.notification.findMany({
+            where: {
+              userId: { in: recipients.map(r => r.id) },
+              title: "New company created",
+              message: `Company ${newCompany.name} was created`,
+            },
+          });
+
+          if (existingNotifications.length === 0) {
+            await tx.notification.createMany({
+              data: notificationData,
+            });
+          }
+        }
+      } catch (notifyErr) {
+        console.error("Failed to create company notifications:", notifyErr);
+      }
+
       return newCompany;
     });
 
@@ -131,3 +181,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create company" }, { status: 500 });
   }
 }
+
+

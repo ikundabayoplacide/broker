@@ -7,9 +7,341 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                      String          @id @default(uuid())
+  fullName                String
+  email                   String          @unique
+  phoneCountryCode        String
+  phone                   String
+  password                String
+  idNumber                String?
+  csdNumber               String?         @unique
+  passportPhoto           String?
+  idDocument              String?
+  dateOfBirth             DateTime?
+  gender                  String          @default("male")
+  country                 String
+  city                    String
+  occupation              String?
+  investmentExperience    String?
+  notificationPreferences Json?
+  role                    Role            @default(CLIENT)
+  isVerified              Boolean         @default(false)
+  otp                     String?
+  otpExpiresAt            DateTime?
+  branchId                String?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  createdById             String?
+  managedBranches         Branch[]        @relation("BranchManager")
+  notifications           Notification[]
+  paymentMethods          PaymentMethod[]
+  portfolios              Portfolio[]
+  trades                  Trade[]
+  transactions            Transaction[]
+  branch                  Branch?         @relation("BranchEmployees", fields: [branchId], references: [id])
+  createdBy               User?           @relation("TellerCreatedClients", fields: [createdById], references: [id])
+  createdClients          User[]          @relation("TellerCreatedClients")
+  wallet                  Wallet?
+
+  @@index([branchId])
+  @@index([createdById], map: "User_createdById_fkey")
+}
+
+model Company {
+  id                   String               @id @default(uuid())
+  name                 String               @unique
+  email                String               @unique
+  phoneCountryCode     String
+  phone                String
+  password             String
+  csdNumber            String               @unique
+  symbol               String?              @unique
+  description          String?              @db.Text
+  sector               String?
+  country              String
+  city                 String
+  documents            Json?
+  sharePrice           Decimal?             @db.Decimal(18, 2)
+  totalShares          BigInt?
+  availableShares      BigInt?
+  marketCap            Decimal?             @db.Decimal(18, 2)
+  closingPrice         Decimal?             @db.Decimal(18, 2)
+  previousClosingPrice Decimal?             @db.Decimal(18, 2)
+  priceChange          String?
+  tradedVolume         Decimal?             @db.Decimal(18, 2)
+  tradedValue          Decimal?             @db.Decimal(18, 2)
+  snapshotDate         DateTime?
+  contract             String?              @db.Text
+  isVerified           Boolean              @default(true)
+  createdById          String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  transactions         CompanyTransaction[]
+  wallet               CompanyWallet?
+  portfolios           Portfolio[]
+  trades               Trade[]
+}
+
+model PurchaseOrder {
+  id                     String                  @id @default(uuid())
+  clientName             String
+  csdNumber              String?
+  phone                  String
+  email                  String
+  address                String
+  bestMarketPrice        Boolean                 @default(false)
+  priceLimit             Boolean                 @default(false)
+  standingOrderNote      String?
+  standingFrequency      StandingOrderFrequency?
+  additionalInstructions String?
+  termsAccepted          Boolean                 @default(false)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  items                  PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  security        String
+  quantity        Int
+  price           Decimal?      @db.Decimal(18, 2)
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+
+  @@index([purchaseOrderId], map: "PurchaseOrderItem_purchaseOrderId_fkey")
+}
+
+model SaleOrder {
+  id                  String          @id @default(uuid())
+  clientName          String
+  csdNumber           String?
+  phone               String
+  email               String
+  address             String
+  bestMarketPrice     Boolean         @default(false)
+  priceLimit          Boolean         @default(false)
+  withinTimeLimitNote String?
+  bankName            String?
+  bankBranch          String?
+  accountNumber       String?
+  termsAccepted       Boolean         @default(false)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  items               SaleOrderItem[]
+}
+
+model SaleOrderItem {
+  id          String    @id @default(uuid())
+  security    String
+  quantity    Int
+  price       Decimal?  @db.Decimal(18, 2)
+  saleOrderId String
+  saleOrder   SaleOrder @relation(fields: [saleOrderId], references: [id])
+
+  @@index([saleOrderId], map: "SaleOrderItem_saleOrderId_fkey")
+}
+
+model Wallet {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  balance       Decimal  @default(0.00) @db.Decimal(18, 2)
+  lockedBalance Decimal  @default(0.00) @db.Decimal(18, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PaymentMethod {
+  id            String            @id @default(uuid())
+  userId        String
+  type          PaymentMethodType
+  provider      String?
+  accountNumber String
+  accountName   String?
+  isDefault     Boolean           @default(false)
+  isActive      Boolean           @default(true)
+  metadata      Json?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+}
+
+model CompanyWallet {
+  id            String   @id @default(uuid())
+  companyId     String   @unique
+  balance       Decimal  @default(0.00) @db.Decimal(18, 2)
+  lockedBalance Decimal  @default(0.00) @db.Decimal(18, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model Transaction {
+  id            String            @id @default(uuid())
+  userId        String
+  type          TransactionType
+  amount        Decimal           @db.Decimal(18, 2)
+  status        TransactionStatus @default(PENDING)
+  paymentMethod String?
+  reference     String?           @unique
+  description   String?
+  metadata      Json?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CompanyTransaction {
+  id            String            @id @default(uuid())
+  companyId     String
+  type          TransactionType
+  amount        Decimal           @db.Decimal(18, 2)
+  status        TransactionStatus @default(PENDING)
+  paymentMethod String?
+  reference     String?           @unique
+  description   String?
+  metadata      Json?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  company       Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Portfolio {
+  id              String   @id @default(uuid())
+  userId          String
+  companyId       String
+  quantity        Int      @default(0)
+  averageBuyPrice Decimal  @db.Decimal(18, 2)
+  totalInvested   Decimal  @db.Decimal(18, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+}
+
+model Trade {
+  id               String         @id @default(uuid())
+  userId           String
+  companyId        String
+  branchId         String?
+  type             TradeType
+  status           TradeStatus    @default(PENDING)
+  priceType        OrderPriceType @default(MARKET)
+  quantity         Int
+  requestedPrice   Decimal?       @db.Decimal(18, 2)
+  executedPrice    Decimal?       @db.Decimal(18, 2)
+  executedQuantity Int?
+  totalAmount      Decimal        @db.Decimal(18, 2)
+  fees             Decimal        @default(0.00) @db.Decimal(18, 2)
+  transactionId    String?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  executedAt       DateTime?
+  updatedAt        DateTime       @updatedAt
+  branch           Branch?        @relation(fields: [branchId], references: [id])
+  company          Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([branchId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model MarketSnapshot {
+  id                   String   @id @default(uuid())
+  companyId            String?
+  security             String
+  symbol               String?
+  closingPrice         Decimal? @db.Decimal(18, 2)
+  previousClosingPrice Decimal? @db.Decimal(18, 2)
+  priceChange          String?
+  tradedVolume         Decimal? @db.Decimal(18, 2)
+  tradedValue          Decimal? @db.Decimal(18, 2)
+  snapshotDate         DateTime
+  sourceUrl            String?
+  syncedAt             DateTime @default(now())
+  createdAt            DateTime @default(now())
+
+  @@index([companyId])
+  @@index([symbol])
+  @@index([snapshotDate])
+  @@index([syncedAt])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String   @db.Text
+  type      String   @default("INFO")
+  metadata  Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model Branch {
+  id            String       @id @default(uuid())
+  name          String
+  code          String       @unique
+  address       String
+  city          String
+  country       String       @default("Rwanda")
+  phone         String
+  email         String       @unique
+  managerId     String?
+  employeeCount Int          @default(0)
+  status        BranchStatus @default(ACTIVE)
+  startTime     String
+  endTime       String
+  services      Json?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  manager       User?        @relation("BranchManager", fields: [managerId], references: [id])
+  trades        Trade[]
+  employees     User[]       @relation("BranchEmployees")
+
+  @@index([code])
+  @@index([city])
+  @@index([status])
+  @@index([managerId])
+}
+
 enum Role {
   SUPER_ADMIN
   ADMIN
+  MANAGER
   TELLER
   CLIENT
 }
@@ -59,375 +391,8 @@ enum PaymentMethodType {
   CREDIT_CARD
 }
 
-model User {
-  id                    String   @id @default(uuid())
-  fullName              String
-  email                 String   @unique
-  phoneCountryCode      String
-  phone                 String
-  password              String
-  idNumber              String?
-  csdNumber             String?  @unique
-  passportPhoto         String?
-  idDocument            String?
-  dateOfBirth           DateTime?
-  gender                String   @default("male")
-  country               String
-  city                  String
-  occupation            String?
-  investmentExperience  String?
-  notificationPreferences Json?
-  role                  Role     @default(CLIENT)
-  isVerified            Boolean  @default(false)
-  otp                   String?
-  otpExpiresAt          DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  createdById           String?
-
-  createdBy             User?    @relation("TellerCreatedClients", fields: [createdById], references: [id], onDelete: SetNull)
-  createdClients        User[]   @relation("TellerCreatedClients")
-  wallet                Wallet?
-  paymentMethods        PaymentMethod[]
-  portfolios            Portfolio[]
-  transactions          Transaction[]
-  trades                Trade[]
-  notifications         Notification[]
-}
-
-model Company {
-  id                   String    @id @default(uuid())
-  name                 String    @unique
-  email                String    @unique
-  phoneCountryCode     String
-  phone                String
-  password             String
-  csdNumber            String    @unique
-  symbol               String?   @unique
-  description          String?   @db.Text
-  sector               String?
-  country              String
-  city                 String
-  documents            Json?     // Array of document URLs
-  sharePrice           Decimal?  @db.Decimal(18, 2)
-  totalShares          BigInt?
-  availableShares      BigInt?
-  marketCap            Decimal?  @db.Decimal(18, 2)
-  closingPrice         Decimal?  @db.Decimal(18, 2)
-  previousClosingPrice Decimal?  @db.Decimal(18, 2)
-  priceChange          String?
-  tradedVolume         Decimal?  @db.Decimal(18, 2)
-  tradedValue          Decimal?  @db.Decimal(18, 2)
-  snapshotDate         DateTime?
-  contract             String?   @db.Text
-  isVerified           Boolean   @default(true)
-  createdById          String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-
-  wallet               CompanyWallet?
-  paymentMethods       CompanyPaymentMethod[]
-  transactions         CompanyTransaction[]
-  portfolios           Portfolio[]
-  trades               Trade[]
-  companyTrades        CompanyTrade[]        @relation("CompanyTrades")
-  targetCompanyTrades  CompanyTrade[]        @relation("TargetCompanyTrades")
-  companyPortfolios    CompanyPortfolio[]    @relation("CompanyPortfolios")
-  targetCompanyPortfolios CompanyPortfolio[] @relation("TargetCompanyPortfolios")
-}
-
-model PurchaseOrder {
-  id                     String                  @id @default(uuid())
-  clientName             String
-  csdNumber              String?
-  phone                  String
-  email                  String
-  address                String
-  bestMarketPrice        Boolean                 @default(false)
-  priceLimit             Boolean                 @default(false)
-  standingOrderNote      String?
-  standingFrequency      StandingOrderFrequency?
-  additionalInstructions String?
-  termsAccepted          Boolean                 @default(false)
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
-  items                  PurchaseOrderItem[]
-}
-
-model PurchaseOrderItem {
-  id               String         @id @default(uuid())
-  security         String
-  quantity         Int
-  price            Decimal?       @db.Decimal(18, 2)
-  purchaseOrderId  String
-
-  purchaseOrder    PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id])
-}
-
-model SaleOrder {
-  id                     String         @id @default(uuid())
-  clientName             String
-  csdNumber              String?
-  phone                  String
-  email                  String
-  address                String
-  bestMarketPrice        Boolean        @default(false)
-  priceLimit             Boolean        @default(false)
-  withinTimeLimitNote    String?
-  bankName               String?
-  bankBranch             String?
-  accountNumber          String?
-  termsAccepted          Boolean        @default(false)
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
-
-  items                  SaleOrderItem[]
-}
-
-model SaleOrderItem {
-  id            String    @id @default(uuid())
-  security      String
-  quantity      Int
-  price         Decimal?  @db.Decimal(18, 2)
-  saleOrderId   String
-
-  saleOrder     SaleOrder @relation(fields: [saleOrderId], references: [id])
-}
-model Wallet {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  balance         Decimal  @default(0) @db.Decimal(18, 2)
-  lockedBalance   Decimal  @default(0) @db.Decimal(18, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model PaymentMethod {
-  id              String            @id @default(uuid())
-  userId          String
-  type            PaymentMethodType
-  provider        String?           // e.g., "MTN", "Airtel", "Bank of Kigali"
-  accountNumber   String            // Phone number for mobile money, account number for bank
-  accountName     String?
-  isDefault       Boolean           @default(false)
-  isActive        Boolean           @default(true)
-  metadata        Json?             // Additional info like bank branch, etc.
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([type])
-}
-
-model CompanyWallet {
-  id              String   @id @default(uuid())
-  companyId       String   @unique
-  balance         Decimal  @default(0) @db.Decimal(18, 2)
-  lockedBalance   Decimal  @default(0) @db.Decimal(18, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-}
-
-model CompanyPaymentMethod {
-  id              String            @id @default(uuid())
-  companyId       String
-  type            PaymentMethodType
-  provider        String?
-  accountNumber   String
-  accountName     String?
-  isDefault       Boolean           @default(false)
-  isActive        Boolean           @default(true)
-  metadata        Json?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-
-  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([type])
-}
-
-model Transaction {
-  id              String            @id @default(uuid())
-  userId          String
-  type            TransactionType
-  amount          Decimal           @db.Decimal(18, 2)
-  status          TransactionStatus @default(PENDING)
-  paymentMethod   String?
-  reference       String?           @unique
-  description     String?
-  metadata        Json?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([type])
-  @@index([status])
-  @@index([createdAt])
-}
-
-model CompanyTransaction {
-  id              String            @id @default(uuid())
-  companyId       String
-  type            TransactionType
-  amount          Decimal           @db.Decimal(18, 2)
-  status          TransactionStatus @default(PENDING)
-  paymentMethod   String?
-  reference       String?           @unique
-  description     String?
-  metadata        Json?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-
-  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([type])
-  @@index([status])
-  @@index([createdAt])
-}
-
-model Portfolio {
-  id              String   @id @default(uuid())
-  userId          String
-  companyId       String
-  quantity        Int      @default(0)
-  averageBuyPrice Decimal  @db.Decimal(18, 2)
-  totalInvested   Decimal  @db.Decimal(18, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, companyId])
-  @@index([userId])
-  @@index([companyId])
-}
-
-model Trade {
-  id              String         @id @default(uuid())
-  userId          String
-  companyId       String
-  type            TradeType
-  status          TradeStatus    @default(PENDING)
-  priceType       OrderPriceType @default(MARKET)
-  quantity        Int
-  requestedPrice  Decimal?       @db.Decimal(18, 2)
-  executedPrice   Decimal?       @db.Decimal(18, 2)
-  executedQuantity Int?
-  totalAmount     Decimal        @db.Decimal(18, 2)
-  fees            Decimal        @default(0) @db.Decimal(18, 2)
-  transactionId   String?
-  notes           String?
-  createdAt       DateTime       @default(now())
-  executedAt      DateTime?
-  updatedAt       DateTime       @updatedAt
-
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([companyId])
-  @@index([status])
-  @@index([type])
-  @@index([createdAt])
-}
-
-model CompanyTrade {
-  id               String         @id @default(uuid())
-  companyId        String
-  targetCompanyId  String
-  type             TradeType
-  status           TradeStatus    @default(PENDING)
-  priceType        OrderPriceType @default(MARKET)
-  quantity         Int
-  requestedPrice   Decimal?       @db.Decimal(18, 2)
-  executedPrice    Decimal?       @db.Decimal(18, 2)
-  executedQuantity Int?
-  totalAmount      Decimal        @db.Decimal(18, 2)
-  fees             Decimal        @default(0) @db.Decimal(18, 2)
-  transactionId    String?
-  notes            String?
-  createdAt        DateTime       @default(now())
-  executedAt       DateTime?
-  updatedAt        DateTime       @updatedAt
-
-  company          Company        @relation("CompanyTrades", fields: [companyId], references: [id], onDelete: Cascade)
-  targetCompany    Company        @relation("TargetCompanyTrades", fields: [targetCompanyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([targetCompanyId])
-  @@index([status])
-  @@index([type])
-  @@index([createdAt])
-}
-
-model CompanyPortfolio {
-  id               String   @id @default(uuid())
-  companyId        String
-  targetCompanyId  String
-  quantity         Int      @default(0)
-  averageBuyPrice  Decimal  @db.Decimal(18, 2)
-  totalInvested    Decimal  @db.Decimal(18, 2)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  company          Company  @relation("CompanyPortfolios", fields: [companyId], references: [id], onDelete: Cascade)
-  targetCompany    Company  @relation("TargetCompanyPortfolios", fields: [targetCompanyId], references: [id], onDelete: Cascade)
-
-  @@unique([companyId, targetCompanyId])
-  @@index([companyId])
-  @@index([targetCompanyId])
-}
-
-model MarketSnapshot {
-  id                   String   @id @default(uuid())
-  companyId            String?
-  security             String   // Security name from RSE
-  symbol               String?  // Matched symbol
-  closingPrice         Decimal? @db.Decimal(18, 2)
-  previousClosingPrice Decimal? @db.Decimal(18, 2)
-  priceChange          String?
-  tradedVolume         Decimal? @db.Decimal(18, 2)
-  tradedValue          Decimal? @db.Decimal(18, 2)
-  snapshotDate         DateTime
-  sourceUrl            String?
-  syncedAt             DateTime @default(now())
-  createdAt            DateTime @default(now())
-
-  @@index([companyId])
-  @@index([symbol])
-  @@index([snapshotDate])
-  @@index([syncedAt])
-}
-
-model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  title     String
-  message   String   @db.Text
-  type      String   @default("INFO")
-  metadata  Json?
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([isRead])
-  @@index([createdAt])
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
 }

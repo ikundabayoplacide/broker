@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FiBell } from 'react-icons/fi';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -20,6 +20,7 @@ export default function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (token) {
@@ -28,6 +29,19 @@ export default function NotificationBell() {
       return () => clearInterval(interval);
     }
   }, [token]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showDropdown]);
 
   const fetchNotifications = async () => {
     if (!token) return;
@@ -70,7 +84,7 @@ export default function NotificationBell() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setShowDropdown(!showDropdown)}
         className="relative p-2 hover:bg-gray-100 rounded-lg transition"
@@ -82,58 +96,50 @@ export default function NotificationBell() {
           </span>
         )}
       </button>
-
       {showDropdown && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowDropdown(false)}
-          />
-          <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
-            <div className="p-3 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">Notifications</h3>
-              {unreadCount > 0 && (
-                <p className="text-xs text-gray-600">{unreadCount} unread</p>
-              )}
-            </div>
-            <div className="divide-y divide-gray-100">
-              {notifications.length === 0 ? (
-                <div className="p-4 text-center text-gray-500 text-sm">
-                  No notifications
-                </div>
-              ) : (
-                notifications.map((notif) => (
-                  <div
-                    key={notif.id}
-                    onClick={() => {
-                      if (!notif.isRead) markAsRead(notif.id);
-                    }}
-                    className={`p-3 hover:bg-gray-50 cursor-pointer ${
-                      !notif.isRead ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {notif.title}
-                        </p>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {notif.message}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(notif.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                      {!notif.isRead && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-1"></div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+        <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-[10000] max-h-96 overflow-y-auto">
+          <div className="p-3 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-900">Notifications</h3>
+            {unreadCount > 0 && (
+              <p className="text-xs text-gray-600">{unreadCount} unread</p>
+            )}
           </div>
-        </>
+          <div className="divide-y divide-gray-100">
+            {notifications.length === 0 ? (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                No notifications
+              </div>
+            ) : (
+              notifications.map((notif) => (
+                <div
+                  key={notif.id}
+                  onClick={() => {
+                    if (!notif.isRead) markAsRead(notif.id);
+                  }}
+                  className={`p-3 hover:bg-gray-50 cursor-pointer ${!notif.isRead ? 'bg-blue-50' : ''
+                    }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {notif.title}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {notif.message}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {new Date(notif.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    {!notif.isRead && (
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-1"></div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

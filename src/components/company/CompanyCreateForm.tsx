@@ -12,12 +12,17 @@ import { CountryCode, getCountryCallingCode } from "libphonenumber-js";
 export interface CompanySummary {
   id: string;
   name: string;
+  status:string;
   description: string | null;
   sector: string | null;
   sharePrice: string | null;
   totalShares: number | null;
   availableShares: number | null;
-
+  closingPrice: string | null;
+  priceChange: string | null;
+  tradedVolume: string | null;
+  tradedValue: string | null;
+  snapshotDate: string | null;
   contract: string | null;
   createdAt: string;
   updatedAt: string;
@@ -25,6 +30,7 @@ export interface CompanySummary {
 
 interface CompanyCreateFormProps {
   authToken: string | null;
+  onCancel?: () => void;
   onCreated?: (company: CompanySummary) => void;
   withCard?: boolean;
 }
@@ -80,7 +86,7 @@ const INITIAL_STATE: FormState = {
   contract: "",
 };
 
-export function CompanyCreateForm({ authToken, onCreated, withCard = true }: CompanyCreateFormProps) {
+export function CompanyCreateForm({ authToken, onCreated, onCancel, withCard = true }: CompanyCreateFormProps) {
   const [formState, setFormState] = useState<FormState>(INITIAL_STATE);
   const [submitting, setSubmitting] = useState(false);
 
@@ -207,7 +213,19 @@ export function CompanyCreateForm({ authToken, onCreated, withCard = true }: Com
   };
 
   const formContent = (
-    <form className="space-y-4" onSubmit={handleSubmit}>
+    <>
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-[#004B5B]">Add a new company</h2>
+          <p className="text-sm text-gray-500">Publish issuers to the shared directory.</p>
+        </div>
+        {onCancel && (
+          <Button variant="outline" type="button" onClick={onCancel} disabled={submitting}>
+            Close
+          </Button>
+        )}
+      </div>
+      <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="grid md:grid-cols-2 gap-4">
           <InputField
             label="Company Name"
@@ -420,12 +438,13 @@ export function CompanyCreateForm({ authToken, onCreated, withCard = true }: Com
             {submitting ? "Creating..." : "Create company"}
           </Button>
         </div>
-    </form>
+      </form>
+    </>
   );
 
   if (withCard) {
-    return <Card className="p-6 space-y-6">{formContent}</Card>;
+    return <Card className="p-6">{formContent}</Card>;
   }
 
-  return <div className="space-y-6">{formContent}</div>;
+  return <div>{formContent}</div>;
 }

@@ -1,246 +1,211 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
+import { getAuthenticatedUser } from "@/lib/apiAuth";
+import { userCreationSchema } from "@/lib/validations/signupValidation";
+import type { Role as PrismaRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { z } from "zod";
-import {
-	ForbiddenError,
-	UnauthorizedError,
-	requireUserManagementRole,
-	USER_MANAGEMENT_ROLES,
-} from "@/utils/_helpers";
-import { userCreationSchema, type UserCreationPayload } from "@/lib/validations/signupValidation";
-import { ensureCsdNumberAssignment } from "@/lib/csdNumber";
 
-type RoleValue = (typeof USER_MANAGEMENT_ROLES)[number];
-
-const isPrismaKnownError = (error: unknown): error is { code: string } => {
-	return typeof error === "object" && error !== null && "code" in error && typeof (error as { code?: unknown }).code === "string";
+const defaultNotificationPreferences = {
+  email: true,
+  sms: false,
+  push: false,
 };
 
-const userSelect = {
-	id: true,
-	fullName: true,
-	email: true,
-	phoneCountryCode: true,
-	phone: true,
-	idNumber: true,
-	csdNumber: true,
-	passportPhoto: true,
-	idDocument: true,
-	dateOfBirth: true,
-	gender: true,
-	country: true,
-	city: true,
-	occupation: true,
-	investmentExperience: true,
-	notificationPreferences: true,
-	role: true,
-	isVerified: true,
-	createdBy: {
-		select: {
-			id: true,
-			fullName: true,
-			email: true,
-			role: true,
-		},
-	},
-	otp: false,
-	otpExpiresAt: false,
-	createdAt: true,
-	updatedAt: true,
-} as const;
+export async function POST(req: NextRequest) {
+  try {
+    const authResult = await getAuthenticatedUser(req);
+    if (!authResult) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-const ALL_ROLES = [...USER_MANAGEMENT_ROLES] as [RoleValue, ...RoleValue[]];
-const MANAGEMENT_ROLES = ["SUPER_ADMIN", "ADMIN", "TELLER"] as const;
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: authResult.userId || authResult.id },
+      select: { role: true, branchId: true }
+    });
 
-const adminCreateExtrasSchema = z.object({
-	notificationPreferences: z.any().optional(),
-	role: z.enum(ALL_ROLES).optional(),
-	isVerified: z.boolean().optional(),
-});
+    if (!requestingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-type UserResponse = {
-	id: string;
-	fullName: string;
-	email: string;
-	phoneCountryCode: string;
-	phone: string;
-	idNumber: string | null;
-	csdNumber: string | null;
-	passportPhoto: string | null;
-	idDocument: string | null;
-	dateOfBirth: Date | null;
-	gender: string;
-	country: string;
-	city: string;
-	occupation: string | null;
-	investmentExperience: string | null;
-	notificationPreferences: unknown;
-	role: RoleValue;
-	isVerified: boolean;
-	createdBy: {
-		id: string;
-		fullName: string;
-		email: string;
-		role: RoleValue;
-	} | null;
-	createdAt: Date;
-	updatedAt: Date;
-};
+    if (![
+"SUPER_ADMIN", "MANAGER"].includes(requestingUser.role)) {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    }
 
-function handleError(error: unknown, fallbackMessage: string) {
-	if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
-		return NextResponse.json({ error: error.message }, { status: error.status });
-	}
+    const data = await req.json();
+    const parsed = userCreationSchema.safeParse(data);
 
-	if (error instanceof z.ZodError) {
-		const issues = error.issues.map((issue) => ({
-			path: issue.path.join("."),
-			message: issue.message,
-		}));
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      }));
 
-		return NextResponse.json(
-			{
-				error: issues[0]?.message ?? "Invalid input data",
-				errors: issues,
-			},
-			{ status: 400 }
-		);
-	}
+      return NextResponse.json(
+        {
+          error: issues[0]?.message ?? "Invalid user data",
+          fieldErrors: issues,
+        },
+        { status: 400 }
+      );
+    }
 
-	if (isPrismaKnownError(error) && error.code === "P2002") {
-		return NextResponse.json({ error: "A user with the provided unique field already exists" }, { status: 409 });
-	}
+    const validated = parsed.data;
+    const {
+      fullName,
+      email,
+      phoneCountryCode,
+      phone,
+      password,
+      confirmPassword,
+      gender,
+      country,
+      city,
+      idNumber,
+      passportPhoto,
+      idDocument,
+      dateOfBirth,
+      occupation,
+      investmentExperience,
+    } = validated;
+    void confirmPassword;
 
-	console.error(fallbackMessage, error);
-	return NextResponse.json({ error: fallbackMessage }, { status: 500 });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return NextResponse.json({ error: "Email already registered" }, { status: 400 });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    const role = (data.role as PrismaRole) || "CLIENT";
+    
+    if (requestingUser.role === "MANAGER") {
+      if (!["TELLER", "CLIENT"].includes(role)) {
+        return NextResponse.json({ error: "Managers can only create Teller and Client accounts" }, { status: 403 });
+      }
+    }
+
+    const notificationPreferences = data.notificationPreferences || defaultNotificationPreferences;
+
+    const createData: any = {
+      fullName,
+      email,
+      phoneCountryCode,
+      phone,
+      password: hashed,
+      gender,
+      country,
+      city,
+      role,
+      isVerified: data.isVerified || false,
+      notificationPreferences,
+    };
+
+    if (idNumber) createData.idNumber = idNumber;
+    if (passportPhoto) createData.passportPhoto = passportPhoto;
+    if (idDocument) createData.idDocument = idDocument;
+    if (dateOfBirth) createData.dateOfBirth = new Date(dateOfBirth);
+    if (occupation) createData.occupation = occupation;
+    if (investmentExperience) createData.investmentExperience = investmentExperience;
+
+    if (requestingUser.role === "MANAGER" && requestingUser.branchId) {
+      createData.branchId = requestingUser.branchId;
+    }
+
+    const createdUser = await prisma.user.create({
+      data: createData,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    return NextResponse.json({
+      message: "User created successfully",
+      data: createdUser,
+      id: createdUser.id,
+      email: createdUser.email,
+    });
+  } catch (err) {
+    console.error("Error creating user:", err);
+    return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+  }
 }
 
-export async function GET(request: Request) {
-	try {
-		const auth = await requireUserManagementRole(request, MANAGEMENT_ROLES);
-		const where =
-			auth.role === "TELLER"
-				? {
-					role: "CLIENT",
-					createdById: auth.id,
-				  }
-				: undefined;
-		const users = (await prisma.user.findMany({
-			where: where as never,
-			select: userSelect as never,
-			orderBy: { createdAt: "desc" },
-		})) as unknown as UserResponse[];
-		return NextResponse.json({ data: users });
-	} catch (error) {
-		return handleError(error, "Failed to fetch users");
-	}
-}
+export async function GET(request: NextRequest) {
+  try {
+    const authResult = await getAuthenticatedUser(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-export async function POST(request: Request) {
-	try {
-		const auth = await requireUserManagementRole(request, MANAGEMENT_ROLES);
+    const userId = authResult.userId || authResult.id;
+    const { searchParams } = new URL(request.url);
+    const role = searchParams.get("role");
 
-		const body = await request.json();
-		const payloadForValidation = {
-			...body,
-			confirmPassword: body?.confirmPassword ?? body?.password,
-		};
+    // Get the requesting user's details
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, branchId: true }
+    });
 
-		const parsedBase: UserCreationPayload = userCreationSchema.parse(payloadForValidation);
-		const parsedExtras = adminCreateExtrasSchema.parse(body);
+    if (!requestingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-		if (auth.role === "TELLER" && parsedExtras.role && parsedExtras.role !== "CLIENT") {
- 			throw new ForbiddenError("Tellers can only create client accounts");
- 		}
+    let whereClause: any = {};
 
-		if (auth.role === "ADMIN" && parsedExtras.role === "SUPER_ADMIN") {
-			throw new ForbiddenError("Admins cannot create super admin accounts");
-		}
+    // Role-based filtering
+    if (role) {
+      whereClause.role = role;
+    }
 
-		const {
-			fullName,
-			email,
-			phoneCountryCode,
-			phone,
-			password,
-			confirmPassword,
-			idNumber,
-			passportPhoto,
-			idDocument,
-			dateOfBirth,
-			gender,
-			country,
-			city,
-			occupation,
-			investmentExperience,
-		} = parsedBase;
-		void confirmPassword;
-		const hashedPassword = await bcrypt.hash(password, 10);
-		const now = new Date();
-		const targetIsVerified = parsedExtras.isVerified ?? true;
+    // Branch-based filtering for tellers
+    if (requestingUser.role === "TELLER") {
+      whereClause.branchId = requestingUser.branchId;
+      // Tellers can only see clients in their branch
+      if (!role || role === "CLIENT") {
+        whereClause.role = "CLIENT";
+      } else {
+        return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
+      }
+    }
 
-		const createData = {
-			fullName,
-			email,
-			phoneCountryCode,
-			phone,
-			gender: gender.trim().toLowerCase(),
-			password: hashedPassword,
-			country,
-			city,
-			csdNumber: null,
-			role: parsedExtras.role ?? "CLIENT",
-			isVerified: targetIsVerified,
-			otp: null,
-			otpExpiresAt: null,
-			...(parsedExtras.notificationPreferences !== undefined
-				? { notificationPreferences: parsedExtras.notificationPreferences }
-				: {}),
-			...(idNumber ? { idNumber } : {}),
-			...(passportPhoto ? { passportPhoto } : {}),
-			...(idDocument ? { idDocument } : {}),
-			...(occupation ? { occupation } : {}),
-			...(investmentExperience ? { investmentExperience } : {}),
-			...(dateOfBirth ? { dateOfBirth: new Date(dateOfBirth) } : {}),
-			createdBy:
-				auth.role === "TELLER"
-					? {
-						connect: { id: auth.id },
-					  }
-					: undefined,
-		};
+    // Managers can see users in their branch
+    if (requestingUser.role === "MANAGER") {
+      whereClause.branchId = requestingUser.branchId;
+    }
 
-		const newUser = (await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-			const created = (await tx.user.create({
-				data: createData as never,
-				select: userSelect as never,
-			})) as unknown as UserResponse;
+    const users = await prisma.user.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        csdNumber: true,
+        role: true,
+        branchId: true,
+        isVerified: true,
+        createdAt: true,
+      },
+      orderBy: {
+        fullName: "asc"
+      }
+    });
 
-			if (!targetIsVerified) {
-				return created;
-			}
+    return NextResponse.json({
+      data: users, // Original format for existing pages
+      success: true,
+      users // New format for trade page
+    });
 
-			await ensureCsdNumberAssignment(
-				tx,
-				{
-					id: created.id,
-					gender: created.gender,
-					country: created.country,
-					csdNumber: created.csdNumber,
-				},
-				{ now }
-			);
-
-			return (await tx.user.findUnique({
-				where: { id: created.id },
-				select: userSelect as never,
-			})) as unknown as UserResponse;
-		})) as unknown as UserResponse;
-
-		return NextResponse.json({ data: newUser }, { status: 201 });
-	} catch (error) {
-		return handleError(error, "Failed to create user");
-	}
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch users" },
+      { status: 500 }
+    );
+  }
 }

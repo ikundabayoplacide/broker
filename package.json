@@ -3,34 +3,41 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
-    "start": "next start",
-    "lint": "eslint"
+    "build": "prisma generate && next build",
+    "start": "next start -p 3000",
+    "prod": "npm run build && npm start",
+    "dev": "next dev"
   },
   "dependencies": {
     "@ckeditor/ckeditor5-build-classic": "^41.4.2",
     "@ckeditor/ckeditor5-react": "^11.0.0",
     "@headlessui/react": "^2.2.9",
     "@prisma/client": "^6.19.0",
+    "@types/bcryptjs": "^2.4.6",
     "@types/cheerio": "^0.22.35",
-    "bcryptjs": "^3.0.2",
+    "bcryptjs": "^3.0.3",
+    "chart.js": "^4.5.1",
+    "chartjs-plugin-datalabels": "^2.2.0",
     "cheerio": "^1.1.0",
     "cloudinary": "^2.8.0",
     "country-list": "^2.2.0",
+    "docx": "^9.5.1",
     "framer-motion": "^12.23.24",
     "jose": "^5.9.6",
     "jsonwebtoken": "^9.0.2",
+    "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
     "libphonenumber-js": "^1.10.48",
     "lucide-react": "^0.545.0",
     "mysql2": "^3.15.3",
     "next": "15.5.4",
     "nodemailer": "^7.0.11",
     "react": "18.3.1",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "18.3.1",
     "react-hot-toast": "^2.6.0",
     "react-icons": "^5.5.0",
-    "recharts": "^3.3.0",
+    "recharts": "^3.5.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.1.12"
@@ -55,6 +62,6 @@
     "typescript": "^5"
   },
   "overrides": {
-    "undici": "^5.9.0"
+    "undici": "^7.12.0"
   }
 }

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 
-type Role = "client" | "teller" | "admin" | "super_admin" | "company";
+type Role = "client" | "teller" | "admin" | "manager" | "super_admin" | "company";
 
 const roleToDashboard: Record<Role, string> = {
   client: "/dashboard/client",
   teller: "/dashboard/teller",
   admin: "/dashboard/admin",
+  manager: "/dashboard/manager",
   super_admin: "/dashboard/super-admin",
   company: "/dashboard/company",
 };
@@ -18,6 +19,7 @@ const normalizeRole = (role?: unknown): Role | null => {
     normalized === "client" ||
     normalized === "teller" ||
     normalized === "admin" ||
+    normalized === "manager" ||
     normalized === "super_admin" ||
     normalized === "company"
   ) {
@@ -109,9 +111,14 @@ export async function middleware(request: NextRequest) {
     }
 
     if (isDashboardPage) {
-      const requestedRole = extractDashboardRole(pathname);
-      if (!requestedRole || requestedRole !== userRole) {
-        return NextResponse.redirect(new URL(roleToDashboard[userRole], request.url));
+      const sharedRoutes = ["/dashboard/commonPage/companies", "/dashboard/commonPage/trade","/dashboard/commonPage/users"];
+      const isSharedRoute = sharedRoutes.some(route => pathname.startsWith(route));
+      
+      if (!isSharedRoute) {
+        const requestedRole = extractDashboardRole(pathname);
+        if (!requestedRole || requestedRole !== userRole) {
+          return NextResponse.redirect(new URL(roleToDashboard[userRole], request.url));
+        }
       }
     }
 

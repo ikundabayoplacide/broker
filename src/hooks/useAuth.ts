@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export type AuthRole = "CLIENT" | "TELLER" | "ADMIN" | "SUPER_ADMIN" | "COMPANY";
+export type AuthRole = "CLIENT" | "TELLER" | "ADMIN" | "MANAGER" | "SUPER_ADMIN" | "COMPANY";
 
 export interface AuthUser {
   id: string;
@@ -22,16 +22,18 @@ const DASHBOARD_PATHS: Record<AuthRole, string> = {
   CLIENT: "/dashboard/client",
   TELLER: "/dashboard/teller",
   ADMIN: "/dashboard/admin",
+  MANAGER: "/dashboard/manager",
   SUPER_ADMIN: "/dashboard/super-admin",
   COMPANY: "/dashboard/company",
 };
 
 const normalizeRole = (role?: string | null): AuthRole | null => {
   if (!role) return null;
-  const upper = role.toUpperCase().replace("-", "_");
-  if (["CLIENT", "TELLER", "ADMIN", "SUPER_ADMIN", "COMPANY"].includes(upper)) {
+  const upper = role.toUpperCase().replace(/-/g, "_");
+  if (["CLIENT", "TELLER", "ADMIN", "MANAGER", "SUPER_ADMIN", "COMPANY"].includes(upper)) {
     return upper as AuthRole;
   }
+  console.warn('Failed to normalize role:', role, 'upper:', upper);
   return null;
 };
 
@@ -42,21 +44,34 @@ const getStoredUser = (): AuthUser | null => {
     let storedUser = localStorage.getItem("user");
     let isCompany = false;
     
+    console.log('=== getStoredUser DEBUG ===');
+    console.log('Raw stored user:', storedUser);
+    
     if (!storedUser) {
       storedUser = localStorage.getItem("company");
       isCompany = true;
+      console.log('No user found, checking company:', storedUser);
     }
     
-    if (!storedUser) return null;
+    if (!storedUser) {
+      console.log('No stored user or company found');
+      return null;
+    }
     
     const parsed = JSON.parse(storedUser) as AuthUser;
+    console.log('Parsed user object:', parsed);
+    console.log('Original role from storage:', parsed?.role);
     
     // For companies, set role to COMPANY if not already set
     if (isCompany && !parsed.role) {
       parsed.role = "COMPANY";
+      console.log('Set company role to COMPANY');
     }
     
     const role = normalizeRole(parsed?.role as string | undefined);
+    console.log('Normalized role result:', role);
+    console.log('========================');
+    
     if (!role) return null;
     return { ...parsed, role };
   } catch (error) {

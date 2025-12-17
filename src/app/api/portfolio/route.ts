@@ -1,100 +1,99 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthenticatedUser } from "@/lib/apiAuth";
 
-// GET /api/portfolio - Get user's portfolio with current values
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await getAuthenticatedUser(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const requesterId = authResult.userId || authResult.id;
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
 
-    if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 401 });
+    // Determine target user ID
+    let targetUserId = requesterId;
+    
+    if (userId && userId !== requesterId) {
+      // Check if requester has permission to view other user's portfolio
+      const requester = await prisma.user.findUnique({
+        where: { id: requesterId },
+        select: { role: true, branchId: true }
+      });
+
+      if (!requester) {
+        return NextResponse.json({ error: "Requester not found" }, { status: 404 });
+      }
+
+      // Only tellers and managers can view client portfolios
+      if (!["TELLER", "MANAGER"].includes(requester.role)) {
+        return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
+      }
+
+      // Verify the target user exists and is a client
+      const targetUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, branchId: true }
+      });
+
+      if (!targetUser || targetUser.role !== "CLIENT") {
+        return NextResponse.json({ error: "Invalid target user" }, { status: 400 });
+      }
+
+      // For tellers, ensure same branch
+      if (requester.role === "TELLER" && targetUser.branchId !== requester.branchId) {
+        return NextResponse.json({ error: "Access denied - different branch" }, { status: 403 });
+      }
+
+      targetUserId = userId;
     }
 
-    // Get all portfolio entries with company details
-    const portfolios = await prisma.portfolio.findMany({
-      where: { userId },
+    // Get portfolio
+    const portfolio = await prisma.portfolio.findMany({
+      where: { userId: targetUserId },
       include: {
         company: {
           select: {
             id: true,
+            symbol: true,
             name: true,
-            sector: true,
-            sharePrice: true,
             closingPrice: true,
-            previousClosingPrice: true,
-            priceChange: true,
-          },
-        },
+            sharePrice: true
+          }
+        }
       },
-      orderBy: { totalInvested: "desc" },
-    });
-
-    // Calculate current values and P&L
-    const portfolioWithMetrics = portfolios.map((portfolio) => {
-      const currentPrice = Number(portfolio.company.closingPrice || portfolio.company.sharePrice || 0);
-      const currentValue = currentPrice * portfolio.quantity;
-      const totalInvested = Number(portfolio.totalInvested);
-      const profitLoss = currentValue - totalInvested;
-      const profitLossPercentage = totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0;
-      const priceChange = portfolio.company.priceChange || "0.00";
-
-      return {
-        id: portfolio.id,
-        companyId: portfolio.company.id,
-        companyName: portfolio.company.name,
-        sector: portfolio.company.sector,
-        quantity: portfolio.quantity,
-        averageBuyPrice: Number(portfolio.averageBuyPrice),
-        currentPrice,
-        totalInvested,
-        currentValue,
-        profitLoss,
-        profitLossPercentage,
-        priceChange,
-        createdAt: portfolio.createdAt,
-        updatedAt: portfolio.updatedAt,
-      };
-    });
-
-    // Calculate summary statistics
-    const totalInvested = portfolioWithMetrics.reduce((sum, p) => sum + p.totalInvested, 0);
-    const totalCurrentValue = portfolioWithMetrics.reduce((sum, p) => sum + p.currentValue, 0);
-    const totalProfitLoss = totalCurrentValue - totalInvested;
-    const totalProfitLossPercentage = totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0;
-
-    // Calculate sector allocation
-    const sectorAllocation = portfolioWithMetrics.reduce((acc, p) => {
-      const sector = p.sector || "Unknown";
-      if (!acc[sector]) {
-        acc[sector] = {
-          sector,
-          value: 0,
-          percentage: 0,
-        };
+      orderBy: {
+        createdAt: "desc"
       }
-      acc[sector].value += p.currentValue;
-      return acc;
-    }, {} as Record<string, { sector: string; value: number; percentage: number }>);
-
-    // Calculate percentages for sector allocation
-    Object.values(sectorAllocation).forEach((allocation) => {
-      allocation.percentage = totalCurrentValue > 0 ? (allocation.value / totalCurrentValue) * 100 : 0;
     });
+
+    // Transform the data
+    const portfolioData = portfolio.map(item => ({
+      companyId: item.companyId,
+      quantity: item.quantity,
+      averageBuyPrice: Number(item.averageBuyPrice),
+      totalInvested: Number(item.totalInvested),
+      currentValue: item.quantity * Number(item.company.closingPrice || item.company.sharePrice || 0),
+      company: {
+        id: item.company.id,
+        symbol: item.company.symbol,
+        name: item.company.name,
+        currentPrice: Number(item.company.closingPrice || item.company.sharePrice || 0)
+      }
+    }));
 
     return NextResponse.json({
-      portfolio: portfolioWithMetrics,
-      summary: {
-        totalInvested,
-        totalCurrentValue,
-        totalProfitLoss,
-        totalProfitLossPercentage,
-        totalHoldings: portfolios.length,
-      },
-      sectorAllocation: Object.values(sectorAllocation),
+      success: true,
+      portfolio: portfolioData
     });
+
   } catch (error) {
-    console.error("Portfolio GET error:", error);
-    return NextResponse.json({ error: "Failed to fetch portfolio" }, { status: 500 });
+    console.error("Error fetching portfolio:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch portfolio" },
+      { status: 500 }
+    );
   }
 }
