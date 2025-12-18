@@ -68,6 +68,7 @@ export default function SettingsLayout({
 			normalized === "client" ||
 			normalized === "teller" ||
 			normalized === "admin" ||
+			normalized === "manager" ||
 			normalized === "super-admin" ||
 			normalized === "company"
 		) {
