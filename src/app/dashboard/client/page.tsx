@@ -6,12 +6,14 @@ import DashboardLayout from '@/components/ui/DashboardLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
+import { useMarketSync } from '@/hooks/useMarketSync';
 import axios from '@/lib/axios';
 import { AlertCircle } from 'lucide-react';
 import MarketSyncButton from '@/components/market/MarketSyncButton';
 
 export default function ClientDashboard() {
   const { user, token } = useAuth();
+  useMarketSync();
   const [dashboardData, setDashboardData] = useState({
     walletBalance: 0,
     portfolioValue: 0,

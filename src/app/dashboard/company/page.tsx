@@ -4,6 +4,7 @@ import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
+import { useMarketSync } from "@/hooks/useMarketSync";
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import {
@@ -21,6 +22,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 export default function CompanyDashboard() {
   const { user } = useAuth();
+  useMarketSync();
   const [loading, setLoading] = useState(true);
   const [companyData, setCompanyData] = useState<any>(null);
   const [walletData, setWalletData] = useState({ balance: 0, lockedBalance: 0 });
