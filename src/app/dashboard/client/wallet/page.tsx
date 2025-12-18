@@ -399,7 +399,7 @@ export default function WalletPage() {
               <div>
                 <p className="text-xs md:text-sm font-medium text-slate-600">Available Balance</p>
                 <p className="text-lg md:text-2xl font-bold text-slate-900">
-                  Rwf {walletData ? parseFloat(walletData.availableBalance).toLocaleString() : "0"}
+                  Rwf {walletData ? (parseFloat(walletData.balance) - parseFloat(walletData.lockedBalance)).toLocaleString() : "0"}
                 </p>
               </div>
             </div>

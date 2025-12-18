@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { Prisma, StandingOrderFrequency } from "@prisma/client";
+import { Prisma, PurchaseOrder_standingFrequency } from "@prisma/client";
 import { z } from "zod";
 
-const standingFrequencies = new Set<string>(Object.values(StandingOrderFrequency));
+const standingFrequencies = new Set<string>(Object.values(PurchaseOrder_standingFrequency));
 
 const priceSchema = z
 	.union([z.number(), z.string()])
@@ -18,7 +18,7 @@ const priceSchema = z
 	});
 
 const standingFrequencySchema = z
-	.union([z.nativeEnum(StandingOrderFrequency), z.string()])
+	.union([z.nativeEnum(PurchaseOrder_standingFrequency), z.string()])
 	.optional()
 	.nullable()
 	.transform((value) => {
@@ -29,7 +29,7 @@ const standingFrequencySchema = z
 	.refine((value) => value === null || standingFrequencies.has(value), {
 		message: "Invalid standing frequency",
 	})
-	.transform((value) => (value === null ? null : (value as StandingOrderFrequency)));
+	.transform((value) => (value === null ? null : (value as PurchaseOrder_standingFrequency)));
 
 export const purchaseOrderItemSchema = z.object({
 	security: z.string().trim().min(1, "Security is required"),

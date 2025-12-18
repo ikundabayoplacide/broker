@@ -6,6 +6,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import { TrendingUp, TrendingDown, PieChart, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 type TimeRange = "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL";
 
@@ -30,11 +31,55 @@ export default function InvestmentsPage() {
   const [sectorAllocation, setSectorAllocation] = useState<Array<{ sector: string; percentage: number; value: number }>>([]);
   const [loading, setLoading] = useState(true);
 
+  const performanceData = useMemo(() => {
+    const baseValue = summary.totalInvested || 100000;
+    const currentValue = summary.totalCurrentValue || baseValue;
+    const dataPoints: { date: string; value: number }[] = [];
+    
+    const ranges: Record<TimeRange, number> = { "1D": 1, "1W": 7, "1M": 30, "3M": 90, "1Y": 365, "ALL": 730 };
+    const days = ranges[timeRange];
+    const points = Math.min(days, 30);
+    
+    for (let i = 0; i <= points; i++) {
+      const progress = i / points;
+      const variance = (Math.random() - 0.5) * 0.05;
+      const value = baseValue + (currentValue - baseValue) * progress + baseValue * variance;
+      
+      const date = new Date();
+      date.setDate(date.getDate() - (days - (i * days / points)));
+      
+      dataPoints.push({
+        date: timeRange === "1D" ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : date.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        value: Math.max(0, value),
+      });
+    }
+    
+    return dataPoints;
+  }, [timeRange, summary.totalInvested, summary.totalCurrentValue]);
+
+  const { displayName, email, dashboardRole, isCompany, apiPrefix } = useMemo(() => {
+    const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
+    const fallbackName = user?.email ? user.email.split("@")[0] : "Client";
+    const role = user?.role?.toLowerCase();
+    const isCompany = role === "company";
+    const dashboardRole =
+      role === "client" || role === "teller" || role === "admin" || role === "company"
+        ? (role as "client" | "teller" | "admin" | "company")
+        : "client";
+    return {
+      displayName: fullName || fallbackName,
+      email: user?.email ?? "Not provided",
+      dashboardRole,
+      isCompany,
+      apiPrefix: isCompany ? "/company" : "",
+    };
+  }, [user?.email, user?.fullName, user?.role]);
+
   useEffect(() => {
     const fetchPortfolio = async () => {
       if (!user?.id) return;
       try {
-        const res = await fetch(`/api/portfolio?userId=${user.id}`);
+        const res = await fetch(`/api${apiPrefix}/portfolio?userId=${user.id}`);
         const data = await res.json();
         setHoldings(data.portfolio || []);
         setSummary(data.summary || { totalInvested: 0, totalCurrentValue: 0, totalProfitLoss: 0, totalProfitLossPercentage: 0, totalHoldings: 0 });
@@ -46,20 +91,7 @@ export default function InvestmentsPage() {
       }
     };
     fetchPortfolio();
-  }, [user?.id]);
-
-  const { displayName, email, dashboardRole } = useMemo(() => {
-    const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
-    const fallbackName = user?.email ? user.email.split("@")[0] : "Client";
-    const role = user?.role?.toLowerCase();
-    const dashboardRole =
-      role === "client" || role === "teller" || role === "admin" ? (role as "client" | "teller" | "admin") : "client";
-    return {
-      displayName: fullName || fallbackName,
-      email: user?.email ?? "Not provided",
-      dashboardRole,
-    };
-  }, [user?.email, user?.fullName, user?.role]);
+  }, [user?.id, apiPrefix]);
 
   const getSectorColor = (index: number) => {
     const colors = ["bg-blue-500", "bg-purple-500", "bg-amber-500", "bg-emerald-500", "bg-rose-500", "bg-indigo-500"];
@@ -148,12 +180,41 @@ export default function InvestmentsPage() {
               ))}
             </div>
           </div>
-          <div className="h-48 md:h-64 bg-slate-50 rounded-xl md:rounded-2xl p-4 border border-slate-200">
-            <div className="h-full flex items-end justify-between gap-2">
-              {[65, 78, 82, 75, 88, 92, 85, 90, 95, 88, 92, 98].map((value, index) => (
-                <div key={index} className="flex-1 bg-[#004B5B] rounded-t" style={{ height: `${value}%` }} />
-              ))}
-            </div>
+          <div className="h-48 md:h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={performanceData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#64748b" 
+                  fontSize={12}
+                  tickLine={false}
+                />
+                <YAxis 
+                  stroke="#64748b" 
+                  fontSize={12}
+                  tickLine={false}
+                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: '1px solid #e2e8f0', 
+                    borderRadius: '8px',
+                    fontSize: '12px'
+                  }}
+                  formatter={(value: number) => [`Rwf ${value.toLocaleString()}`, 'Portfolio Value']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#004B5B" 
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </Card>
 
@@ -199,17 +260,17 @@ export default function InvestmentsPage() {
                             <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900 hidden sm:table-cell">Rwf {holding.averageBuyPrice?.toFixed(2) || '0.00'}</td>
                             <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900 whitespace-nowrap">Rwf {holding.currentPrice?.toFixed(2) || '0.00'}</td>
                             <td className="text-right py-3 md:py-4 px-2">
-                              <div className={`inline-flex items-center gap-1 ${holding.profitLossPercentage >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                                {holding.profitLossPercentage >= 0 ? (
+                              <div className={`inline-flex items-center gap-1 ${(holding.profitLossPercentage || 0) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                                {(holding.profitLossPercentage || 0) >= 0 ? (
                                   <TrendingUp className="h-3 w-3 md:h-4 md:w-4" />
                                 ) : (
                                   <TrendingDown className="h-3 w-3 md:h-4 md:w-4" />
                                 )}
-                                <span className="text-xs md:text-sm font-semibold">{holding.profitLossPercentage >= 0 ? "+" : ""}{holding.profitLossPercentage?.toFixed(2) || '0.00'}%</span>
+                                <span className="text-xs md:text-sm font-semibold">{(holding.profitLossPercentage || 0) >= 0 ? "+" : ""}{(holding.profitLossPercentage || 0).toFixed(2)}%</span>
                               </div>
                             </td>
                             <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base font-semibold text-slate-900 whitespace-nowrap hidden md:table-cell">
-                              Rwf {holding.currentValue.toLocaleString()}
+                              Rwf {(holding.currentValue || 0).toLocaleString()}
                             </td>
                           </tr>
                         ))
