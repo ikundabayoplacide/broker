@@ -152,7 +152,7 @@ export default function DashboardLayout({
         return [
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/client" },
           { name: "Investments", icon: FiBriefcase, href: "/dashboard/client/investments" },
-          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/client/trade" },
           { name: "Wallet", icon: FiCreditCard, href: "/dashboard/client/wallet" },
           { name: "History", icon: FiClipboard, href: "/dashboard/client/history" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
@@ -162,7 +162,7 @@ export default function DashboardLayout({
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/teller" },
           { name: "Users", icon: FiUsers, href: "/dashboard/teller/users" },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
-          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/teller/trade" },
           { name: "Orders", icon: FiClipboard, href: "/dashboard/teller/orders" },
           { name: "Executions", icon: FiZap, href: "/dashboard/teller/executions" },
           { name: "Reports", icon: FiTrendingUp, href: "/dashboard/teller/reports" },
@@ -182,7 +182,7 @@ export default function DashboardLayout({
             ]
           },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
-          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade"},
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/manager/trade"},
           { name: "Transactions", icon: FiDollarSign, href: "/dashboard/manager/transactions" },
           { name: "Reports", icon: FiTrendingUp, href: "/dashboard/manager/reports" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
@@ -203,7 +203,7 @@ export default function DashboardLayout({
             ]
           },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
-          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/super-admin/trade" },
           {name:"Branches",icon:FiMenu,href:"/dashboard/super-admin/branches"},
           { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
         ];
@@ -211,7 +211,7 @@ export default function DashboardLayout({
         return [
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/company" },
           { name: "Investments", icon: FiBriefcase, href: "/dashboard/company/investments" },
-          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/company/trade" },
           { name: "Wallet", icon: FiCreditCard, href: "/dashboard/company/wallet" },
           { name: "History", icon: FiClipboard, href: "/dashboard/company/history" },
           { name: "Share Movement", icon: FiZap, href: "/dashboard/company/share-movement" },
