@@ -2,6 +2,7 @@
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import SettingsLayout, { type SettingsLayoutNavItem } from "@/components/ui/SettingsLayout";
+import { useAuth } from "@/hooks/useAuth";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { InputField } from "@/components/ui/InputField";
@@ -101,6 +102,7 @@ type ProfileErrors = Partial<Record<keyof ProfileForm, string>>;
 type ProfileStatus = "idle" | "saving" | "success" | "error";
 
 export default function SuperAdminSettingsPage() {
+  const { user } = useAuth();
   const [activeSection, setActiveSection] = useState<string>(navItems[0]?.id ?? "platform");
   const [profileForm, setProfileForm] = useState<ProfileForm>({});
   const [profileErrors, setProfileErrors] = useState<ProfileErrors>({});
@@ -545,13 +547,12 @@ export default function SuperAdminSettingsPage() {
 
   return (
     <SettingsLayout
-      title="Super admin settings"
-      description="Configure platform-wide defaults, tighten security controls, and monitor operational health."
+      title="Settings"
+      description="Configure your profile and account settings."
       navItems={navItems}
       activeItem={activeSection}
       onItemSelect={setActiveSection}
       actions={<Button size="sm">Save changes</Button>}
-      userRole="super-admin"
     >
       {renderContent()}
     </SettingsLayout>
