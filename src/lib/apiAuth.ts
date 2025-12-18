@@ -5,6 +5,7 @@ export interface AuthPayload {
   userId?: string;
   id?: string;  // Some tokens use 'id' instead of 'userId'
   role?: string;
+  companyId?: string;
   [key: string]: unknown;
 }
 
