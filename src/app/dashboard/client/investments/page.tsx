@@ -257,20 +257,20 @@ export default function InvestmentsPage() {
                               </div>
                             </td>
                             <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900">{holding.quantity}</td>
-                            <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900 hidden sm:table-cell">Rwf {holding.averageBuyPrice.toFixed(2)}</td>
-                            <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900 whitespace-nowrap">Rwf {holding.currentPrice.toFixed(2)}</td>
+                            <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900 hidden sm:table-cell">Rwf {holding.averageBuyPrice?.toFixed(2) || '0.00'}</td>
+                            <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900 whitespace-nowrap">Rwf {holding.currentPrice?.toFixed(2) || '0.00'}</td>
                             <td className="text-right py-3 md:py-4 px-2">
-                              <div className={`inline-flex items-center gap-1 ${holding.profitLossPercentage >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                                {holding.profitLossPercentage >= 0 ? (
+                              <div className={`inline-flex items-center gap-1 ${(holding.profitLossPercentage || 0) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                                {(holding.profitLossPercentage || 0) >= 0 ? (
                                   <TrendingUp className="h-3 w-3 md:h-4 md:w-4" />
                                 ) : (
                                   <TrendingDown className="h-3 w-3 md:h-4 md:w-4" />
                                 )}
-                                <span className="text-xs md:text-sm font-semibold">{holding.profitLossPercentage >= 0 ? "+" : ""}{holding.profitLossPercentage.toFixed(2)}%</span>
+                                <span className="text-xs md:text-sm font-semibold">{(holding.profitLossPercentage || 0) >= 0 ? "+" : ""}{(holding.profitLossPercentage || 0).toFixed(2)}%</span>
                               </div>
                             </td>
                             <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base font-semibold text-slate-900 whitespace-nowrap hidden md:table-cell">
-                              Rwf {holding.currentValue.toLocaleString()}
+                              Rwf {(holding.currentValue || 0).toLocaleString()}
                             </td>
                           </tr>
                         ))
