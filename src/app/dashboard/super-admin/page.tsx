@@ -324,11 +324,11 @@ export default function SuperAdminDashboard() {
         <Card className="p-6 mb-6 animate-fadeInUp print:break-inside-avoid">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-gray-500">Trading Volume Trends</h2>
-            <Button variant="outline" className="text-sm">
+            <Button variant="outline" className="text-sm print:hidden">
               View full report
             </Button>
           </div>
-          <div className="h-80 w-full overflow-hidden">
+          <div className="h-80 w-full overflow-hidden print:hidden">
             <ResponsiveContainer width="100%" height={320} minHeight={320}>
               <LineChart data={tradingVolumeData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="1 1" stroke="#f0f0f0" />
@@ -363,6 +363,24 @@ export default function SuperAdminDashboard() {
                 />
               </LineChart>
             </ResponsiveContainer>
+          </div>
+          <div className="hidden print:block">
+            <table className="w-full border-collapse border border-gray-300">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border border-gray-300 px-4 py-2 text-left">Date</th>
+                  <th className="border border-gray-300 px-4 py-2 text-right">Trading Volume (RWF)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tradingVolumeData.map((item, index) => (
+                  <tr key={index}>
+                    <td className="border border-gray-300 px-4 py-2">{item.date}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-right">{Number(item.volume).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Card>
 

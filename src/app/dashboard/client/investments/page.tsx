@@ -85,12 +85,12 @@ export default function InvestmentsPage() {
                 {summary.totalProfitLossPercentage >= 0 ? (
                   <>
                     <ArrowUpRight className="h-4 w-4 text-emerald-500" />
-                    <span className="text-emerald-600 font-semibold">+{summary.totalProfitLossPercentage.toFixed(2)}%</span>
+                    <span className="text-emerald-600 font-semibold">+{summary.totalProfitLossPercentage.toFixed(2) || '0.00'}%</span>
                   </>
                 ) : (
                   <>
                     <ArrowDownRight className="h-4 w-4 text-rose-500" />
-                    <span className="text-rose-600 font-semibold">{summary.totalProfitLossPercentage.toFixed(2)}%</span>
+                    <span className="text-rose-600 font-semibold">{summary.totalProfitLossPercentage.toFixed(2) || '0.00'}%</span>
                   </>
                 )}
                 <span className="text-slate-500">All time</span>
@@ -148,8 +148,12 @@ export default function InvestmentsPage() {
               ))}
             </div>
           </div>
-          <div className="h-48 md:h-64 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center border border-slate-200">
-            <p className="text-slate-400 text-sm md:text-base">Performance chart visualization</p>
+          <div className="h-48 md:h-64 bg-slate-50 rounded-xl md:rounded-2xl p-4 border border-slate-200">
+            <div className="h-full flex items-end justify-between gap-2">
+              {[65, 78, 82, 75, 88, 92, 85, 90, 95, 88, 92, 98].map((value, index) => (
+                <div key={index} className="flex-1 bg-[#004B5B] rounded-t" style={{ height: `${value}%` }} />
+              ))}
+            </div>
           </div>
         </Card>
 
@@ -192,8 +196,8 @@ export default function InvestmentsPage() {
                               </div>
                             </td>
                             <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900">{holding.quantity}</td>
-                            <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900 hidden sm:table-cell">Rwf {holding.averageBuyPrice.toFixed(2)}</td>
-                            <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900 whitespace-nowrap">Rwf {holding.currentPrice.toFixed(2)}</td>
+                            <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900 hidden sm:table-cell">Rwf {holding.averageBuyPrice?.toFixed(2) || '0.00'}</td>
+                            <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base text-slate-900 whitespace-nowrap">Rwf {holding.currentPrice?.toFixed(2) || '0.00'}</td>
                             <td className="text-right py-3 md:py-4 px-2">
                               <div className={`inline-flex items-center gap-1 ${holding.profitLossPercentage >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                                 {holding.profitLossPercentage >= 0 ? (
@@ -201,7 +205,7 @@ export default function InvestmentsPage() {
                                 ) : (
                                   <TrendingDown className="h-3 w-3 md:h-4 md:w-4" />
                                 )}
-                                <span className="text-xs md:text-sm font-semibold">{holding.profitLossPercentage >= 0 ? "+" : ""}{holding.profitLossPercentage.toFixed(2)}%</span>
+                                <span className="text-xs md:text-sm font-semibold">{holding.profitLossPercentage >= 0 ? "+" : ""}{holding.profitLossPercentage?.toFixed(2) || '0.00'}%</span>
                               </div>
                             </td>
                             <td className="text-right py-3 md:py-4 px-2 text-sm md:text-base font-semibold text-slate-900 whitespace-nowrap hidden md:table-cell">
@@ -236,7 +240,7 @@ export default function InvestmentsPage() {
                   <div key={asset.sector} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm md:text-base font-medium text-slate-700">{asset.sector}</span>
-                      <span className="text-sm md:text-base font-semibold text-slate-900">{asset.percentage.toFixed(1)}%</span>
+                      <span className="text-sm md:text-base font-semibold text-slate-900">{asset.percentage.toFixed(1) || '0.0'}%</span>
                     </div>
                     <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
                       <div 

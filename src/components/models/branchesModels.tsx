@@ -27,7 +27,7 @@ interface BranchFormData {
 interface BranchCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: BranchFormData) => void;
+  onSubmit: (data: BranchFormData) => Promise<void>;
   initialData?: BranchFormData;
   isEdit?: boolean;
 }
@@ -59,15 +59,16 @@ export default function BranchCreateModal({
     managerName: "",
     managerEmail: "",
     managerPhone: "",
-    managerCountryCode: "+250",
+    managerCountryCode: "",
     managerPassword: "",
     managerConfirmPassword: "",
-    country: "Rwanda",
-    services: ["Trading", "Customer Support"]
+    country: "",
+    services: []
   });
 
   const [errors, setErrors] = useState<Partial<BranchFormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialData) {
@@ -135,6 +136,7 @@ export default function BranchCreateModal({
     if (currentStep !== 2 || !validateStep(2)) return;
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await onSubmit(formData);
       if (!isEdit) {
@@ -149,17 +151,22 @@ export default function BranchCreateModal({
           managerName: "",
           managerEmail: "",
           managerPhone: "",
-          managerCountryCode: "+250",
+          managerCountryCode: "",
           managerPassword: "",
           managerConfirmPassword: "",
-          country: "Rwanda",
-          services: ["Trading", "Customer Support"]
+          country: "",
+          services: []
         });
       }
       setCurrentStep(1);
-      onClose();
+      try {
+        onClose();
+      } catch (closeError) {
+        console.error('Error closing modal:', closeError);
+      }
     } catch (error) {
-      // Error handling in parent component
+      console.error('Branch submission error:', error);
+      setSubmitError(error instanceof Error ? error.message : 'Failed to save branch. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -189,7 +196,13 @@ export default function BranchCreateModal({
             <Button
               variant="outline"
               size="sm"
-              onClick={onClose}
+              onClick={() => {
+                try {
+                  onClose();
+                } catch (error) {
+                  console.error('Error closing modal:', error);
+                }
+              }}
               className="flex items-center gap-2"
             >
               <X className="w-4 h-4" />
@@ -405,6 +418,13 @@ export default function BranchCreateModal({
               </motion.div>
             )}
 
+            {/* Error Display */}
+            {submitError && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{submitError}</p>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex justify-between pt-6 border-t">
               <div>
@@ -423,7 +443,13 @@ export default function BranchCreateModal({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={onClose}
+                  onClick={() => {
+                    try {
+                      onClose();
+                    } catch (error) {
+                      console.error('Error closing modal:', error);
+                    }
+                  }}
                   disabled={isSubmitting}
                 >
                   Cancel
