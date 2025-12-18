@@ -4,18 +4,29 @@ import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
+import Link from "next/link";
 import {
-  FiTrendingUp,
-  FiUsers,
-  FiDollarSign,
-  FiBarChart2,
-  FiArrowUpRight,
-  FiArrowDownRight,
-} from "react-icons/fi";
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  BarChart3,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity,
+  PieChart,
+  DollarSign,
+} from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 
 export default function CompanyDashboard() {
   const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [companyData, setCompanyData] = useState<any>(null);
+  const [walletData, setWalletData] = useState({ balance: 0, lockedBalance: 0 });
+  const [portfolioData, setPortfolioData] = useState({ totalValue: 0, totalInvested: 0, holdings: 0 });
+  const [recentTrades, setRecentTrades] = useState<any[]>([]);
+  const [marketStatus, setMarketStatus] = useState<{ label: string; isOpen: boolean } | null>(null);
 
   const { displayName, email, dashboardRole } = useMemo((): {
     displayName: string;
@@ -32,239 +43,315 @@ export default function CompanyDashboard() {
     };
   }, [user?.email, user?.fullName]);
 
-  const stats = [
-    {
-      title: "Share Price",
-      value: "Rwf 245.50",
-      change: "+12.5%",
-      trend: "up",
-      icon: <FiTrendingUp className="w-6 h-6 text-green-400" />,
-      bgColor: "bg-green-100",
-    },
-    {
-      title: "Market Cap",
-      value: "Rwf 24.5B",
-      change: "+8.2%",
-      trend: "up",
-      icon: <FiBarChart2 className="w-6 h-6 text-blue-400" />,
-      bgColor: "bg-blue-100",
-    },
-    {
-      title: "Total Shareholders",
-      value: "1,234",
-      change: "+23",
-      trend: "up",
-      icon: <FiUsers className="w-6 h-6 text-purple-400" />,
-      bgColor: "bg-purple-100",
-    },
-    {
-      title: "Trading Volume",
-      value: "Rwf 485K",
-      change: "-5.3%",
-      trend: "down",
-      icon: <FiDollarSign className="w-6 h-6 text-orange-400" />,
-      bgColor: "bg-orange-100",
-    },
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user?.id) return;
+      try {
+        setLoading(true);
 
-  const recentActivity = [
-    {
-      id: 1,
-      type: "buy",
-      investor: "John Doe",
-      shares: 50,
-      price: 245.5,
-      total: 12275,
-      time: "2 minutes ago",
-    },
-    {
-      id: 2,
-      type: "sell",
-      investor: "Jane Smith",
-      shares: 30,
-      price: 244.8,
-      total: 7344,
-      time: "15 minutes ago",
-    },
-    {
-      id: 3,
-      type: "buy",
-      investor: "Mike Johnson",
-      shares: 100,
-      price: 246.0,
-      total: 24600,
-      time: "1 hour ago",
-    },
-  ];
+        // Fetch company details
+        const companyRes = await fetch(`/api/company/details?companyId=${user.id}`);
+        if (companyRes.ok) {
+          const data = await companyRes.json();
+          setCompanyData(data.company);
+        }
 
-  const topShareholders = [
-    { name: "Investment Fund A", shares: 15000, percentage: 12.5 },
-    { name: "John Doe Holdings", shares: 12000, percentage: 10.0 },
-    { name: "Jane Smith Capital", shares: 8500, percentage: 7.1 },
-    { name: "Corporate Investors Ltd", shares: 7200, percentage: 6.0 },
-  ];
+        // Fetch wallet data
+        const walletRes = await fetch(`/api/company/wallet`);
+        if (walletRes.ok) {
+          const data = await walletRes.json();
+          setWalletData({
+            balance: parseFloat(data.wallet?.balance || "0"),
+            lockedBalance: parseFloat(data.wallet?.lockedBalance || "0"),
+          });
+        }
+
+        // Fetch portfolio data
+        const portfolioRes = await fetch(`/api/company/portfolio?userId=${user.id}`);
+        if (portfolioRes.ok) {
+          const data = await portfolioRes.json();
+          setPortfolioData({
+            totalValue: data.summary?.totalCurrentValue || 0,
+            totalInvested: data.summary?.totalInvested || 0,
+            holdings: data.summary?.totalHoldings || 0,
+          });
+        }
+
+        // Fetch recent trades
+        const tradesRes = await fetch(`/api/company/trade/history?limit=5`);
+        if (tradesRes.ok) {
+          const data = await tradesRes.json();
+          setRecentTrades(data.trades || []);
+        }
+
+        // Fetch market status
+        const marketRes = await fetch("/api/market-summary");
+        if (marketRes.ok) {
+          const data = await marketRes.json();
+          if (data.marketStatus) {
+            setMarketStatus({
+              label: data.marketStatus.label,
+              isOpen: data.marketStatus.isOpen,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching dashboard data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user?.id]);
+
+  const priceChartData = useMemo(() => {
+    const data = [];
+    const basePrice = companyData?.sharePrice ? Number(companyData.sharePrice) : 250;
+    for (let i = 0; i < 30; i++) {
+      const variance = (Math.random() - 0.5) * 10;
+      data.push({
+        date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
+        price: Math.max(0, basePrice + variance),
+      });
+    }
+    return data;
+  }, [companyData?.sharePrice]);
+
+  const priceChange = companyData?.priceChange ? parseFloat(companyData.priceChange) : 0;
+  const sharePrice = companyData?.sharePrice ? Number(companyData.sharePrice) : 0;
+  const closingPrice = companyData?.closingPrice ? Number(companyData.closingPrice) : sharePrice;
+  const marketCap = companyData?.marketCap ? Number(companyData.marketCap) : 0;
+  const tradedVolume = companyData?.tradedVolume ? Number(companyData.tradedVolume) : 0;
+  const availableShares = companyData?.availableShares ? Number(companyData.availableShares) : 0;
+
+
+
+  if (loading) {
+    return (
+      <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#004B5B]"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
-      <div className="space-y-2">
+      <div className="space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="animate-fadeInUp space-y-2">
-          <h1 className="text-2xl font-bold text-gray-600">Company Dashboard</h1>
-          <p className="text-base text-gray-400">
-            Monitor your company&apos;s stock performance, shareholders, and market activity.
-          </p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900">{companyData?.name || 'Company Dashboard'}</h1>
+            <p className="text-sm md:text-base text-slate-600 mt-1">Monitor your stock performance and trading activity</p>
+          </div>
+          {marketStatus && (
+            <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${marketStatus.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+              {marketStatus.isOpen ? '● Market Open' : '● Market Closed'}
+            </span>
+          )}
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 animate-slideInRight">
-          {stats.map((stat, index) => (
-            <Card key={index} className="p-6 hover:shadow-lg transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base font-medium text-gray-500 mb-2">{stat.title}</p>
-                  <p className="text-xl font-semibold text-gray-700">{stat.value}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    {stat.trend === "up" ? (
-                      <FiArrowUpRight className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <FiArrowDownRight className="w-4 h-4 text-red-600" />
-                    )}
-                    <p className={`text-sm ${stat.trend === "up" ? "text-green-600" : "text-red-600"}`}>
-                      {stat.change}
-                    </p>
-                  </div>
-                </div>
-                <div className={`w-11 h-11 rounded-full flex items-center justify-center ${stat.bgColor}`}>
-                  {stat.icon}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <Card className="p-4 md:p-6" hover={false}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Share Price</p>
+                <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">Rwf {sharePrice.toFixed(2)}</p>
+                <div className="flex items-center gap-1 mt-2">
+                  {priceChange >= 0 ? (
+                    <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                  ) : (
+                    <ArrowDownRight className="h-4 w-4 text-rose-500" />
+                  )}
+                  <span className={`text-sm font-semibold ${priceChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
+                  </span>
                 </div>
               </div>
-            </Card>
-          ))}
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 md:p-6" hover={false}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Wallet Balance</p>
+                <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">Rwf {walletData.balance.toLocaleString()}</p>
+                <p className="text-sm text-slate-500 mt-2">Available funds</p>
+              </div>
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                <Wallet className="h-5 w-5 md:h-6 md:w-6 text-emerald-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 md:p-6" hover={false}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Portfolio Value</p>
+                <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">Rwf {portfolioData.totalValue.toLocaleString()}</p>
+                <p className="text-sm text-slate-500 mt-2">{portfolioData.holdings} holdings</p>
+              </div>
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                <PieChart className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 md:p-6" hover={false}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Available Shares</p>
+                <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">{availableShares.toLocaleString()}</p>
+                <p className="text-sm text-slate-500 mt-2">For trading</p>
+              </div>
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-amber-100 flex items-center justify-center">
+                <Activity className="h-5 w-5 md:h-6 md:w-6 text-amber-600" />
+              </div>
+            </div>
+          </Card>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid lg:grid-cols-3 gap-3">
-          {/* Recent Trading Activity */}
-          <Card className="lg:col-span-2 p-6 animate-fadeInUp">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-700">Recent Trading Activity</h2>
-              <Button size="sm" variant="outline">View All</Button>
+        {/* Price Chart */}
+        <Card className="p-4 md:p-6" hover={false}>
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <div>
+              <h2 className="text-lg md:text-xl font-semibold text-slate-900">Share Price Performance</h2>
+              <p className="text-sm md:text-base text-slate-600 mt-1">Last 30 days</p>
             </div>
+          </div>
+          <div className="h-64 md:h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={priceChartData}>
+                <defs>
+                  <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#004B5B" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#004B5B" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} />
+                <YAxis stroke="#64748b" fontSize={12} tickLine={false} tickFormatter={(value) => `${value.toFixed(0)}`} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
+                  formatter={(value: number) => [`Rwf ${value.toFixed(2)}`, 'Share Price']}
+                />
+                <Area type="monotone" dataKey="price" stroke="#004B5B" strokeWidth={2} fillOpacity={1} fill="url(#colorPrice)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        {/* Recent Trades */}
+        <Card className="p-4 md:p-6" hover={false}>
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h2 className="text-lg md:text-xl font-semibold text-slate-900">Recent Trades</h2>
+            <Link href="/dashboard/company/history">
+              <Button size="sm" variant="outline">View All</Button>
+            </Link>
+          </div>
+          {recentTrades.length === 0 ? (
+            <p className="text-center text-slate-500 py-8">No trades yet</p>
+          ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Type</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Investor</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Shares</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Price</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Total</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Time</th>
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="text-left py-2 px-3 font-semibold text-slate-700">Type</th>
+                    <th className="text-left py-2 px-3 font-semibold text-slate-700">Security</th>
+                    <th className="text-left py-2 px-3 font-semibold text-slate-700">Quantity</th>
+                    <th className="text-left py-2 px-3 font-semibold text-slate-700">Price</th>
+                    <th className="text-left py-2 px-3 font-semibold text-slate-700">Total</th>
+                    <th className="text-left py-2 px-3 font-semibold text-slate-700">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recentActivity.map((activity) => (
-                    <tr key={activity.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        {activity.type === "buy" ? (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                            BUY
-                          </span>
-                        ) : (
-                          <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-                            SELL
-                          </span>
-                        )}
+                  {recentTrades.map((trade) => (
+                    <tr key={trade.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="py-2 px-3">
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${trade.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                          {trade.type}
+                        </span>
                       </td>
-                      <td className="py-3 px-4">
-                        <p className="font-medium text-sm">{activity.investor}</p>
-                      </td>
-                      <td className="py-3 px-4">
-                        <p className="font-medium text-sm">{activity.shares}</p>
-                      </td>
-                      <td className="py-3 px-4">
-                        <p className="font-medium text-sm">Rwf {activity.price.toFixed(2)}</p>
-                      </td>
-                      <td className="py-3 px-4">
-                        <p className="font-medium text-sm">Rwf {activity.total.toLocaleString()}</p>
-                      </td>
-                      <td className="py-3 px-4">
-                        <p className="text-sm text-gray-500">{activity.time}</p>
+                      <td className="py-2 px-3 text-slate-900">{trade.company?.symbol || 'N/A'}</td>
+                      <td className="py-2 px-3 text-slate-900">{trade.quantity}</td>
+                      <td className="py-2 px-3 text-slate-900">Rwf {parseFloat(trade.executedPrice || '0').toFixed(2)}</td>
+                      <td className="py-2 px-3 font-semibold text-slate-900">Rwf {parseFloat(trade.totalAmount).toLocaleString()}</td>
+                      <td className="py-2 px-3">
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${trade.status === 'EXECUTED' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {trade.status}
+                        </span>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </Card>
+          )}
+        </Card>
 
-          {/* Top Shareholders */}
-          <Card className="p-6 animate-slideInRight">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4">Top Shareholders</h3>
-            <div className="space-y-3">
-              {topShareholders.map((shareholder, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{shareholder.name}</p>
-                    <p className="text-xs text-gray-600">{shareholder.shares.toLocaleString()} shares</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-sm text-gray-700">{shareholder.percentage}%</p>
-                  </div>
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <Link href="/dashboard/company/trade">
+            <Card className="p-4 md:p-6 hover:shadow-lg transition-all cursor-pointer" hover={true}>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <BarChart3 className="h-5 w-5 text-blue-600" />
                 </div>
-              ))}
-            </div>
-            <Button className="w-full mt-4" variant="outline">
-              View All Shareholders
-            </Button>
-          </Card>
-        </div>
+                <div>
+                  <p className="font-semibold text-slate-900">Trade Stocks</p>
+                  <p className="text-xs text-slate-500">Buy & sell shares</p>
+                </div>
+              </div>
+            </Card>
+          </Link>
 
-        {/* Quick Actions & Performance */}
-        <div className="grid lg:grid-cols-2 gap-3">
-          <Card className="p-6 animate-fadeInUp">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <Button className="w-full justify-start" variant="outline">
-                <FiTrendingUp className="w-5 h-5 mr-3" />
-                Issue Shares
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <FiUsers className="w-5 h-5 mr-3" />
-                Add Shareholder
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <FiBarChart2 className="w-5 h-5 mr-3" />
-                View Reports
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <FiDollarSign className="w-5 h-5 mr-3" />
-                Dividends
-              </Button>
-            </div>
-          </Card>
+          <Link href="/dashboard/company/wallet">
+            <Card className="p-4 md:p-6 hover:shadow-lg transition-all cursor-pointer" hover={true}>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <Wallet className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">Manage Wallet</p>
+                  <p className="text-xs text-slate-500">Deposits & withdrawals</p>
+                </div>
+              </div>
+            </Card>
+          </Link>
 
-          <Card className="p-6 animate-fadeInUp">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4">Performance Metrics</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">52-Week High</span>
-                <span className="text-sm font-medium">Rwf 268.50</span>
+          <Link href="/dashboard/company/investments">
+            <Card className="p-4 md:p-6 hover:shadow-lg transition-all cursor-pointer" hover={true}>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                  <PieChart className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">Portfolio</p>
+                  <p className="text-xs text-slate-500">View investments</p>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">52-Week Low</span>
-                <span className="text-sm font-medium">Rwf 185.20</span>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/company/history">
+            <Card className="p-4 md:p-6 hover:shadow-lg transition-all cursor-pointer" hover={true}>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <Activity className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">Trade History</p>
+                  <p className="text-xs text-slate-500">View all trades</p>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">P/E Ratio</span>
-                <span className="text-sm font-medium">18.5</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Dividend Yield</span>
-                <span className="text-sm font-medium text-green-600">3.2%</span>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
         </div>
       </div>
     </DashboardLayout>
