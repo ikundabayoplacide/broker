@@ -168,7 +168,7 @@ export default function ClientDashboard() {
               </div>
             </div>
             <Link
-              href="/dashboard/client/settings"
+              href="/dashboard/commonPage/settings"
               className="inline-flex items-center justify-center rounded-full border border-[#004F64] px-4 md:px-5 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#004F64] transition hover:bg-[#004F64] hover:text-white whitespace-nowrap shrink-0"
             >
               Update profile
