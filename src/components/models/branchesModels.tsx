@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { X, Building, MapPin, Phone, Mail, Users, Clock } from "lucide-react";
+import { X, Building } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { InputField } from "@/components/ui/InputField";
@@ -18,6 +18,8 @@ interface BranchFormData {
   managerEmail: string;
   managerPhone: string;
   managerCountryCode: string;
+  managerPassword: string;
+  managerConfirmPassword: string;
   country: string;
   services: string[];
 }
@@ -26,7 +28,6 @@ interface BranchCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: BranchFormData) => void;
-  managers: Array<{ id: string; name: string; email: string }>;
   initialData?: BranchFormData;
   isEdit?: boolean;
 }
@@ -44,7 +45,6 @@ export default function BranchCreateModal({
   isOpen, 
   onClose, 
   onSubmit,
-  managers = [],
   initialData,
   isEdit = false
 }: BranchCreateModalProps) {
@@ -60,6 +60,8 @@ export default function BranchCreateModal({
     managerEmail: "",
     managerPhone: "",
     managerCountryCode: "+250",
+    managerPassword: "",
+    managerConfirmPassword: "",
     country: "Rwanda",
     services: ["Trading", "Customer Support"]
   });
@@ -106,6 +108,11 @@ export default function BranchCreateModal({
       if (!formData.managerName.trim()) newErrors.managerName = "Manager name is required";
       if (!formData.managerEmail.trim()) newErrors.managerEmail = "Manager email is required";
       if (!formData.managerPhone.trim()) newErrors.managerPhone = "Manager phone is required";
+      if (!formData.managerPassword.trim()) newErrors.managerPassword = "Manager password is required";
+      if (!formData.managerConfirmPassword.trim()) newErrors.managerConfirmPassword = "Confirm password is required";
+      if (formData.managerPassword !== formData.managerConfirmPassword) {
+        newErrors.managerConfirmPassword = "Passwords do not match";
+      }
     }
 
     setErrors(newErrors);
@@ -143,6 +150,8 @@ export default function BranchCreateModal({
           managerEmail: "",
           managerPhone: "",
           managerCountryCode: "+250",
+          managerPassword: "",
+          managerConfirmPassword: "",
           country: "Rwanda",
           services: ["Trading", "Customer Support"]
         });
@@ -150,7 +159,7 @@ export default function BranchCreateModal({
       setCurrentStep(1);
       onClose();
     } catch (error) {
-      console.error("Error submitting branch:", error);
+      // Error handling in parent component
     } finally {
       setIsSubmitting(false);
     }
@@ -346,6 +355,29 @@ export default function BranchCreateModal({
                     value={formData.managerCountryCode}
                     onChange={handleInputChange("managerCountryCode")}
                     error={errors.managerCountryCode}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InputField
+                    name="managerPassword"
+                    label="Manager Password"
+                    type="password"
+                    placeholder="Enter password"
+                    value={formData.managerPassword}
+                    onChange={handleInputChange("managerPassword")}
+                    error={errors.managerPassword}
+                    showVisibilityToggle
+                    required
+                  />
+                  <InputField
+                    name="managerConfirmPassword"
+                    label="Confirm Password"
+                    type="password"
+                    placeholder="Confirm password"
+                    value={formData.managerConfirmPassword}
+                    onChange={handleInputChange("managerConfirmPassword")}
+                    error={errors.managerConfirmPassword}
                     required
                   />
                 </div>

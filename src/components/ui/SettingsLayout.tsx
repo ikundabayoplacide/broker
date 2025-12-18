@@ -56,26 +56,7 @@ export default function SettingsLayout({
 	const [deleteError, setDeleteError] = useState<string | null>(null);
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-	const derivedRole = useMemo<SettingsLayoutRole>(() => {
-		if (userRole) return userRole;
-		if (typeof user?.role !== "string") {
-			return "client";
-		}
-		const normalized = user.role
-			.toLowerCase()
-			.replace(/_/g, "-");
-		if (
-			normalized === "client" ||
-			normalized === "teller" ||
-			normalized === "admin" ||
-			normalized === "manager" ||
-			normalized === "super-admin" ||
-			normalized === "company"
-		) {
-			return normalized as SettingsLayoutRole;
-		}
-		return "client";
-	}, [userRole, user?.role]);
+
 
 	const derivedName = useMemo(() => {
 		if (userName) return userName;
@@ -163,7 +144,6 @@ export default function SettingsLayout({
 
 	return (
 		<DashboardLayout
-			userRole={derivedRole}
 			userName={derivedName}
 			userEmail={derivedEmail}
 		>

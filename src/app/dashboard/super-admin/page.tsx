@@ -135,7 +135,6 @@ export default function SuperAdminDashboard() {
     return validCompanies.map((company, index) => {
       const shares = Number(company.availableShares) || 0;
       const percentage = totalAvailableShares > 0 ? ((shares / totalAvailableShares) * 100).toFixed(1) : '0';
-      console.log(`${company.name}: ${shares} shares = ${percentage}%`);
       return {
         name: company.name,
         shares,

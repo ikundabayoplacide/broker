@@ -21,6 +21,8 @@ interface BranchFormData {
   managerEmail: string;
   managerPhone: string;
   managerCountryCode: string;
+  managerPassword: string;
+  managerConfirmPassword: string;
   country: string;
   services: string[];
 }
@@ -150,6 +152,7 @@ export default function BranchesPage() {
         managerEmail: branchData.managerEmail,
         managerPhone: branchData.managerPhone,
         managerCountryCode: branchData.managerCountryCode,
+        managerPassword: branchData.managerPassword,
         country: branchData.country,
         services: branchData.services
       };
@@ -164,15 +167,11 @@ export default function BranchesPage() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('API Error Response:', errorData);
         const errorMessage = Array.isArray(errorData.error) 
           ? errorData.error.map((e: any) => e.message).join(', ')
           : errorData.error || 'Failed to create branch';
         throw new Error(errorMessage);
       }
-      
-      const result = await response.json();
-      console.log('Branch created successfully:', result);
       
       // Show success toast notification
       showSuccessToast("Branch created successfully! Notifications sent to manager and admins.");
@@ -440,7 +439,6 @@ export default function BranchesPage() {
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSubmit={handleCreateBranch}
-          managers={[]}
         />
       </div>
     </DashboardLayout>

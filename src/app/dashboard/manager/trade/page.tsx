@@ -161,19 +161,22 @@ export default function TradePage() {
     validateQuantity(value);
   };
 
-  const { displayName, email, dashboardRole, isCompany, apiPrefix } = useMemo(() => {
+  const { displayName, email, isCompany, apiPrefix } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
     const fallbackName = user?.email ? user.email.split("@")[0] : "Client";
     const role = user?.role?.toLowerCase();
     const isCompany = role === "company";
-    const dashboardRole =
-      role === "client" || role === "teller" || role === "admin"|| role==="super-admin" || role === "manager" || role === "company" || role
-        ? (role as "client" | "teller" | "admin" | "manager" | "company") 
-        : "client";
+    
+    console.log('=== MANAGER TRADE PAGE DEBUG ===');
+    console.log('User object:', user);
+    console.log('User role:', user?.role);
+    console.log('Role lowercase:', role);
+    console.log('Is company:', isCompany);
+    console.log('===============================');
+    
     return {
       displayName: fullName || fallbackName,
       email: user?.email ?? "Not provided",
-      dashboardRole,
       isCompany,
       apiPrefix: isCompany ? "/company" : "",
     };
@@ -285,7 +288,7 @@ export default function TradePage() {
   };
 
   return (
-    <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
+    <DashboardLayout userName={displayName} userEmail={email}>
       <div className="space-y-4 md:space-y-6">
         {/* Header */}
         <div>
