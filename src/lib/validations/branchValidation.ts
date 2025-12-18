@@ -12,8 +12,13 @@ export const branchValidationSchema = z.object({
   managerEmail: z.string().email("Invalid manager email format"),
   managerPhone: z.string().min(10, "Manager phone must be at least 10 digits"),
   managerCountryCode: z.string().default("+250"),
+  managerPassword: z.string().min(8, "Manager password must be at least 8 characters"),
+  managerConfirmPassword: z.string().min(8, "Please confirm the manager password"),
   country: z.string().default("Rwanda"),
   services: z.array(z.string()).optional(),
+}).refine((data) => data.managerPassword === data.managerConfirmPassword, {
+  message: "Manager passwords don't match",
+  path: ["managerConfirmPassword"],
 });
 
 export const branchUpdateSchema = z.object({

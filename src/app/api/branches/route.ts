@@ -4,10 +4,38 @@ const db = prisma as any;
 import {z} from "zod";
 import {branchValidationSchema} from "@/lib/validations/branchValidation";
 import bcrypt from "bcryptjs";
+import { getAuthenticatedUser } from "@/lib/apiAuth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authResult = await getAuthenticatedUser(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const requestingUser = await db.user.findUnique({
+      where: { id: authResult.userId || authResult.id },
+      select: { role: true, branchId: true }
+    });
+
+    if (!requestingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    let whereClause: any = {};
+    
+    // Managers can only see their own branch
+    if (requestingUser.role === "MANAGER" && requestingUser.branchId) {
+      whereClause.id = requestingUser.branchId;
+    }
+    // Tellers can only see their own branch
+    else if (requestingUser.role === "TELLER" && requestingUser.branchId) {
+      whereClause.id = requestingUser.branchId;
+    }
+    // SUPER_ADMIN and ADMIN can see all branches (no filter)
+
     const branches = await db.branch.findMany({
+      where: whereClause,
       include: {
         manager: { select: { id: true, fullName: true } },
         _count: { select: { employees: true } }
@@ -34,8 +62,8 @@ export async function POST(request: NextRequest) {
           email: validatedData.managerEmail,
           phone: validatedData.managerPhone,
           phoneCountryCode: validatedData.managerCountryCode,
-          password: await bcrypt.hash("defaultPassword123", 10),
-          role: "ADMIN",
+          password: await bcrypt.hash(validatedData.managerPassword, 10),
+          role: "MANAGER",
           country: validatedData.country,
           city: validatedData.location,
           isVerified: true
