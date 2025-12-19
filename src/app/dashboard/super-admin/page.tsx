@@ -48,6 +48,7 @@ export default function SuperAdminDashboard() {
   const [companiesLoading, setCompaniesLoading] = useState(false);
   const [companiesError, setCompaniesError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [branchCount, setBranchCount] = useState(0);
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -82,7 +83,27 @@ export default function SuperAdminDashboard() {
       }
     };
 
+    const fetchBranches = async () => {
+      try {
+        const response = await fetch("/api/branches");
+        const data = await response.json();
+        
+        // API returns branches array directly
+        if (Array.isArray(data)) {
+          setBranchCount(data.length);
+        } else if (data.success && data.branches) {
+          setBranchCount(data.branches.length);
+        } else {
+          setBranchCount(0);
+        }
+      } catch (error) {
+        console.error("Error fetching branches:", error);
+        setBranchCount(0);
+      }
+    };
+
     fetchCompanies();
+    fetchBranches();
   }, [token]);
 
   const { displayName, email, dashboardRole } = useMemo((): {
@@ -179,11 +200,11 @@ export default function SuperAdminDashboard() {
     },
     {
       title: "Active Branches",
-      value: "2",
+      value: branchCount.toLocaleString(),
       subtitle: "Trading locations",
       icon: <FaBuilding className="w-6 h-6 text-white" />,
       gradient: "bg-gradient-to-r from-indigo-500 to-indigo-600",
-      link: null,
+      link: "/dashboard/super-admin/branches",
     },
     {
       title: "Current Trading Rate",
@@ -393,7 +414,7 @@ export default function SuperAdminDashboard() {
                   Total Available: {companySharesData.reduce((sum, c) => sum + c.shares, 0).toLocaleString()} shares
                 </p>
               </div>
-              <Button variant="outline" className="text-sm print:hidden">
+              <Button variant="outline" className="text-sm print:hidden hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
                 View details
               </Button>
             </div>

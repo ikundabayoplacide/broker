@@ -7,7 +7,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { InputField } from "@/components/ui/InputField";
 
-interface BranchFormData {
+export interface BranchFormData {
   name: string;
   location: string;
   phone: string;

@@ -396,7 +396,7 @@ export default function BranchesPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                     onClick={() => router.push(`/dashboard/super-admin/branches/${branch.id}`)}
                   >
                     <Eye className="w-4 h-4" />
@@ -421,6 +421,7 @@ export default function BranchesPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                   onClick={handlePrevious}
                   disabled={currentPage === 1}
                 >
@@ -432,6 +433,7 @@ export default function BranchesPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                   onClick={handleNext}
                   disabled={currentPage === totalPages}
                 >
