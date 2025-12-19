@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { JSX } from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FiActivity, FiTrendingDown, FiTrendingUp } from "react-icons/fi";
 import { useMarketSummary } from "@/hooks/useMarketSummary";
@@ -74,7 +74,7 @@ export function MarketCardGrid(): JSX.Element {
   const [securitiesLoading, setSecuritiesLoading] = useState(true);
 
   // Fetch combined securities from API
-  useMemo(() => {
+  useEffect(() => {
     const fetchSecurities = async () => {
       try {
         const response = await fetch("/api/securities");
