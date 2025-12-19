@@ -398,7 +398,7 @@ export default function SuperAdminSettingsPage() {
             type="submit"
             variant="outline"
             disabled={profileStatus === "saving"}
-            className="min-w-40"
+            className="min-w-40 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
           >
             {profileStatus === "saving" ? (
               <span className="flex items-center gap-2">

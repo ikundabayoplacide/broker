@@ -14,7 +14,7 @@ interface Notification {
   type: string;
   isRead: boolean;
   createdAt: string;
-  metadata?: any;
+  metadata?: unknown;
 }
 
 export default function NotificationsPage() {
@@ -30,13 +30,6 @@ export default function NotificationsPage() {
   })();
   
   const email = user?.email ?? "Not provided";
-  
-  console.log('=== NOTIFICATION PAGE DEBUG ===');
-  console.log('User object:', user);
-  console.log('User role:', user?.role);
-  console.log('Display name:', displayName);
-  console.log('Email:', email);
-  console.log('===============================');
 
   useEffect(() => {
     fetchNotifications();

@@ -499,11 +499,11 @@ export default function ViewUserPage() {
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid grid-cols-2 gap-3">
-                  <Button className="w-full" variant="outline">
+                  <Button className="w-full hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" variant="outline">
                     <Settings className="h-4 w-4 mr-2" />
                     Reset Password
                   </Button>
-                  <Button className="w-full" variant="outline">
+                  <Button className="w-full hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" variant="outline">
                     <XCircle className="h-4 w-4 mr-2" />
                     Force Logout
                   </Button>

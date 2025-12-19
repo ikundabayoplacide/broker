@@ -5,8 +5,11 @@ import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
-import { FiSearch, FiTrendingUp, FiTrendingDown, FiUser, FiDollarSign, FiShoppingCart } from "react-icons/fi";
+import { FiSearch, FiTrendingUp, FiTrendingDown, FiUser, FiDollarSign, FiShoppingCart, FiRefreshCw, FiFileText } from "react-icons/fi";
 import toast from "react-hot-toast";
+import TransactionModal, { TransactionConfig } from "@/components/models/TransactionModal";
+import { generateTransactionStatement } from "@/utils/printing/transactionStatement";
+import { executePrint } from "@/utils/printing/printUtils";
 
 interface Company {
   id: string;
@@ -53,12 +56,30 @@ export default function TradePage() {
   const [limitPrice, setLimitPrice] = useState("");
   const [loading, setLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [tradingMode, setTradingMode] = useState<"self" | "client">("self");
+  const [recentTrades, setRecentTrades] = useState<Array<{
+    id: string;
+    type: string;
+    status: string;
+    quantity: number;
+    executedPrice: string;
+    totalAmount: string;
+    createdAt: string;
+    company: { name: string; symbol: string };
+    user?: { fullName: string };
+  }>>([]);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [tradesLoading, setTradesLoading] = useState(false);
 
-  const { displayName, dashboardRole, userRole, isClient, canSelectClient } = useMemo(() => {
+  const { displayName, dashboardRole, userRole, isClient, canSelectClient, isManager } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
     const fallbackName = user?.email ? user.email.split("@")[0] : "User";
     const role = user?.role;
     const isClient = role === "CLIENT";
+    const isManager = role === "MANAGER";
     const canSelectClient = role === "TELLER" || role === "MANAGER";
     
     return {
@@ -66,14 +87,16 @@ export default function TradePage() {
       dashboardRole: role?.toLowerCase() as "client" | "teller" | "manager",
       userRole: role,
       isClient,
-      canSelectClient
+      canSelectClient,
+      isManager
     };
   }, [user]);
 
-  // Load companies
+  // Load companies and recent trades
   useEffect(() => {
     fetchCompanies();
-  }, []);
+    fetchRecentTrades();
+  }, [isManager, tradingMode, selectedClient, user?.id]);
 
   // Load clients for teller/manager
   useEffect(() => {
@@ -82,17 +105,27 @@ export default function TradePage() {
     }
   }, [canSelectClient]);
 
-  // Load wallet and portfolio when client is selected or for direct client
+  // Load wallet and portfolio when client is selected, for direct client, or when manager trades for self
   useEffect(() => {
-    const targetUserId = selectedClient?.id || (isClient ? user?.id : null);
+    let targetUserId = null;
+    
+    if (isClient) {
+      targetUserId = user?.id;
+    } else if (isManager && tradingMode === "self") {
+      targetUserId = user?.id;
+    } else if (tradingMode === "client" && selectedClient) {
+      targetUserId = selectedClient.id;
+    }
+    
     if (targetUserId) {
       fetchWallet(targetUserId);
       fetchPortfolio(targetUserId);
     }
-  }, [selectedClient, user?.id, isClient]);
+  }, [selectedClient, user?.id, isClient, isManager, tradingMode]);
 
   const fetchCompanies = async () => {
     try {
+      setCompaniesLoading(true);
       const response = await fetch("/api/company");
       const data = await response.json();
       if (data.success) {
@@ -100,6 +133,8 @@ export default function TradePage() {
       }
     } catch (error) {
       console.error("Error fetching companies:", error);
+    } finally {
+      setCompaniesLoading(false);
     }
   };
 
@@ -117,18 +152,41 @@ export default function TradePage() {
 
   const fetchWallet = async (userId: string) => {
     try {
+      setWalletLoading(true);
       const response = await fetch(`/api/wallet?userId=${userId}`);
+      const data = await response.json();
+      if (data.success) {
+        setWallet(data.wallet);
+      } else if (data.error === "Wallet not found" || !data.wallet) {
+        // Create wallet if it doesn't exist
+        await createWallet(userId);
+      }
+    } catch (error) {
+      console.error("Error fetching wallet:", error);
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
+  const createWallet = async (userId: string) => {
+    try {
+      const response = await fetch('/api/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, initialBalance: 0 })
+      });
       const data = await response.json();
       if (data.success) {
         setWallet(data.wallet);
       }
     } catch (error) {
-      console.error("Error fetching wallet:", error);
+      console.error("Error creating wallet:", error);
     }
   };
 
   const fetchPortfolio = async (userId: string) => {
     try {
+      setPortfolioLoading(true);
       const response = await fetch(`/api/portfolio?userId=${userId}`);
       const data = await response.json();
       if (data.success) {
@@ -136,6 +194,46 @@ export default function TradePage() {
       }
     } catch (error) {
       console.error("Error fetching portfolio:", error);
+    } finally {
+      setPortfolioLoading(false);
+    }
+  };
+
+  const fetchRecentTrades = async () => {
+    try {
+      setTradesLoading(true);
+      let targetUserId = null;
+      
+      // Determine whose trades to fetch based on current context
+      if (isClient) {
+        targetUserId = user?.id;
+      } else if (isManager && tradingMode === "self") {
+        targetUserId = user?.id;
+      } else if (tradingMode === "client" && selectedClient) {
+        targetUserId = selectedClient.id;
+      }
+      
+      if (!targetUserId) {
+        setRecentTrades([]);
+        return;
+      }
+      
+      const response = await fetch(`/api/trade/history?limit=10&userId=${targetUserId}`);
+      const data = await response.json();
+      console.log('Recent trades response:', data); // Debug log
+      
+      // Handle different response structures
+      if (data.success && data.trades) {
+        setRecentTrades(data.trades);
+      } else if (Array.isArray(data)) {
+        setRecentTrades(data);
+      } else if (data.trades) {
+        setRecentTrades(data.trades);
+      }
+    } catch (error) {
+      console.error("Error fetching recent trades:", error);
+    } finally {
+      setTradesLoading(false);
     }
   };
 
@@ -153,7 +251,7 @@ export default function TradePage() {
 
   const validateTrade = () => {
     if (!selectedCompany) return "Please select a company";
-    if (canSelectClient && !selectedClient) return "Please select a client";
+    if (canSelectClient && tradingMode === "client" && !selectedClient) return "Please select a client";
     if (!quantity || parseInt(quantity) <= 0) return "Please enter a valid quantity";
     if (parseInt(quantity) % 100 !== 0) return "Quantity must be in lots of 100";
     if (priceType === "LIMIT" && (!limitPrice || parseFloat(limitPrice) <= 0)) return "Please enter a valid limit price";
@@ -183,10 +281,16 @@ export default function TradePage() {
         tradeType,
         priceType,
         ...(priceType === "LIMIT" && { limitPrice: parseFloat(limitPrice) }),
-        ...(canSelectClient && selectedClient && { clientId: selectedClient.id })
+        ...(canSelectClient && tradingMode === "client" && selectedClient && { clientId: selectedClient.id }),
+        ...(isManager && tradingMode === "self" && { tradingForSelf: true })
       };
 
-      const response = await fetch("/api/trade", {
+      // Use different endpoint based on trading mode
+      const endpoint = (isManager && tradingMode === "self") 
+        ? "/api/trade/buy"  // Use the same endpoint as manager/trade page
+        : "/api/trade";
+        
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -201,12 +305,21 @@ export default function TradePage() {
         setLimitPrice("");
         
         // Refresh data
-        const targetUserId = selectedClient?.id || user?.id;
+        let targetUserId = null;
+        if (isClient) {
+          targetUserId = user?.id;
+        } else if (isManager && tradingMode === "self") {
+          targetUserId = user?.id;
+        } else if (tradingMode === "client" && selectedClient) {
+          targetUserId = selectedClient.id;
+        }
+        
         if (targetUserId) {
           fetchWallet(targetUserId);
           fetchPortfolio(targetUserId);
         }
         fetchCompanies();
+        fetchRecentTrades();
       } else {
         toast.error(data.error || "Trade failed");
       }
@@ -218,20 +331,100 @@ export default function TradePage() {
     }
   };
 
+  const handleRefreshAll = async () => {
+    // Refresh companies
+    fetchCompanies();
+    
+    // Refresh wallet and portfolio based on current context
+    let targetUserId = null;
+    if (isClient) {
+      targetUserId = user?.id;
+    } else if (isManager && tradingMode === "self") {
+      targetUserId = user?.id;
+    } else if (tradingMode === "client" && selectedClient) {
+      targetUserId = selectedClient.id;
+    }
+    
+    if (targetUserId) {
+      fetchWallet(targetUserId);
+      fetchPortfolio(targetUserId);
+    }
+    
+    // Refresh recent trades
+    fetchRecentTrades();
+  };
+
   return (
     <DashboardLayout userRole={dashboardRole} userName={displayName}>
       <div className="space-y-4">
         {/* Header */}
         <div className="animate-fadeInUp">
-          <h1 className="text-2xl font-bold text-gray-600">Trade Securities</h1>
-          <p className="text-base text-gray-400">Execute buy and sell orders for your clients</p>
-          {canSelectClient && selectedClient && (
-            <div className="mt-2">
-              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                Trading for: {selectedClient.fullName}
-              </span>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-600">Trade Securities</h1>
+              <p className="text-base text-gray-400">
+                {isClient ? "Execute buy and sell orders" : "Execute buy and sell orders for yourself or your clients"}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshAll}
+              className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
+              disabled={walletLoading || portfolioLoading || companiesLoading || tradesLoading}
+            >
+              <FiRefreshCw className={`h-4 w-4 ${(walletLoading || portfolioLoading || companiesLoading || tradesLoading) ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+          
+          {/* Trading Mode Toggle for Managers */}
+          {isManager && (
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={() => {
+                  setTradingMode("self");
+                  setSelectedClient(null);
+                }}
+                className={`px-7 py-4 rounded-lg font-medium text-lg transition-all ${
+                  tradingMode === "self"
+                    ? "bg-[#004B5B] text-white shadow-md"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Trade for Myself
+              </button>
+              <button
+                onClick={() => setTradingMode("client")}
+                className={`px-7 py-4 rounded-lg font-medium text-lg transition-all ${
+                  tradingMode === "client"
+                    ? "bg-[#004B5B] text-white shadow-md"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Trade for Client
+              </button>
             </div>
           )}
+          
+          {/* Current Trading Status */}
+          <div className="mt-4">
+            {isClient && (
+              <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                Trading for: Myself
+              </span>
+            )}
+            {isManager && tradingMode === "self" && (
+              <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                Trading for: Myself
+              </span>
+            )}
+            {canSelectClient && tradingMode === "client" && selectedClient && (
+              <span className="px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                Trading for: {selectedClient.fullName}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -240,7 +433,14 @@ export default function TradePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-base font-medium text-gray-500 mb-2">Wallet Balance</p>
-                <p className="text-xl font-semibold text-gray-700">Rwf {wallet?.balance.toLocaleString() || "0"}</p>
+                {walletLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#004B5B]"></div>
+                    <p className="text-xl font-semibold text-gray-400">Loading...</p>
+                  </div>
+                ) : (
+                  <p className="text-xl font-semibold text-gray-700">Rwf {wallet?.balance.toLocaleString() || "0"}</p>
+                )}
                 <p className="text-sm text-blue-600">Available funds</p>
               </div>
               <div className="w-11 h-11 gradient-primary rounded-full flex items-center justify-center">
@@ -253,7 +453,14 @@ export default function TradePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-base font-medium text-gray-500 mb-2">Holdings</p>
-                <p className="text-xl font-semibold text-gray-700">{availableQuantity.toLocaleString()}</p>
+                {portfolioLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#004B5B]"></div>
+                    <p className="text-xl font-semibold text-gray-400">Loading...</p>
+                  </div>
+                ) : (
+                  <p className="text-xl font-semibold text-gray-700">{availableQuantity.toLocaleString()}</p>
+                )}
                 <p className="text-sm text-gray-400">{selectedCompany?.symbol || "Select stock"}</p>
               </div>
               <div className="w-11 h-11 bg-blue-100 rounded-full flex items-center justify-center">
@@ -266,7 +473,14 @@ export default function TradePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-base font-medium text-gray-500 mb-2">Current Price</p>
-                <p className="text-xl font-semibold text-gray-700">Rwf {currentPrice.toFixed(2)}</p>
+                {companiesLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#004B5B]"></div>
+                    <p className="text-xl font-semibold text-gray-400">Loading...</p>
+                  </div>
+                ) : (
+                  <p className="text-xl font-semibold text-gray-700">Rwf {currentPrice.toFixed(2)}</p>
+                )}
                 <p className={`text-sm ${
                   selectedCompany && parseFloat(selectedCompany.priceChange) >= 0 ? "text-green-600" : "text-red-600"
                 }`}>
@@ -286,7 +500,7 @@ export default function TradePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-base font-medium text-gray-500 mb-2">Order Total</p>
-                <p className="text-xl font-semibold text-gray-700">Rwf {finalTotal.toLocaleString()}</p>
+                  <p className="text-xl font-semibold text-gray-700">Rwf {finalTotal.toLocaleString()}</p>
                 <p className="text-sm text-gray-400">Including fees</p>
               </div>
               <div className="w-11 h-11 bg-orange-100 rounded-full flex items-center justify-center">
@@ -302,7 +516,7 @@ export default function TradePage() {
           {/* Left Column - Market Selection */}
           <div className="space-y-4">
             {/* Client Selection */}
-            {canSelectClient && (
+            {canSelectClient && tradingMode === "client" && (
               <Card className="p-6 animate-fadeInUp">
                 <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center">
                   <FiUser className="mr-2" /> Select Client
@@ -326,7 +540,7 @@ export default function TradePage() {
             )}
 
             {/* Market Selector */}
-            <Card className="p-6 animate-fadeInUp">
+            <Card className="p-6 animate-fadeInUp max-h-[500px] overflow-y-auto rounded-lg">
               <h3 className="text-lg font-semibold text-gray-700 mb-4">Select Security</h3>
               <div className="relative mb-4">
                 <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -338,7 +552,7 @@ export default function TradePage() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#004F64] focus:border-transparent"
                 />
               </div>
-              <div className="max-h-64 overflow-y-auto space-y-2">
+              <div className=" overflow-y-auto space-y-2">
                 {filteredCompanies.map(company => (
                   <div
                     key={company.id}
@@ -442,6 +656,27 @@ export default function TradePage() {
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#004F64] focus:border-transparent"
                     />
                     <p className="text-xs text-gray-500 mt-1">Minimum: 100 shares (1 lot)</p>
+                    
+                    {/* Quick Quantity Selection */}
+                    <div className="mt-3">
+                      <p className="text-xs text-gray-600 mb-2">Quick select:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {[100, 200, 300, 400, 500, 600, 700, 800, 900, 1000].map((qty) => (
+                          <button
+                            key={qty}
+                            type="button"
+                            onClick={() => setQuantity(qty.toString())}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                              quantity === qty.toString()
+                                ? "bg-[#004F64] text-white shadow-sm"
+                                : "bg-gray-100 text-gray-700 hover:bg-[#004F64] hover:text-white border border-gray-200"
+                            }`}
+                          >
+                            {qty}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Price Type */}
@@ -531,7 +766,7 @@ export default function TradePage() {
 
         {/* Confirmation Modal */}
         {showConfirmation && selectedCompany && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
             <Card className="max-w-md w-full mx-4 p-6">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Confirm Trade</h3>
               <div className="space-y-3 mb-6">
@@ -551,18 +786,21 @@ export default function TradePage() {
                   <span className="text-gray-600">Total Amount:</span>
                   <span className="font-semibold text-lg">Rwf {finalTotal.toLocaleString()}</span>
                 </div>
-                {canSelectClient && selectedClient && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Client:</span>
-                    <span className="font-medium">{selectedClient.fullName}</span>
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Trading for:</span>
+                  <span className="font-medium">
+                    {isClient || (isManager && tradingMode === "self") 
+                      ? "Myself" 
+                      : selectedClient?.fullName || "Not selected"
+                    }
+                  </span>
+                </div>
               </div>
-              <div className="flex space-x-3">
+              <div className="flex space-x-3  ">
                 <Button
                   onClick={() => setShowConfirmation(false)}
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 hover:!text-[#004F64] hover:!border-[#004F64] transition-all duration-200"
                 >
                   Cancel
                 </Button>
@@ -577,7 +815,178 @@ export default function TradePage() {
             </Card>
           </div>
         )}
+
+        {/* Recent Trades */}
+        <Card className="p-6 animate-fadeInUp">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Recent Trades</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {isClient 
+                  ? "Your recent trading activity"
+                  : isManager && tradingMode === "self"
+                  ? "Your personal trading activity"
+                  : selectedClient
+                  ? `${selectedClient.fullName}'s trading activity`
+                  : "Select a client to view their trades"
+                }
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTransactionModal(true)}
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
+                disabled={recentTrades.length === 0}
+              >
+                <FiFileText className="h-4 w-4" />
+                Statement
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchRecentTrades}
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
+              >
+                <FiRefreshCw className="h-4 w-4" />
+                Refresh
+              </Button>
+            </div>
+          </div>
+          
+          {tradesLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#004B5B] mx-auto mb-4"></div>
+              <p className="text-lg font-medium text-gray-600">Loading trades...</p>
+            </div>
+          ) : recentTrades.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <p className="text-lg font-medium mb-2">No Recent Trades</p>
+              <p className="text-sm">Start trading to see your transaction history here</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Security
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Quantity
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Price
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total
+                    </th>
+                    {isManager && (
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Client
+                      </th>
+                    )}
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {recentTrades.map((trade) => (
+                    <tr key={trade.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          trade.type === "BUY" 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-red-100 text-red-800"
+                        }`}>
+                          {trade.type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{trade.company.symbol}</div>
+                        <div className="text-sm text-gray-500">{trade.company.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {trade.quantity.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        Rwf {parseFloat(trade.executedPrice || "0").toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        Rwf {parseFloat(trade.totalAmount).toLocaleString()}
+                      </td>
+                      {isManager && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {trade.user?.fullName || "Self"}
+                        </td>
+                      )}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          trade.status === "EXECUTED" 
+                            ? "bg-blue-100 text-blue-800" 
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}>
+                          {trade.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(trade.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+
+        {/* Transaction Statement Modal */}
+        <TransactionModal
+          isOpen={showTransactionModal}
+          onClose={() => setShowTransactionModal(false)}
+          onGenerate={handleGenerateStatement}
+        />
       </div>
     </DashboardLayout>
   );
+
+  function handleGenerateStatement(config: TransactionConfig) {
+    const currentUser = isClient || (isManager && tradingMode === "self")
+      ? { name: displayName, email: user?.email || "" }
+      : { name: selectedClient?.fullName || "Client", email: selectedClient?.email || "" };
+    
+    const statementContent = generateTransactionStatement(
+      recentTrades,
+      config,
+      currentUser
+    );
+    
+    if (config.format === 'pdf') {
+      executePrint(statementContent);
+    } else {
+      // For Word format, create downloadable file
+      const blob = new Blob([statementContent], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transaction-statement-${config.startDate}-to-${config.endDate}.doc`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }
 }

@@ -97,6 +97,12 @@ export async function POST(request: NextRequest) {
         }
       });
       
+      // Update manager's branchId to link them to their branch
+      await tx.user.update({
+        where: { id: manager.id },
+        data: { branchId: branch.id }
+      });
+      
       await tx.notification.create({
         data: {
           userId: manager.id,

@@ -379,8 +379,8 @@ export default function TradePage() {
                   onClick={() => setOrderType("buy")}
                   className={`flex-1 py-2.5 md:py-3 px-4 rounded-lg md:rounded-xl font-semibold text-sm md:text-base transition-all ${
                     orderType === "buy"
-                      ? "bg-emerald-500 text-white shadow-md"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      ? "bg-[#004B5B] text-white shadow-md"
+                      : "bg-slate-300 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
                   Buy
@@ -390,8 +390,8 @@ export default function TradePage() {
                   onClick={() => setOrderType("sell")}
                   className={`flex-1 py-2.5 md:py-3 px-4 rounded-lg md:rounded-xl font-semibold text-sm md:text-base transition-all ${
                     orderType === "sell"
-                      ? "bg-rose-500 text-white shadow-md"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      ? "bg-[#004B5B] text-white shadow-md"
+                      : "bg-slate-300 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
                   Sell
@@ -547,7 +547,7 @@ export default function TradePage() {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  className="px-4 md:px-6 text-sm md:text-base"
+                  className="px-4 md:px-6 text-sm md:text-base hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                   onClick={() => {
                     setQuantity("");
                     setQuantityError("");
@@ -658,9 +658,9 @@ export default function TradePage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowTransactionModal(true)}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
               >
-                <FileText className="h-4 w-4" />
+                <FileText className="h-4 w-4 " />
                 Statement
               </Button>
               <Link href="/dashboard/client/history" className="text-xs md:text-sm text-[#004B5B] font-medium hover:underline">

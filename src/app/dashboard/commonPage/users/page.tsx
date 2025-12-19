@@ -842,7 +842,7 @@ export default function UserManagementPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowReportModal(true)}
-                className="flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-50"
+                className="flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-500 hover:text-white"
               >
                 <FileText className="h-4 w-4" />
                 PDF
@@ -854,7 +854,7 @@ export default function UserManagementPage() {
                   setReportFormat('word');
                   setShowReportModal(true);
                 }}
-                className="flex items-center gap-2 border-blue-200 text-blue-600 hover:bg-blue-50"
+                className="flex items-center gap-2 border-blue-200 text-blue-600 hover:bg-blue-500 hover:text-white"
               >
                 <FileText className="h-4 w-4" />
                 Word

@@ -414,7 +414,7 @@ export default function CompaniesPage() {
             <Button
               variant="outline"
               size="sm"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
               onClick={handlePrint}
             >
               <Printer className="h-4 w-4" />
@@ -423,7 +423,7 @@ export default function CompaniesPage() {
             <Button
               variant="outline"
               size="sm"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
               onClick={() => setPdfReportOpen(true)}
             >
               <FileText className="h-4 w-4" />
@@ -432,7 +432,7 @@ export default function CompaniesPage() {
             <Button
               variant="outline"
               size="sm"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
               onClick={() => setWordReportOpen(true)}
             >
               <Download className="h-4 w-4" />
@@ -442,7 +442,7 @@ export default function CompaniesPage() {
             {config.canCreate ? (
               <Button
                 variant="outline"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                 onClick={() => setIsCreateOpen(true)}
               >
                 <Plus className="h-4 w-4" />
@@ -498,7 +498,7 @@ export default function CompaniesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                 onClick={handleRefresh}
                 disabled={refreshing || loading}
               >
@@ -624,11 +624,11 @@ export default function CompaniesPage() {
                 ? "Showing 0 of 0"
                 : `Showing ${startIndex}–${endIndex} of ${filteredCompanies.length}`}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ">
               <Button
                 variant="outline"
                 size="sm"
-                className={`px-4 py-2 ${currentPage === 1 ? "cursor-not-allowed opacity-60" : ""}`}
+                className={`px-4 py-2 ${currentPage === 1 ? "cursor-not-allowed opacity-60" : ""} hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200`}
                 onClick={currentPage === 1 ? undefined : handlePrevious}
                 disabled={currentPage === 1}
               >
@@ -640,7 +640,7 @@ export default function CompaniesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className={`px-4 py-2 ${currentPage === totalPages ? "cursor-not-allowed opacity-60" : ""}`}
+                className={`px-4 py-2 ${currentPage === totalPages ? "cursor-not-allowed opacity-60" : ""} hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200`}
                 onClick={currentPage === totalPages ? undefined : handleNext}
                 disabled={currentPage === totalPages}
               >

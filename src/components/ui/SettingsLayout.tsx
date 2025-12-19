@@ -241,11 +241,11 @@ export default function SettingsLayout({
 											Sign out safely or permanently delete your account. Deletion is irreversible.
 										</p>
 									</div>
-									<div className="flex flex-col gap-3">
+									<div className="flex flex-row gap-3">
 										<Button
 											type="button"
 											variant="primary"
-											className="flex items-center gap-2 px-3 py-1.5 text-sm"
+											className="flex items-center hover:border  gap-2 px-4 py-2 text-sm whitespace-nowrap"
 											onClick={handleLogout}
 											disabled={logoutLoading || deleteLoading}
 										>
@@ -255,7 +255,7 @@ export default function SettingsLayout({
 										<Button
 											type="button"
 											variant="secondary"
-											className="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-50! text-red-600! hover:bg-red-100!"
+											className="flex items-center border gap-2 px-4 py-2 text-sm whitespace-nowrap bg-red-50! text-red-600! hover:bg-red-500! hover:text-white!"
 											onClick={handleDeleteAccount}
 											disabled={deleteLoading || logoutLoading}
 										>
