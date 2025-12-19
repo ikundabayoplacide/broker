@@ -543,7 +543,7 @@ export default function TradePage() {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  className="px-4 md:px-6 text-sm md:text-base"
+                  className="px-4 md:px-6 text-sm md:text-base hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                   onClick={() => {
                     setQuantity("");
                     setQuantityError("");

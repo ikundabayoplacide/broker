@@ -11,7 +11,7 @@ import {
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import BranchCreateModal from "@/components/models/branchesModels";
+import BranchCreateModal, { type BranchFormData } from "@/components/models/branchesModels";
 import { useAuth } from "@/hooks/useAuth";
 
 interface BranchDetails {
@@ -127,12 +127,25 @@ export default function BranchDetailsPage() {
     const fetchBranchDetails = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('/api/branches');
-        if (response.ok) {
-          const branches = await response.json();
+        const [branchResponse, clientsResponse, tellersResponse] = await Promise.all([
+          fetch('/api/branches'),
+          fetch('/api/user?role=CLIENT'),
+          fetch('/api/user?role=TELLER')
+        ]);
+        
+        if (branchResponse.ok) {
+          const branches = await branchResponse.json();
           const branch = branches.find((b: any) => b.id === params.id);
           
           if (branch) {
+            // Get clients and tellers data
+            const clientsData = clientsResponse.ok ? await clientsResponse.json() : { users: [] };
+            const tellersData = tellersResponse.ok ? await tellersResponse.json() : { users: [] };
+            
+            // Filter by branch
+            const branchClients = clientsData.users?.filter((user: any) => user.branchId === branch.id) || [];
+            const branchTellers = tellersData.users?.filter((user: any) => user.branchId === branch.id) || [];
+            
             // Transform API data to match interface
             const transformedBranch: BranchDetails = {
               id: branch.id,
@@ -150,27 +163,33 @@ export default function BranchDetailsPage() {
               services: branch.services || [],
               createdAt: branch.createdAt,
               managerData: branch.manager,
-              // Mock data for stats (you can add these to your API later)
+              // Mock data for trading stats (you can add these to your API later)
               tradingStats: {
                 dailyVolume: 2500000,
                 monthlyVolume: 75000000,
                 totalTrades: 1250,
                 avgTradeSize: 60000
               },
+              // Real data from database
               clientStats: {
-                totalClients: 450,
-                activeClients: 380,
-                newThisMonth: 25,
-                vipClients: 45
+                totalClients: branchClients.length,
+                activeClients: branchClients.filter((c: any) => c.status === 'ACTIVE').length,
+                newThisMonth: branchClients.filter((c: any) => {
+                  const createdDate = new Date(c.createdAt);
+                  const now = new Date();
+                  return createdDate.getMonth() === now.getMonth() && createdDate.getFullYear() === now.getFullYear();
+                }).length,
+                vipClients: branchClients.filter((c: any) => c.accountType === 'VIP').length
               },
               performance: {
                 revenue: 12500000,
                 growth: 15.5,
                 satisfaction: 4.7,
                 efficiency: 92,
-                tellerCount: 10
+                tellerCount: branchTellers.length
               }
             };
+            console.log('Manager data:', branch.manager);
             setBranchDetails(transformedBranch);
           } else {
             setError('Branch not found');
@@ -292,7 +311,7 @@ export default function BranchDetailsPage() {
     }
   };
 
-  const getEditFormData = () => {
+  const getEditFormData = (): BranchFormData | undefined => {
     if (!branchDetails) return undefined;
     return {
       name: branchDetails.name,
@@ -305,6 +324,8 @@ export default function BranchDetailsPage() {
       managerEmail: branchDetails.managerData?.email || '',
       managerPhone: branchDetails.managerData?.phone || '',
       managerCountryCode: branchDetails.managerData?.phoneCountryCode || '+250',
+      managerPassword: '',
+      managerConfirmPassword: '',
       country: branchDetails.country,
       services: branchDetails.services || []
     };
@@ -420,7 +441,7 @@ export default function BranchDetailsPage() {
               <Phone className="w-5 h-5 text-gray-500" />
               <div>
                 <p className="text-sm text-gray-500">Manager's Phone</p>
-                <p className="font-medium">{branchDetails.managerData?.phone}</p>
+                <p className="font-medium">{branchDetails.managerData?.phone || branchDetails.phone || 'Not available'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -460,7 +481,7 @@ export default function BranchDetailsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Total Teller</p>
-                <p className="text-2xl font-semibold text-gray-700">{mockBranchDetails.performance.tellerCount}</p>
+                <p className="text-2xl font-semibold text-gray-700">{branchDetails.performance.tellerCount}</p>
                 <p className="text-sm text-blue-600">Supporting tellers</p>
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
@@ -1026,7 +1047,6 @@ export default function BranchDetailsPage() {
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
           onSubmit={handleEditSubmit}
-          managers={[]}
           initialData={getEditFormData()}
           isEdit={true}
         />

@@ -140,6 +140,14 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Create wallet for the new user
+      await tx.wallet.create({
+        data: {
+          userId: user.id,
+          balance: 0,
+        },
+      });
+
       // Update branch employee count if user is assigned to a branch
       if (user.branchId) {
         await tx.branch.update({

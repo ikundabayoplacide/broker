@@ -113,7 +113,7 @@ export default function AdminDashboard() {
               <Button
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                 onClick={handlePrint}
               >
                 <FiPrinter className="h-4 w-4" />
@@ -342,7 +342,7 @@ export default function AdminDashboard() {
                       { label: "Generate Report", icon: <FiFileText /> },
                       { label: "System Settings", icon: <FiSettings /> },
                     ].map((btn, i) => (
-                      <Button key={i} className="w-full justify-start" variant="outline">
+                      <Button key={i} className="w-full justify-start hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" variant="outline">
                         <span className="mr-3">{btn.icon}</span> {btn.label}
                       </Button>
                     ))}

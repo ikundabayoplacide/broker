@@ -48,6 +48,12 @@ export default function SuperAdminDashboard() {
   const [companiesLoading, setCompaniesLoading] = useState(false);
   const [companiesError, setCompaniesError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [branchCount, setBranchCount] = useState(0);
+  const [dailyVolume, setDailyVolume] = useState({
+    todayVolume: 0,
+    percentageChange: 0,
+    isPositive: true
+  });
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -82,7 +88,40 @@ export default function SuperAdminDashboard() {
       }
     };
 
+    const fetchBranches = async () => {
+      try {
+        const response = await fetch("/api/branches");
+        const data = await response.json();
+        
+        // API returns branches array directly
+        if (Array.isArray(data)) {
+          setBranchCount(data.length);
+        } else if (data.success && data.branches) {
+          setBranchCount(data.branches.length);
+        } else {
+          setBranchCount(0);
+        }
+      } catch (error) {
+        console.error("Error fetching branches:", error);
+        setBranchCount(0);
+      }
+    };
+
+    const fetchDailyVolume = async () => {
+      try {
+        const response = await fetch("/api/trading/daily-volume");
+        const data = await response.json();
+        if (data.success) {
+          setDailyVolume(data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching daily volume:", error);
+      }
+    };
+
     fetchCompanies();
+    fetchBranches();
+    fetchDailyVolume();
   }, [token]);
 
   const { displayName, email, dashboardRole } = useMemo((): {
@@ -106,7 +145,7 @@ export default function SuperAdminDashboard() {
     return { total, pending };
   }, [companies]);
 
-  const tradingVolumeData = [
+  const dailyTradingData = [
     { date: "Jan 15", volume: 1850000 },
     { date: "Jan 16", volume: 1920000 },
     { date: "Jan 17", volume: 1780000 },
@@ -114,6 +153,15 @@ export default function SuperAdminDashboard() {
     { date: "Jan 19", volume: 1950000 },
     { date: "Jan 20", volume: 2200000 },
     { date: "Jan 21", volume: 2004000 },
+  ];
+
+  const monthlyTradingData = [
+    { date: "Jul 2024", volume: 45000000 },
+    { date: "Aug 2024", volume: 52000000 },
+    { date: "Sep 2024", volume: 48000000 },
+    { date: "Oct 2024", volume: 61000000 },
+    { date: "Nov 2024", volume: 58000000 },
+    { date: "Dec 2024", volume: 67000000 },
   ];
 
   const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16", "#f97316"];
@@ -171,19 +219,19 @@ export default function SuperAdminDashboard() {
     },
     {
       title: "Daily Trading Volume",
-      value: "2,004,000 RWF",
-      change: "+8.5% from yesterday",
+      value: `${dailyVolume.todayVolume.toLocaleString()} RWF`,
+      change: `${dailyVolume.isPositive ? '+' : ''}${dailyVolume.percentageChange}% from yesterday`,
       icon: <FiDollarSign className="w-6 h-6 text-white" />,
       gradient: "bg-gradient-to-r from-emerald-500 to-emerald-600",
       link: null,
     },
     {
       title: "Active Branches",
-      value: "2",
+      value: branchCount.toLocaleString(),
       subtitle: "Trading locations",
       icon: <FaBuilding className="w-6 h-6 text-white" />,
       gradient: "bg-gradient-to-r from-indigo-500 to-indigo-600",
-      link: null,
+      link: "/dashboard/super-admin/branches",
     },
     {
       title: "Current Trading Rate",
@@ -286,7 +334,7 @@ export default function SuperAdminDashboard() {
             <Button
               onClick={handlePrint}
               variant="outline"
-              className="print:hidden flex items-center gap-2"
+              className="print:hidden flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
             >
               <FiPrinter className="w-4 h-4" />
               Print Report
@@ -321,68 +369,100 @@ export default function SuperAdminDashboard() {
           ))}
         </div>
 
-        <Card className="p-6 mb-6 animate-fadeInUp print:break-inside-avoid">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-500">Trading Volume Trends</h2>
-            <Button variant="outline" className="text-sm print:hidden">
-              View full report
-            </Button>
-          </div>
-          <div className="h-80 w-full overflow-hidden print:hidden">
-            <ResponsiveContainer width="100%" height={320} minHeight={320}>
-              <LineChart data={tradingVolumeData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="1 1" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#6b7280"
-                  fontSize={12}
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis 
-                  stroke="#6b7280"
-                  fontSize={12}
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
-                />
-                <Tooltip 
-                  formatter={(value) => [`${Number(value).toLocaleString()} RWF`, "Volume"]}
-                  labelStyle={{ color: "#374151" }}
-                  contentStyle={{ 
-                    backgroundColor: "white", 
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px"
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="volume" 
-                  stroke="#10b981" 
-                  strokeWidth={3}
-                  dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: "#10b981", strokeWidth: 2 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="hidden print:block">
-            <table className="w-full border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="border border-gray-300 px-4 py-2 text-left">Date</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">Trading Volume (RWF)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tradingVolumeData.map((item, index) => (
-                  <tr key={index}>
-                    <td className="border border-gray-300 px-4 py-2">{item.date}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-right">{Number(item.volume).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        {/* Trading Volume Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Daily Trading Volume */}
+          <Card className="p-6 animate-fadeInUp print:break-inside-avoid">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-gray-500">Daily Trading Volume</h2>
+              <Button variant="outline" className="text-xs print:hidden hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
+                View details
+              </Button>
+            </div>
+            <div className="h-64 w-full overflow-hidden print:hidden">
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={dailyTradingData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="1 1" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#6b7280"
+                    fontSize={11}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis 
+                    stroke="#6b7280"
+                    fontSize={11}
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
+                  />
+                  <Tooltip 
+                    formatter={(value) => [`${Number(value).toLocaleString()} RWF`, "Volume"]}
+                    labelStyle={{ color: "#374151" }}
+                    contentStyle={{ 
+                      backgroundColor: "white", 
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px"
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="volume" 
+                    stroke="#10b981" 
+                    strokeWidth={2}
+                    dot={{ fill: "#10b981", strokeWidth: 2, r: 3 }}
+                    activeDot={{ r: 5, stroke: "#10b981", strokeWidth: 2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          {/* Monthly Trading Volume */}
+          <Card className="p-6 animate-fadeInUp print:break-inside-avoid">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-gray-500">Monthly Trading Volume</h2>
+              <Button variant="outline" className="text-xs print:hidden hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
+                View details
+              </Button>
+            </div>
+            <div className="h-64 w-full overflow-hidden print:hidden">
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={monthlyTradingData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="1 1" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#6b7280"
+                    fontSize={11}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis 
+                    stroke="#6b7280"
+                    fontSize={11}
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
+                  />
+                  <Tooltip 
+                    formatter={(value) => [`${Number(value).toLocaleString()} RWF`, "Volume"]}
+                    labelStyle={{ color: "#374151" }}
+                    contentStyle={{ 
+                      backgroundColor: "white", 
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px"
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="volume" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    dot={{ fill: "#3b82f6", strokeWidth: 2, r: 3 }}
+                    activeDot={{ r: 5, stroke: "#3b82f6", strokeWidth: 2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
 
         <div className="grid lg:grid-cols-3 gap-6 mb-6 print:block print:space-y-4">
           <Card className="p-6 lg:col-span-2 animate-fadeInUp">
@@ -393,7 +473,7 @@ export default function SuperAdminDashboard() {
                   Total Available: {companySharesData.reduce((sum, c) => sum + c.shares, 0).toLocaleString()} shares
                 </p>
               </div>
-              <Button variant="outline" className="text-sm print:hidden">
+              <Button variant="outline" className="text-sm print:hidden hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
                 View details
               </Button>
             </div>
@@ -524,7 +604,7 @@ export default function SuperAdminDashboard() {
           <Card className="p-6 lg:col-span-2 animate-fadeInUp">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-500">Platform Oversight</h2>
-              <Button variant="outline" className="text-sm print:hidden">
+              <Button variant="outline" className="text-sm print:hidden hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
                 View detailed report
               </Button>
             </div>
