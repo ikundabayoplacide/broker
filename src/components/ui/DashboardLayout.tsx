@@ -14,7 +14,6 @@ import {
   FiUsers,
   FiZap,
   FiDollarSign,
-  FiHome,
   FiMenu,
   FiHelpCircle,
   FiSearch,
@@ -22,9 +21,9 @@ import {
   FiShield,
   FiUserCheck,
   FiUser,
-  FiMapPin
+  FiMapPin,
+  FiBell
 } from "react-icons/fi";
-import { BsHousesFill } from "react-icons/bs";
 import { useAuth } from "@/hooks/useAuth";
 import NotificationBell from '@/components/ui/NotificationBell';
 
@@ -40,7 +39,6 @@ interface DashboardLayoutProps {
 
 const toDashboardRole = (role?: string | null): DashboardRole => {
   const normalized = role?.toUpperCase().replace(/-/g, "_");
-
   switch (normalized) {
     case "CLIENT":
       return "client";
@@ -55,7 +53,6 @@ const toDashboardRole = (role?: string | null): DashboardRole => {
     case "COMPANY":
       return "company";
     default:
-      console.warn('Unknown role:', role, 'normalized:', normalized);
       return "client";
   }
 };
@@ -69,7 +66,6 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [managerUsersOpen, setManagerUsersOpen] = useState(false);
-  // notification dropdown is handled by `NotificationBell`
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading, isAuthenticated } = useAuth();
@@ -96,11 +92,8 @@ export default function DashboardLayout({
   }, [loading, isAuthenticated, pathname, router]);
 
   const derivedRole = useMemo(() => {
-    if (userRole) {
-      return userRole;
-    }
-    const role = toDashboardRole(user?.role);
-    return role;
+    if (userRole) return userRole;
+    return toDashboardRole(user?.role);
   }, [userRole, user?.role]);
 
   // Keep dropdowns open when on related pages
@@ -115,11 +108,11 @@ export default function DashboardLayout({
   }, [pathname, derivedRole]);
 
   const derivedName = useMemo(() => {
+    const name = (user?.name as string | undefined)?.trim() || (user?.fullName as string | undefined)?.trim();
+    if (name) return name;
     if (userName) return userName;
-    const fullName = (user?.fullName as string | undefined)?.trim();
-    if (fullName) return fullName;
     return "User";
-  }, [userName, user?.fullName]);
+  }, [userName, user?.name, user?.fullName]);
 
   const derivedEmail = useMemo(() => {
     if (userEmail) return userEmail;
@@ -155,6 +148,7 @@ export default function DashboardLayout({
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/client/trade" },
           { name: "Wallet", icon: FiCreditCard, href: "/dashboard/client/wallet" },
           { name: "History", icon: FiClipboard, href: "/dashboard/client/history" },
+          { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
         ];
       case "teller":
@@ -166,6 +160,7 @@ export default function DashboardLayout({
           { name: "Orders", icon: FiClipboard, href: "/dashboard/teller/orders" },
           { name: "Executions", icon: FiZap, href: "/dashboard/teller/executions" },
           { name: "Reports", icon: FiTrendingUp, href: "/dashboard/teller/reports" },
+          { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
         ];
       case "manager":
@@ -183,8 +178,9 @@ export default function DashboardLayout({
           },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/manager/trade"},
-          { name: "Transactions", icon: FiDollarSign, href: "/dashboard/manager/transactions" },
-          { name: "Reports", icon: FiTrendingUp, href: "/dashboard/manager/reports" },
+          // { name: "Transactions", icon: FiDollarSign, href: "/dashboard/manager/transactions" },
+          // { name: "Reports", icon: FiTrendingUp, href: "/dashboard/manager/reports" },
+          { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
         ];
       case "super-admin":
@@ -205,6 +201,7 @@ export default function DashboardLayout({
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/super-admin/trade" },
           {name:"Branches",icon:FiMenu,href:"/dashboard/super-admin/branches"},
+          { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
         ];
       case "company":
@@ -216,6 +213,7 @@ export default function DashboardLayout({
           { name: "History", icon: FiClipboard, href: "/dashboard/company/history" },
           { name: "Share Movement", icon: FiZap, href: "/dashboard/company/share-movement" },
           { name: "Shareholders", icon: FiUsers, href: "/dashboard/company/shareholders" },
+          { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/company/settings" },
         ];
       default:
@@ -334,7 +332,6 @@ export default function DashboardLayout({
                     height={64}
                     className="w-full h-full object-cover rounded-full"
                     onError={(e) => {
-                      console.log('Image failed to load:', derivedPassportPhoto);
                       e.currentTarget.style.display = 'none';
                     }}
                     unoptimized

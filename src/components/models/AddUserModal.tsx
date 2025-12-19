@@ -173,7 +173,6 @@ export default function AddUserModal({
     setLoadingTellers(true);
     try {
       const response = await api.get<{data: Teller[]}>(`/user?role=TELLER&branchId=${branchId}`);
-      console.log('Tellers API response:', response);
       setTellers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching tellers:', error);

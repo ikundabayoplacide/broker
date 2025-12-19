@@ -117,12 +117,12 @@ export default function InvestmentsPage() {
                 {summary.totalProfitLossPercentage >= 0 ? (
                   <>
                     <ArrowUpRight className="h-4 w-4 text-emerald-500" />
-                    <span className="text-emerald-600 font-semibold">+{summary.totalProfitLossPercentage.toFixed(2)}%</span>
+                    <span className="text-emerald-600 font-semibold">+{summary.totalProfitLossPercentage.toFixed(2) || '0.00'}%</span>
                   </>
                 ) : (
                   <>
                     <ArrowDownRight className="h-4 w-4 text-rose-500" />
-                    <span className="text-rose-600 font-semibold">{summary.totalProfitLossPercentage.toFixed(2)}%</span>
+                    <span className="text-rose-600 font-semibold">{summary.totalProfitLossPercentage.toFixed(2) || '0.00'}%</span>
                   </>
                 )}
                 <span className="text-slate-500">All time</span>
@@ -301,7 +301,7 @@ export default function InvestmentsPage() {
                   <div key={asset.sector} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm md:text-base font-medium text-slate-700">{asset.sector}</span>
-                      <span className="text-sm md:text-base font-semibold text-slate-900">{asset.percentage.toFixed(1)}%</span>
+                      <span className="text-sm md:text-base font-semibold text-slate-900">{asset.percentage.toFixed(1) || '0.0'}%</span>
                     </div>
                     <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
                       <div 

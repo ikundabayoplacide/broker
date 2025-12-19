@@ -64,9 +64,17 @@ export async function POST(request: NextRequest) {
           phoneCountryCode: validatedData.managerCountryCode,
           password: await bcrypt.hash(validatedData.managerPassword, 10),
           role: "MANAGER",
-          country: validatedData.country,
+          country: validatedData.country || validatedData.location,
           city: validatedData.location,
           isVerified: true
+        }
+      });
+      
+      // Create wallet for manager
+      await tx.wallet.create({
+        data: {
+          userId: manager.id,
+          balance: 0
         }
       });
       

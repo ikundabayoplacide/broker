@@ -44,33 +44,20 @@ const getStoredUser = (): AuthUser | null => {
     let storedUser = localStorage.getItem("user");
     let isCompany = false;
     
-    console.log('=== getStoredUser DEBUG ===');
-    console.log('Raw stored user:', storedUser);
-    
     if (!storedUser) {
       storedUser = localStorage.getItem("company");
       isCompany = true;
-      console.log('No user found, checking company:', storedUser);
     }
     
-    if (!storedUser) {
-      console.log('No stored user or company found');
-      return null;
-    }
+    if (!storedUser) return null;
     
     const parsed = JSON.parse(storedUser) as AuthUser;
-    console.log('Parsed user object:', parsed);
-    console.log('Original role from storage:', parsed?.role);
     
-    // For companies, set role to COMPANY if not already set
     if (isCompany && !parsed.role) {
       parsed.role = "COMPANY";
-      console.log('Set company role to COMPANY');
     }
     
     const role = normalizeRole(parsed?.role as string | undefined);
-    console.log('Normalized role result:', role);
-    console.log('========================');
     
     if (!role) return null;
     return { ...parsed, role };

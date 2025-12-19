@@ -4,7 +4,8 @@ import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
+import axios from "@/lib/axios";
 import {
   FiUsers,
   FiBriefcase,
@@ -25,7 +26,42 @@ import { executePrint } from "@/utils/printing/printUtils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const [dashboardData, setDashboardData] = useState({
+    totalClients: 0,
+    activeClients: 0,
+    totalTellers: 0,
+    activeTellers: 0,
+    loading: true
+  });
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!token) return;
+      try {
+        const [usersRes] = await Promise.all([
+          axios.get('/user', { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        
+        const users = usersRes.data?.users || usersRes.data || [];
+        const clients = users.filter((u: any) => u.role === 'CLIENT');
+        const tellers = users.filter((u: any) => u.role === 'TELLER');
+        
+        setDashboardData({
+          totalClients: clients.length,
+          activeClients: clients.filter((c: any) => c.isVerified).length,
+          totalTellers: tellers.length,
+          activeTellers: tellers.filter((t: any) => t.isVerified).length,
+          loading: false
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setDashboardData(prev => ({ ...prev, loading: false }));
+      }
+    };
+    
+    fetchDashboardData();
+  }, [token]);
 
   const { displayName, email, dashboardRole } = useMemo((): {
     displayName: string;
@@ -89,15 +125,18 @@ export default function AdminDashboard() {
               {[
                 {
                   title: "Total Clients",
-                  value: "2,847",
-                  change: "+12% this month",
+                  value: dashboardData.loading ? "Loading..." : dashboardData.totalClients.toString(),
+                  activevalue: dashboardData.loading ? "..." : dashboardData.activeClients.toString(),
+                  valuechange: "Active clients",
+                  change: `${dashboardData.activeClients}/${dashboardData.totalClients} verified`,
                   icon: <FiUsers className="w-6 h-6 text-white" />,
                   color: "bg-gradient-to-r from-[#004B5B] to-[#006B7D]",
                 },
                 {
-                  title: "Active Tellers",
-                  value: "8",
-                  change: "All operational",
+                  title: "Total Tellers",
+                  value: dashboardData.loading ? "Loading..." : dashboardData.totalTellers.toString(),
+                  activevalue: dashboardData.loading ? "..." : dashboardData.activeTellers.toString(),
+                  change: `${dashboardData.activeTellers} Active`,
                   icon: <FiBriefcase className="w-6 h-6 text-blue-400" />,
                   bg: "bg-blue-100",
                   textColor: "text-blue-500",
@@ -156,8 +195,13 @@ export default function AdminDashboard() {
                 <Card key={i} className="p-6 hover:shadow-lg transition-all">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-base font-medium text-gray-500 mb-5">{item.title}</p>
-                      <p className="text-xs font-bold text-gray-600">{item.value}</p>
+                      <p className="text-base font-medium text-gray-500 mb-2">{item.title}</p>
+                      <p className="text-2xl font-bold text-gray-900">{item.value}</p>
+                      {item.activevalue && (
+                        <p className="text-sm font-medium text-gray-600">
+                          {item.valuechange || "Active"}: {item.activevalue}
+                        </p>
+                      )}
                       <p className={`text-sm ${item.textColor || "text-green-600"}`}>
                         {item.change}
                       </p>

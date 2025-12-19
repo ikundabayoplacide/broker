@@ -8,7 +8,10 @@ import Button from "@/components/ui/Button";
 import { InputField } from "@/components/ui/InputField";
 import { useAuth } from "@/hooks/useAuth";
 import axios from "@/lib/axios";
-import { TrendingUp, Activity, Search, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, Activity, Search, ArrowUpRight, ArrowDownRight, FileText } from "lucide-react";
+import TransactionModal, { TransactionConfig } from "@/components/models/TransactionModal";
+import { generateTransactionStatement } from "@/utils/printing/transactionStatement";
+import { executePrint } from "@/utils/printing/printUtils";
 
 type OrderType = "buy" | "sell";
 
@@ -66,6 +69,7 @@ export default function TradePage() {
     label: string;
     isOpen: boolean;
   } | null>(null);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
 
   const { token } = useAuth();
 
@@ -157,19 +161,22 @@ export default function TradePage() {
     validateQuantity(value);
   };
 
-  const { displayName, email, dashboardRole, isCompany, apiPrefix } = useMemo(() => {
+  const { displayName, email, isCompany, apiPrefix } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
     const fallbackName = user?.email ? user.email.split("@")[0] : "Client";
     const role = user?.role?.toLowerCase();
     const isCompany = role === "company";
-    const dashboardRole =
-      role === "client" || role === "teller" || role === "admin" || role === "company" 
-        ? (role as "client" | "teller" | "admin" | "company") 
-        : "client";
+    
+    console.log('=== MANAGER TRADE PAGE DEBUG ===');
+    console.log('User object:', user);
+    console.log('User role:', user?.role);
+    console.log('Role lowercase:', role);
+    console.log('Is company:', isCompany);
+    console.log('===============================');
+    
     return {
       displayName: fullName || fallbackName,
       email: user?.email ?? "Not provided",
-      dashboardRole,
       isCompany,
       apiPrefix: isCompany ? "/company" : "",
     };
@@ -281,7 +288,7 @@ export default function TradePage() {
   };
 
   return (
-    <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
+    <DashboardLayout userName={displayName} userEmail={email}>
       <div className="space-y-4 md:space-y-6">
         {/* Header */}
         <div>
@@ -646,9 +653,20 @@ export default function TradePage() {
         <Card className="p-4 md:p-6" hover={false}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg md:text-xl font-semibold text-slate-900">Recent Trades</h2>
-            <Link href="/dashboard/client/history" className="text-xs md:text-sm text-[#004B5B] font-medium hover:underline">
-              View All →
-            </Link>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTransactionModal(true)}
+                className="flex items-center gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                Statement
+              </Button>
+              <Link href="/dashboard/client/history" className="text-xs md:text-sm text-[#004B5B] font-medium hover:underline">
+                View All →
+              </Link>
+            </div>
           </div>
           
           {recentTrades.length === 0 ? (
@@ -768,6 +786,36 @@ export default function TradePage() {
           </div>
         </div>
       )}
+
+      {/* Transaction Statement Modal */}
+      <TransactionModal
+        isOpen={showTransactionModal}
+        onClose={() => setShowTransactionModal(false)}
+        onGenerate={handleGenerateStatement}
+      />
     </DashboardLayout>
   );
+
+  function handleGenerateStatement(config: TransactionConfig) {
+    const statementContent = generateTransactionStatement(
+      recentTrades,
+      config,
+      { name: displayName, email }
+    );
+    
+    if (config.format === 'pdf') {
+      executePrint(statementContent);
+    } else {
+      // For Word format, create downloadable file
+      const blob = new Blob([statementContent], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transaction-statement-${config.startDate}-to-${config.endDate}.doc`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }
 }

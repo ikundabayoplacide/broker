@@ -72,8 +72,6 @@ export default function PurchaseOrderForm() {
 				instructions: additionalInstructions.trim(),
 			},
 		};
-
-		console.log("Purchase order payload", payload);
 		alert("Purchase order captured! (This demo does not submit to an API.)");
 	};
 

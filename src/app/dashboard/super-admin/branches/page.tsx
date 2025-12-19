@@ -21,6 +21,8 @@ interface BranchFormData {
   managerEmail: string;
   managerPhone: string;
   managerCountryCode: string;
+  managerPassword: string;
+  managerConfirmPassword: string;
   country: string;
   services: string[];
 }
@@ -96,14 +98,20 @@ export default function BranchesPage() {
       if (response.ok) {
         const data = await response.json();
         // Transform API data to match frontend interface
-        const transformedBranches = data.map((branch: any) => ({
-          ...branch,
-          manager: branch.manager?.fullName || 'No Manager',
-          employeeCount: branch._count?.employees || 0,
-          status: branch.status === 'ACTIVE' ? 'Active' : 
-                 branch.status === 'INACTIVE' ? 'Inactive' : 
-                 branch.status === 'MAINTENANCE' ? 'Maintenance' : 'Active'
-        }));
+        const transformedBranches = data.map((branch: any) => {
+          const statusMap: Record<string, string> = {
+            'ACTIVE': 'Active',
+            'INACTIVE': 'Inactive', 
+            'MAINTENANCE': 'Maintenance'
+          };
+          
+          return {
+            ...branch,
+            manager: branch.manager?.fullName || 'No Manager',
+            employeeCount: branch._count?.employees || 0,
+            status: statusMap[branch.status] || 'Active'
+          };
+        });
         setBranches(transformedBranches);
       }
     } catch (error) {
@@ -138,7 +146,6 @@ export default function BranchesPage() {
 
   const handleCreateBranch = async (branchData: BranchFormData) => {
     try {      
-      // Map frontend form data to API format
       const apiData = {
         name: branchData.name,
         location: branchData.location,
@@ -150,6 +157,8 @@ export default function BranchesPage() {
         managerEmail: branchData.managerEmail,
         managerPhone: branchData.managerPhone,
         managerCountryCode: branchData.managerCountryCode,
+        managerPassword: branchData.managerPassword,
+        managerConfirmPassword: branchData.managerConfirmPassword,
         country: branchData.country,
         services: branchData.services
       };
@@ -164,20 +173,18 @@ export default function BranchesPage() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('API Error Response:', errorData);
-        const errorMessage = Array.isArray(errorData.error) 
-          ? errorData.error.map((e: any) => e.message).join(', ')
-          : errorData.error || 'Failed to create branch';
+        let errorMessage = 'Failed to create branch';
+        
+        if (Array.isArray(errorData.error)) {
+          errorMessage = errorData.error.map((e: any) => e.message).join(', ');
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+        
         throw new Error(errorMessage);
       }
-      
-      const result = await response.json();
-      console.log('Branch created successfully:', result);
-      
-      // Show success toast notification
       showSuccessToast("Branch created successfully! Notifications sent to manager and admins.");
-      
-      // Refresh branches list without page reload
+      setShowCreateModal(false);
       await refreshBranches();
       
     } catch (error) {
@@ -440,7 +447,6 @@ export default function BranchesPage() {
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSubmit={handleCreateBranch}
-          managers={[]}
         />
       </div>
     </DashboardLayout>

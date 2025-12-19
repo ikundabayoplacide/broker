@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { X, Building, MapPin, Phone, Mail, Users, Clock } from "lucide-react";
+import { X, Building } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { InputField } from "@/components/ui/InputField";
@@ -18,6 +18,8 @@ interface BranchFormData {
   managerEmail: string;
   managerPhone: string;
   managerCountryCode: string;
+  managerPassword: string;
+  managerConfirmPassword: string;
   country: string;
   services: string[];
 }
@@ -25,8 +27,7 @@ interface BranchFormData {
 interface BranchCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: BranchFormData) => void;
-  managers: Array<{ id: string; name: string; email: string }>;
+  onSubmit: (data: BranchFormData) => Promise<void>;
   initialData?: BranchFormData;
   isEdit?: boolean;
 }
@@ -44,7 +45,6 @@ export default function BranchCreateModal({
   isOpen, 
   onClose, 
   onSubmit,
-  managers = [],
   initialData,
   isEdit = false
 }: BranchCreateModalProps) {
@@ -59,13 +59,16 @@ export default function BranchCreateModal({
     managerName: "",
     managerEmail: "",
     managerPhone: "",
-    managerCountryCode: "+250",
-    country: "Rwanda",
-    services: ["Trading", "Customer Support"]
+    managerCountryCode: "",
+    managerPassword: "",
+    managerConfirmPassword: "",
+    country: "",
+    services: []
   });
 
   const [errors, setErrors] = useState<Partial<BranchFormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialData) {
@@ -106,6 +109,11 @@ export default function BranchCreateModal({
       if (!formData.managerName.trim()) newErrors.managerName = "Manager name is required";
       if (!formData.managerEmail.trim()) newErrors.managerEmail = "Manager email is required";
       if (!formData.managerPhone.trim()) newErrors.managerPhone = "Manager phone is required";
+      if (!formData.managerPassword.trim()) newErrors.managerPassword = "Manager password is required";
+      if (!formData.managerConfirmPassword.trim()) newErrors.managerConfirmPassword = "Confirm password is required";
+      if (formData.managerPassword !== formData.managerConfirmPassword) {
+        newErrors.managerConfirmPassword = "Passwords do not match";
+      }
     }
 
     setErrors(newErrors);
@@ -128,6 +136,7 @@ export default function BranchCreateModal({
     if (currentStep !== 2 || !validateStep(2)) return;
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await onSubmit(formData);
       if (!isEdit) {
@@ -142,15 +151,22 @@ export default function BranchCreateModal({
           managerName: "",
           managerEmail: "",
           managerPhone: "",
-          managerCountryCode: "+250",
-          country: "Rwanda",
-          services: ["Trading", "Customer Support"]
+          managerCountryCode: "",
+          managerPassword: "",
+          managerConfirmPassword: "",
+          country: "",
+          services: []
         });
       }
       setCurrentStep(1);
-      onClose();
+      try {
+        onClose();
+      } catch (closeError) {
+        console.error('Error closing modal:', closeError);
+      }
     } catch (error) {
-      console.error("Error submitting branch:", error);
+      console.error('Branch submission error:', error);
+      setSubmitError(error instanceof Error ? error.message : 'Failed to save branch. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -180,7 +196,13 @@ export default function BranchCreateModal({
             <Button
               variant="outline"
               size="sm"
-              onClick={onClose}
+              onClick={() => {
+                try {
+                  onClose();
+                } catch (error) {
+                  console.error('Error closing modal:', error);
+                }
+              }}
               className="flex items-center gap-2"
             >
               <X className="w-4 h-4" />
@@ -349,6 +371,29 @@ export default function BranchCreateModal({
                     required
                   />
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InputField
+                    name="managerPassword"
+                    label="Manager Password"
+                    type="password"
+                    placeholder="Enter password"
+                    value={formData.managerPassword}
+                    onChange={handleInputChange("managerPassword")}
+                    error={errors.managerPassword}
+                    showVisibilityToggle
+                    required
+                  />
+                  <InputField
+                    name="managerConfirmPassword"
+                    label="Confirm Password"
+                    type="password"
+                    placeholder="Confirm password"
+                    value={formData.managerConfirmPassword}
+                    onChange={handleInputChange("managerConfirmPassword")}
+                    error={errors.managerConfirmPassword}
+                    required
+                  />
+                </div>
 
                 {/* Services */}
                 <div>
@@ -373,6 +418,13 @@ export default function BranchCreateModal({
               </motion.div>
             )}
 
+            {/* Error Display */}
+            {submitError && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{submitError}</p>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex justify-between pt-6 border-t">
               <div>
@@ -391,7 +443,13 @@ export default function BranchCreateModal({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={onClose}
+                  onClick={() => {
+                    try {
+                      onClose();
+                    } catch (error) {
+                      console.error('Error closing modal:', error);
+                    }
+                  }}
                   disabled={isSubmitting}
                 >
                   Cancel

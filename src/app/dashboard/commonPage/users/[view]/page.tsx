@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { 
   ArrowLeft, Shield, Mail, Phone, MapPin, Edit, Trash2, 
   Building2, Activity, Lock, AlertTriangle, User, Clock, 
-  Globe, CheckCircle, XCircle, Settings, Loader2 
+  Globe, CheckCircle, XCircle, Settings, Loader2, CreditCard 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import DashboardLayout from "@/components/ui/DashboardLayout";
@@ -152,6 +152,8 @@ export default function ViewUserPage() {
   const [editErrors, setEditErrors] = useState<Partial<Record<keyof EditFormState, string>>>({});
   const [pendingDelete, setPendingDelete] = useState<User | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
 
   const userId = params.view as string;
 
@@ -161,15 +163,40 @@ export default function ViewUserPage() {
     }
   }, [userId]);
 
+  useEffect(() => {
+    if (activeTab === 'transactions' && userId) {
+      fetchTransactions();
+    }
+  }, [activeTab, userId]);
+
   const fetchUser = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/user/${userId}`);
-      setUser(response.data);
+      const res = await api.get(`/user/${userId}`);
+      const fetchedUser = (res && (res as any).data) ? (res as any).data : res;
+      setUser(fetchedUser ?? null);
     } catch (error) {
-      console.error("Error fetching user:", error);
+      console.error("Error fetching user:", error, {
+        message: (error as any)?.message
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTransactions = async () => {
+    try {
+      setTransactionsLoading(true);
+      const res = await api.get(`/trades?userId=${userId}&limit=100`);
+      const transactions = (res && (res as any).trades) || (res && (res as any).data && (res as any).data.trades) || [];
+      setTransactions(transactions);
+    } catch (error) {
+      console.error("Error fetching transactions:", error, {
+        message: (error as any)?.message,
+      });
+      setTransactions([]);
+    } finally {
+      setTransactionsLoading(false);
     }
   };
 
@@ -230,6 +257,7 @@ export default function ViewUserPage() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'activity', label: 'Activity Logs', icon: Activity },
+    { id: 'transactions', label: 'Transaction History', icon: CreditCard },
     { id: 'security', label: 'Security', icon: Lock },
     { id: 'danger', label: 'Danger Zone', icon: AlertTriangle }
   ];
@@ -385,6 +413,80 @@ export default function ViewUserPage() {
                 </tbody>
               </table>
             </div>
+          </Card>
+        );
+
+      case 'transactions':
+        return (
+          <Card className="p-6">
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[#004B5B]">
+              <CreditCard className="h-5 w-5" /> Transaction History
+            </h3>
+            {transactionsLoading ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#004B5B]" />
+                <p className="mt-2 text-gray-600">Loading transactions...</p>
+              </div>
+            ) : transactions.length === 0 ? (
+              <div className="text-center py-8">
+                <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No transactions found for this user.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="p-3 text-left">Date</th>
+                      <th className="p-3 text-left">Type</th>
+                      <th className="p-3 text-left">Company</th>
+                      <th className="p-3 text-left">Quantity</th>
+                      <th className="p-3 text-left">Price</th>
+                      <th className="p-3 text-left">Total Amount</th>
+                      <th className="p-3 text-left">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((transaction, index) => (
+                      <tr key={transaction.id || index} className="border-b hover:bg-gray-50">
+                        <td className="p-3">
+                          {new Date(transaction.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            transaction.type === 'BUY' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {transaction.type}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <div>
+                            <p className="font-medium">{transaction.company?.symbol || 'N/A'}</p>
+                            <p className="text-xs text-gray-500">{transaction.company?.name || ''}</p>
+                          </div>
+                        </td>
+                        <td className="p-3">{transaction.quantity?.toLocaleString() || 0}</td>
+                        <td className="p-3">Rwf {parseFloat(transaction.executedPrice || '0').toFixed(2)}</td>
+                        <td className="p-3 font-semibold">Rwf {parseFloat(transaction.totalAmount || '0').toLocaleString()}</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            transaction.status === 'EXECUTED' 
+                              ? 'bg-blue-100 text-blue-700' 
+                              : transaction.status === 'PENDING'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {transaction.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         );
 
