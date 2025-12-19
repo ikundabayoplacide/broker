@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/apiAuth";
 import { userCreationSchema } from "@/lib/validations/signupValidation";
-import type { Role as PrismaRole } from "@prisma/client";
+import type { User_role as PrismaRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const defaultNotificationPreferences = {
