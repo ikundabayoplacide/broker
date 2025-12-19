@@ -1,4 +1,7 @@
-import { prisma } from "../src/lib/prisma";
+import { PrismaClient } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
+
+const prisma = new PrismaClient();
 
 const rseCompanies = [
   { symbol: 'MTNR', name: 'MTN Rwanda', csdNumber: 'CSD-MTN-001', sharePrice: 115, totalShares: 10000000, availableShares: 5000000 },
@@ -18,7 +21,13 @@ async function main() {
   for (const company of rseCompanies) {
     try {
       const existing = await prisma.company.findFirst({
-        where: { OR: [{ symbol: company.symbol }, { csdNumber: company.csdNumber }] }
+        where: {
+          OR: [
+            { symbol: company.symbol },
+            { csdNumber: company.csdNumber },
+            { name: company.name },
+          ],
+        },
       });
 
       if (existing) {
@@ -27,17 +36,20 @@ async function main() {
           where: { id: existing.id },
           data: {
             symbol: company.symbol,
+            name: company.name,
             sharePrice: company.sharePrice,
             closingPrice: company.sharePrice,
             previousClosingPrice: company.sharePrice,
             totalShares: BigInt(company.totalShares),
             availableShares: BigInt(company.availableShares),
+            updatedAt: new Date(),
           }
         });
       } else {
         console.log(`Creating ${company.symbol}...`);
         await prisma.company.create({
           data: {
+            id: uuidv4(),
             name: company.name,
             email: `${company.symbol.toLowerCase()}@rse.rw`,
             phoneCountryCode: '+250',
@@ -57,6 +69,7 @@ async function main() {
             tradedVolume: 0,
             tradedValue: 0,
             isVerified: true,
+            updatedAt: new Date(),
           }
         });
       }
@@ -69,4 +82,6 @@ async function main() {
 
 main()
   .catch(console.error)
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

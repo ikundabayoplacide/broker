@@ -8,6 +8,8 @@
     "prod": "npm run build && npm start",
     "dev": "next dev",
     "seed": "node scripts/run-seed.js",
+    "seed:securities": "tsx scripts/seed-securities.ts",
+    "seed:rse": "tsx scripts/add-rse-companies.ts",
     "db:setup": "prisma db push && npm run seed"
   },
   "dependencies": {
