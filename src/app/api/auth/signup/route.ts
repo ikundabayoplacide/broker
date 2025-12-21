@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { sendOTPEmail } from "@/utils/mailer";
 import { signupSchema, SignupPayload } from "@/lib/validations/signupValidation";
-import type { Role as PrismaRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
 
 const defaultNotificationPreferences = {
   email: true,
@@ -69,18 +69,20 @@ export async function POST(req: Request) {
     let createdUser: { id: string } | null = null;
     try {
       const createData = {
+        id: uuidv4(),
         fullName,
         email,
         phoneCountryCode,
         phone,
         password: hashed,
-    gender,
+        gender,
         country,
         city,
-  role: "CLIENT" as PrismaRole,
+        role: "CLIENT" as const,
         otp,
         otpExpiresAt,
         notificationPreferences: defaultNotificationPreferences,
+        updatedAt: new Date(),
       };
 
       createdUser = await prisma.user.create({
