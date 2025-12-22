@@ -58,7 +58,7 @@ const userSelect = {
 const updateUserSchema = baseSignupSchema
 	.extend({
 		notificationPreferences: z.any().optional(),
-		role: z.nativeEnum(Role).optional(),
+		role: z.enum(["SUPER_ADMIN", "ADMIN", "MANAGER", "TELLER", "CLIENT"]).optional(),
 		isVerified: z.boolean().optional(),
 		passportPhoto: z.string().trim().optional(),
 		idDocument: z.string().trim().optional(),

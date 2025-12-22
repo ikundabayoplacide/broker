@@ -195,10 +195,11 @@ export default function ViewUserPage() {
   const fetchTransactions = async () => {
     try {
       setTransactionsLoading(true);
-      const res = await api.get(`/trades?userId=${userId}&limit=100`);
-      const transactions = res?.data?.trades || res?.data || [];
+      const res = await api.get(`/wallet/transactions?userId=${userId}&limit=100`);
+      const transactions = Array.isArray(res?.transactions) ? res.transactions : [];      
       setTransactions(transactions);
     } catch (error) {
+      console.error('Error fetching transactions:', error);
       setTransactions([]);
     } finally {
       setTransactionsLoading(false);
@@ -444,10 +445,7 @@ export default function ViewUserPage() {
                     <tr>
                       <th className="p-3 text-left">Date</th>
                       <th className="p-3 text-left">Type</th>
-                      <th className="p-3 text-left">Company</th>
-                      <th className="p-3 text-left">Quantity</th>
-                      <th className="p-3 text-left">Price</th>
-                      <th className="p-3 text-left">Total Amount</th>
+                      <th className="p-3 text-left">Amount</th>
                       <th className="p-3 text-left">Status</th>
                     </tr>
                   </thead>
@@ -459,28 +457,26 @@ export default function ViewUserPage() {
                         </td>
                         <td className="p-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            transaction.type === 'BUY' 
+                            transaction.type === 'DEPOSIT' 
                               ? 'bg-green-100 text-green-700' 
-                              : 'bg-red-100 text-red-700'
+                              : transaction.type === 'WITHDRAW'
+                              ? 'bg-red-100 text-red-700'
+                              : transaction.type === 'BUY_SHARES'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-purple-100 text-purple-700'
                           }`}>
-                            {transaction.type}
+                            {transaction.type.replace('_', ' ')}
                           </span>
                         </td>
-                        <td className="p-3">
-                          <div>
-                            <p className="font-medium">{transaction.company?.symbol || 'N/A'}</p>
-                            <p className="text-xs text-gray-500">{transaction.company?.name || ''}</p>
-                          </div>
-                        </td>
-                        <td className="p-3">{transaction.quantity?.toLocaleString() || 0}</td>
-                        <td className="p-3">Rwf {parseFloat(transaction.executedPrice || '0').toFixed(2)}</td>
-                        <td className="p-3 font-semibold">Rwf {parseFloat(transaction.totalAmount || '0').toLocaleString()}</td>
+                        <td className="p-3 font-semibold">Rwf {parseFloat(transaction.amount || '0').toLocaleString()}</td>
                         <td className="p-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            transaction.status === 'EXECUTED' 
-                              ? 'bg-blue-100 text-blue-700' 
+                            transaction.status === 'COMPLETED' 
+                              ? 'bg-green-100 text-green-700' 
                               : transaction.status === 'PENDING'
                               ? 'bg-yellow-100 text-yellow-700'
+                              : transaction.status === 'FAILED'
+                              ? 'bg-red-100 text-red-700'
                               : 'bg-gray-100 text-gray-700'
                           }`}>
                             {transaction.status}

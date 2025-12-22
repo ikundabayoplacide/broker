@@ -85,9 +85,21 @@ export async function POST(req: Request) {
         updatedAt: new Date(),
       };
 
-      createdUser = await prisma.user.create({
-        data: createData,
-        select: { id: true },
+      createdUser = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: createData,
+          select: { id: true },
+        });
+
+        // Create wallet for the new user
+        await tx.wallet.create({
+          data: {
+            userId: user.id,
+            balance: 0,
+          },
+        });
+
+        return user;
       });
     } catch (createErr) {
       console.error("Database error creating user:", createErr);
