@@ -57,9 +57,11 @@ export async function POST(request: NextRequest) {
         // Create wallet if it doesn't exist
         wallet = await tx.wallet.create({
           data: {
+            id: crypto.randomUUID(),
             userId,
             balance: 0,
             lockedBalance: 0,
+            updatedAt: new Date(),
           },
         });
       }

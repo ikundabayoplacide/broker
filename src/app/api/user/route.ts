@@ -144,8 +144,10 @@ export async function POST(req: NextRequest) {
       // Create wallet for the new user
       await tx.wallet.create({
         data: {
+          id: crypto.randomUUID(),
           userId: user.id,
           balance: 0,
+          updatedAt: new Date(),
         },
       });
 

@@ -59,9 +59,11 @@ export async function GET(request: NextRequest) {
       // Create wallet if it doesn't exist
       wallet = await prisma.wallet.create({
         data: {
+          id: crypto.randomUUID(),
           userId: targetUserId,
           balance: 0,
-          lockedBalance: 0
+          lockedBalance: 0,
+          updatedAt: new Date(),
         }
       });
     }

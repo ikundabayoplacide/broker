@@ -94,8 +94,10 @@ export async function POST(req: Request) {
         // Create wallet for the new user
         await tx.wallet.create({
           data: {
+            id: uuidv4(),
             userId: user.id,
             balance: 0,
+            updatedAt: new Date(),
           },
         });
 

@@ -48,9 +48,11 @@ export async function POST(req: Request) {
       if (!existingWallet) {
         await tx.wallet.create({
           data: {
+            id: crypto.randomUUID(),
             userId: user.id,
             balance: 0,
             lockedBalance: 0,
+            updatedAt: new Date(),
           },
         });
       }
