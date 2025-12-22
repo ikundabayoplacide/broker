@@ -143,6 +143,7 @@ export default function ViewUserPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [editUser, setEditUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState<EditFormState | null>(null);
@@ -172,13 +173,20 @@ export default function ViewUserPage() {
   const fetchUser = async () => {
     try {
       setLoading(true);
+      setFetchError(null);
       const res = await api.get(`/user/${userId}`);
-      const fetchedUser = (res && (res as any).data) ? (res as any).data : res;
-      setUser(fetchedUser ?? null);
+      setUser(res?.data || res || null);
     } catch (error) {
-      console.error("Error fetching user:", error, {
-        message: (error as any)?.message
-      });
+      const err = error as any;
+      if (err?.status === 401) {
+        setFetchError("Unauthorized. Please login and try again.");
+      } else if (err?.status === 403) {
+        setFetchError("You do not have permission to view this user.");
+      } else if (err?.status === 404) {
+        setFetchError("User not found");
+      } else {
+        setFetchError(err?.message || "Failed to fetch user");
+      }
     } finally {
       setLoading(false);
     }
@@ -188,12 +196,9 @@ export default function ViewUserPage() {
     try {
       setTransactionsLoading(true);
       const res = await api.get(`/trades?userId=${userId}&limit=100`);
-      const transactions = (res && (res as any).trades) || (res && (res as any).data && (res as any).data.trades) || [];
+      const transactions = res?.data?.trades || res?.data || [];
       setTransactions(transactions);
     } catch (error) {
-      console.error("Error fetching transactions:", error, {
-        message: (error as any)?.message,
-      });
       setTransactions([]);
     } finally {
       setTransactionsLoading(false);
@@ -279,7 +284,7 @@ export default function ViewUserPage() {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <p className="text-gray-600">User not found</p>
+          <p className="text-gray-600">{fetchError ?? 'User not found'}</p>
           <Button onClick={() => router.back()} className="mt-4">
             Go Back
           </Button>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Prisma, User_role as Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { z } from "zod";
@@ -10,6 +10,7 @@ import {
 	UnauthorizedError,
 	requireUserManagementRole,
 } from "@/utils/_helpers";
+import { getAuthenticatedUser } from "@/lib/apiAuth";
 import {
 	baseSignupSchema,
 	normalizePhone,
@@ -39,6 +40,7 @@ const userSelect = {
 	notificationPreferences: true,
 	role: true,
 	isVerified: true,
+	createdById: true,
 	createdBy: {
 		select: {
 			id: true,
@@ -171,6 +173,7 @@ type UserResponse = {
 	notificationPreferences: Prisma.JsonValue | null;
 	role: Role;
 	isVerified: boolean;
+	createdById: string | null;
 	createdBy: {
 		id: string;
 		fullName: string;
@@ -183,7 +186,11 @@ type UserResponse = {
 
 export async function GET(request: Request, context: { params: RouteParams }) {
 	try {
-		const auth = await requireUserManagementRole(request);
+		const auth = await getAuthenticatedUser(request as any);
+		if (!auth) {
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+
 		const { id } = await context.params;
 
 		const user = (await prisma.user.findUnique({
@@ -195,21 +202,20 @@ export async function GET(request: Request, context: { params: RouteParams }) {
 			return NextResponse.json({ error: "User not found" }, { status: 404 });
 		}
 
-		if (auth.role === Role.TELLER) {
+		// Only apply access control for tellers
+		if (auth.role === "TELLER") {
 			if (user.role !== Role.CLIENT) {
-				throw new ForbiddenError("Tellers can only access their own clients");
+				return NextResponse.json({ error: "Tellers can only access client accounts" }, { status: 403 });
 			}
 
-			const ownsClient = await prisma.user.count({
-				where: {
-					id,
-					role: Role.CLIENT,
-					createdById: auth.id,
-				} as unknown as Prisma.UserWhereInput,
+			// Check if this client was created by this teller
+			const clientCheck = await prisma.user.findUnique({
+				where: { id },
+				select: { createdById: true },
 			});
 
-			if (!ownsClient) {
-				throw new ForbiddenError("Tellers can only access their own clients");
+			if (!clientCheck || clientCheck.createdById !== (auth.userId || auth.id)) {
+				return NextResponse.json({ error: "Tellers can only access their own clients" }, { status: 403 });
 			}
 		}
 

@@ -20,35 +20,19 @@ const extractBearerToken = (authorizationHeader: string | null) => {
 
 export const getAuthenticatedUser = async (req: NextRequest): Promise<AuthPayload | null> => {
   const headerToken = extractBearerToken(req.headers.get("authorization"));
-  const cookieToken = req.cookies.get("token")?.value;
+  const cookieToken = req.cookies?.get?.("token")?.value;
   const token = headerToken || cookieToken;
 
-  console.log("Auth Debug:", {
-    hasHeaderToken: !!headerToken,
-    hasCookieToken: !!cookieToken,
-    hasToken: !!token,
-    tokenPreview: token ? `${token.substring(0, 20)}...` : 'none'
-  });
-
   if (!token) {
-    console.log("No token found in request");
     return null;
   }
 
   try {
     const decoded = await verifyToken<AuthPayload>(token);
-    
-    // Handle both 'id' and 'userId' fields in token payload
-    // Some tokens use 'id' while others use 'userId'
-    const userId = decoded.userId || decoded.id;
-    
-    const result = {
+    return {
       ...decoded,
-      userId: userId
+      userId: decoded.userId || decoded.id,
     };
-    
-    console.log("Token verified successfully:", { userId: result.userId, role: result.role });
-    return result;
   } catch (error) {
     console.error("Token verification failed:", error);
     return null;

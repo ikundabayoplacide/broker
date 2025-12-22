@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/apiAuth";
 import { userCreationSchema } from "@/lib/validations/signupValidation";
-import type { User_role as PrismaRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
+
+type PrismaRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER" | "CLIENT";
 
 const defaultNotificationPreferences = {
   email: true,
@@ -211,10 +212,10 @@ export async function GET(request: NextRequest) {
 
     // Role-based access control
     if (requestingUser.role === "TELLER") {
-      // Tellers can only see clients in their branch
-      whereClause.branchId = requestingUser.branchId;
+      // Tellers can only see clients they created
       if (!role || role === "CLIENT") {
         whereClause.role = "CLIENT";
+        whereClause.createdById = requestingUser.id; // Only clients created by this teller
       } else {
         return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
       }
