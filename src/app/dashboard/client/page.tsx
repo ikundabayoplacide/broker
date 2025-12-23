@@ -99,11 +99,13 @@ export default function ClientDashboard() {
     const fetchDashboardData = async () => {
       if (!user?.id || !token) return;
       try {
-        const [walletData, portfolioRes, tradesData] = await Promise.all([
+        const [walletData, portfolioRes, tradesResponse] = await Promise.all([
           axios.get('/wallet', { headers: { Authorization: `Bearer ${token}` } }) as Promise<{ wallet: { balance: string } }>,
           fetch(`/api/portfolio?userId=${user.id}`).then(r => r.json()),
-          axios.get('/trade/history?limit=1000', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ trades: [] })) as Promise<{ trades: Array<{ type: string; status: string; executedQuantity?: number; quantity: number; companyId: string }> }>,
+          axios.get('/trade/history?limit=1000', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ trades: [] })) as Promise<{ trades: Array<{ type: string; status: string; executedQuantity?: number; quantity: number; companyId: string; userId: string }> }>,
         ]);
+        
+        setTradesData(tradesResponse.trades || []);
         
         const walletBalance = parseFloat(walletData.wallet?.balance || '0');
         const portfolioValue = portfolioRes.summary?.totalCurrentValue || 0;
@@ -113,7 +115,7 @@ export default function ClientDashboard() {
         const holdings = portfolioRes.portfolio?.slice(0, 3) || [];
 
         // Calculate sold shares from trade history
-        const sellTrades = (tradesData.trades || []).filter((t) => t.type === 'SELL' && t.status === 'EXECUTED');
+        const sellTrades = (tradesResponse.trades || []).filter((t) => t.type === 'SELL' && t.status === 'EXECUTED');
         const totalSharesSold = sellTrades.reduce((sum: number, t: { executedQuantity?: number; quantity: number }) => sum + (t.executedQuantity || t.quantity), 0);
         const companiesSold = new Set(sellTrades.map((t: { companyId: string }) => t.companyId)).size;
 
@@ -147,6 +149,28 @@ export default function ClientDashboard() {
     };
     fetchDashboardData();
   }, [user?.id, token]);
+
+  const [tradesData, setTradesData] = useState<Array<{ type: string; status: string; executedQuantity?: number; quantity: number; companyId: string; userId: string }>>([]);
+
+  const calculateTotalSharesBought = () => {
+    return tradesData
+      .filter(trade => 
+        trade.userId === user?.id && 
+        trade.type?.toLowerCase() === 'buy' && 
+        trade.status?.toLowerCase() === 'executed'
+      )
+      .reduce((total, trade) => total + (trade.executedQuantity || trade.quantity || 0), 0);
+  };
+
+  const calculateTotalSharesSold = () => {
+    return tradesData
+      .filter(trade => 
+        trade.userId === user?.id && 
+        trade.type?.toLowerCase() === 'sell' && 
+        trade.status?.toLowerCase() === 'executed'
+      )
+      .reduce((total, trade) => total + (trade.executedQuantity || trade.quantity || 0), 0);
+  };
 
   const formatTaskList = (tasks: string[]) => {
     if (tasks.length <= 1) return tasks[0] ?? '';
@@ -229,7 +253,7 @@ export default function ClientDashboard() {
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1 mr-2">
                   <p className="text-[10px] md:text-xs font-medium text-gray-600 truncate">Total Shares Bought</p>
-                  <p className="text-base md:text-xl font-bold text-green-600">{dashboardData.totalShares}</p>
+                  <p className="text-base md:text-xl font-bold text-gray-900">{calculateTotalSharesBought()}</p>
                   <p className="text-xs text-gray-600">{dashboardData.companiesCount} companies</p>
                 </div>
                 <div className="w-8 h-8 md:w-12 md:h-12 bg-green-100 rounded-full flex items-center justify-center shrink-0">
@@ -246,7 +270,7 @@ export default function ClientDashboard() {
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1 mr-2">
                   <p className="text-[10px] md:text-xs font-medium text-gray-600 truncate">Total Shares Sold</p>
-                  <p className="text-base md:text-xl font-bold text-gray-900">{dashboardData.totalSharesSold}</p>
+                  <p className="text-base md:text-xl font-bold text-gray-900">{calculateTotalSharesSold()}</p>
                   <p className="text-xs text-orange-600">{dashboardData.companiesSold} companies</p>
                 </div>
                 <div className="w-8 h-8 md:w-12 md:h-12 bg-orange-100 rounded-full flex items-center justify-center shrink-0">
