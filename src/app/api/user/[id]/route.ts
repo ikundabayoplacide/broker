@@ -190,8 +190,8 @@ export async function GET(request: Request, context: { params: RouteParams }) {
 			return NextResponse.json({ error: "User not found" }, { status: 404 });
 		}
 
-		// Only apply access control for tellers
-		if (auth.role === "TELLER") {
+		// Allow users to access their own profile, or apply access control for tellers accessing others
+		if (auth.role === "TELLER" && id !== (auth.userId || auth.id)) {
 			if (user.role !== Role.CLIENT) {
 				return NextResponse.json({ error: "Tellers can only access client accounts" }, { status: 403 });
 			}
@@ -227,7 +227,8 @@ export async function PATCH(request: Request, context: { params: RouteParams }) 
 			return NextResponse.json({ error: "User not found" }, { status: 404 });
 		}
 
-		if (auth.role === Role.TELLER) {
+		// Allow users to modify their own profile, or apply access control for tellers modifying others
+		if (auth.role === Role.TELLER && id !== auth.id) {
 			if (existing.role !== Role.CLIENT) {
 				throw new ForbiddenError("Tellers can only modify their own clients");
 			}

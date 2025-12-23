@@ -722,8 +722,8 @@ export default function CompaniesPage() {
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <DetailItem label="Share price" value={viewCompany.sharePrice ?? "—"} />
-                  <DetailItem label="Closing price" value={viewCompany.closingPrice ?? "—"} />
+                  <DetailItem label="Share price" value={String(viewCompany.sharePrice ?? "—")} />
+                  <DetailItem label="Closing price" value={String(viewCompany.closingPrice ?? "—")} />
                   <DetailItem label="Available shares" value={viewCompany.availableShares?.toLocaleString() ?? "—"} />
                   <DetailItem label="Total shares" value={viewCompany.totalShares?.toLocaleString() ?? "—"} />
                   <DetailItem label="Price change" value={viewCompany.priceChange ?? "—"} />

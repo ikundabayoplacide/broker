@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
 import SettingsLayout, { type SettingsLayoutNavItem } from "@/components/ui/SettingsLayout";
 import { useAuth } from "@/hooks/useAuth";
 import Card from "@/components/ui/Card";
@@ -8,7 +8,8 @@ import Button from "@/components/ui/Button";
 import { InputField } from "@/components/ui/InputField";
 import { Activity, ShieldCheck, Network, User, Loader2 } from "lucide-react";
 import { FileUploadField } from "@/components/ui/FileUploadField";
-// Local constants for form options
+import api from "@/lib/axios";
+
 const GENDER_OPTIONS = [
   { value: "male", label: "Male" },
   { value: "female", label: "Female" },
@@ -39,12 +40,12 @@ type OptionType = {
 };
 
 const navItems: SettingsLayoutNavItem[] = [
-    {
-      id: "profile",
-      label: "Profile",
-      description: "Update your personal details",
-      icon: <User className="h-4 w-4" aria-hidden="true" />,
-    },
+  {
+    id: "profile",
+    label: "Profile",
+    description: "Update your personal details",
+    icon: <User className="h-4 w-4" aria-hidden="true" />,
+  },
   {
     id: "platform",
     label: "Platform controls",
@@ -65,24 +66,6 @@ const navItems: SettingsLayoutNavItem[] = [
   },
 ];
 
-type PlatformForm = {
-  primaryContact: string;
-  supportEmail: string;
-  maintenanceWindow: string;
-};
-
-type SecurityForm = {
-  enforceMfa: boolean;
-  sessionTimeout: number;
-  allowApiAccess: boolean;
-};
-
-type MonitoringForm = {
-  rpo: string;
-  rto: string;
-  notifyChannels: Record<string, boolean>;
-};
-
 type ProfileForm = {
   fullName?: string;
   gender?: string;
@@ -101,62 +84,49 @@ type ProfileForm = {
 type ProfileErrors = Partial<Record<keyof ProfileForm, string>>;
 type ProfileStatus = "idle" | "saving" | "success" | "error";
 
-export default function SuperAdminSettingsPage() {
+export default function UserProfileSettings() {
   const { user } = useAuth();
-  const [activeSection, setActiveSection] = useState<string>(navItems[0]?.id ?? "platform");
+  console.log('UserProfileSettings component mounted');
+  const [activeSection, setActiveSection] = useState<string>(navItems[0]?.id ?? "profile");
   const [profileForm, setProfileForm] = useState<ProfileForm>({});
   const [profileErrors, setProfileErrors] = useState<ProfileErrors>({});
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>("idle");
   const [profileMessage, setProfileMessage] = useState<string>("");
-  const [platformForm, setPlatformForm] = useState<PlatformForm>({
-    primaryContact: "",
-    supportEmail: "",
-    maintenanceWindow: "Sunday 02:00 - 04:00 CAT",
-  });
-  const [securityForm, setSecurityForm] = useState<SecurityForm>({
-    enforceMfa: true,
-    sessionTimeout: 30,
-    allowApiAccess: true,
-  });
-  const [monitoringForm, setMonitoringForm] = useState<MonitoringForm>({
-    rpo: "15 minutes",
-    rto: "1 hour",
-    notifyChannels: {
-      Email: true,
-      SMS: false,
-      PagerDuty: true,
-      Slack: true,
-    },
-  });
 
-  const handlePlatformChange = (field: keyof PlatformForm) => (event: ChangeEvent<HTMLInputElement>) => {
-    const { value } = event.target;
-    setPlatformForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSecurityToggle = (field: keyof SecurityForm) => () => {
-    if (field === "sessionTimeout") return;
-    setSecurityForm((prev) => ({ ...prev, [field]: !prev[field] }));
-  };
-
-  const handleSessionTimeoutChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const value = Number.parseInt(event.target.value, 10);
-    if (Number.isNaN(value)) {
-      setSecurityForm((prev) => ({ ...prev, sessionTimeout: 30 }));
-      return;
+  // Initialize form with user data
+  useEffect(() => {
+    console.log('UserProfileSettings - user from useAuth:', user);
+    if (user?.id) {
+      // Fetch complete user data from API
+      const fetchUserData = async () => {
+        try {
+          const { data: fullUserData } = await api.get(`/user/${user.id}`);
+          console.log('UserProfileSettings - Full user data from API:', fullUserData);
+          
+          setProfileForm({
+            fullName: fullUserData.fullName || "",
+            gender: fullUserData.gender || "male",
+            phoneCountryCode: fullUserData.phoneCountryCode || "+250",
+            phone: fullUserData.phone || "",
+            country: fullUserData.country || "RW",
+            city: fullUserData.city || "",
+            idNumber: fullUserData.idNumber || "",
+            occupation: fullUserData.occupation || "",
+            dateOfBirth: fullUserData.dateOfBirth ? fullUserData.dateOfBirth.split('T')[0] : "",
+            investmentExperience: fullUserData.investmentExperience || "beginner",
+            passportPhoto: fullUserData.passportPhoto || "",
+            idDocument: fullUserData.idDocument || "",
+          });
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+      };
+      
+      fetchUserData();
+    } else {
+      console.log('UserProfileSettings - No user found from useAuth');
     }
-    setSecurityForm((prev) => ({ ...prev, sessionTimeout: Math.max(5, value) }));
-  };
-
-  const toggleChannel = (channel: string) => {
-    setMonitoringForm((prev) => ({
-      ...prev,
-      notifyChannels: {
-        ...prev.notifyChannels,
-        [channel]: !prev.notifyChannels[channel],
-      },
-    }));
-  };
+  }, [user]);
 
   const handleProfileInputChange = (field: keyof ProfileForm) => (event: ChangeEvent<HTMLInputElement>) => {
     const { value } = event.target;
@@ -181,16 +151,50 @@ export default function SuperAdminSettingsPage() {
     }
   };
 
-  const handleProfileSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setProfileStatus("saving");
-    // Simulate API call
-    setTimeout(() => {
-      setProfileStatus("success");
-      setProfileMessage("Profile updated successfully!");
-    }, 1000);
+  const validateForm = (): boolean => {
+    const errors: ProfileErrors = {};
+    
+    if (!profileForm.fullName?.trim()) {
+      errors.fullName = "Full name is required";
+    }
+    if (!profileForm.phone?.trim()) {
+      errors.phone = "Phone number is required";
+    }
+    if (!profileForm.city?.trim()) {
+      errors.city = "City is required";
+    }
+    
+    setProfileErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
+  const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    
+    if (!validateForm()) {
+      setProfileStatus("error");
+      setProfileMessage("Please fix the errors above");
+      return;
+    }
+
+    if (!user?.id) {
+      setProfileStatus("error");
+      setProfileMessage("User not found");
+      return;
+    }
+
+    setProfileStatus("saving");
+    setProfileMessage("");
+    
+    try {
+      const { data: updatedUser } = await api.patch(`/user/${user.id}`, profileForm);
+      setProfileStatus("success");
+      setProfileMessage("Profile updated successfully!");
+    } catch (error: any) {
+      setProfileStatus("error");
+      setProfileMessage(error.message || "Failed to update profile. Please try again.");
+    }
+  };
 
   const renderProfile = () => (
     <Card className="p-6" hover={false}>
@@ -254,7 +258,7 @@ export default function SuperAdminSettingsPage() {
             <select
               id="phoneCountryCode"
               name="phoneCountryCode"
-              value={profileForm.phoneCountryCode ?? ""}
+              value={profileForm.phoneCountryCode ?? "+250"}
               onChange={handleProfileSelectChange("phoneCountryCode")}
               className={`w-full rounded-full px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${
                 profileErrors.phoneCountryCode
@@ -262,36 +266,31 @@ export default function SuperAdminSettingsPage() {
                   : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
               }`}
             >
-              <option value="" disabled className="text-slate-400">
-                Select code
-              </option>
               {phoneCountryOptions.map((option: OptionType) => (
                 <option key={option.value} value={option.value} className="text-[#004B5B]">
                   {option.label}
                 </option>
               ))}
             </select>
-            {profileErrors.phoneCountryCode && (
-              <p className="text-sm text-red-500 ml-2">{profileErrors.phoneCountryCode}</p>
-            )}
+            {profileErrors.phoneCountryCode && <p className="text-sm text-red-500 ml-2">{profileErrors.phoneCountryCode}</p>}
           </div>
           <InputField
             name="phone"
             label="Phone number"
             type="tel"
-            placeholder="Add phone"
+            placeholder="Enter your phone number"
             value={profileForm.phone ?? ""}
             onChange={handleProfileInputChange("phone")}
             error={profileErrors.phone}
           />
           <div className="flex flex-col gap-2">
             <label htmlFor="country" className="text-sm font-medium text-[#004B5B]">
-              Country of residence
+              Country
             </label>
             <select
               id="country"
               name="country"
-              value={profileForm.country ?? ""}
+              value={profileForm.country ?? "RW"}
               onChange={handleProfileSelectChange("country")}
               className={`w-full rounded-full px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${
                 profileErrors.country
@@ -299,9 +298,6 @@ export default function SuperAdminSettingsPage() {
                   : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
               }`}
             >
-              <option value="" disabled className="text-slate-400">
-                Select country
-              </option>
               {countryOptions.map((option: OptionType) => (
                 <option key={option.value} value={option.value} className="text-[#004B5B]">
                   {option.label}
@@ -321,7 +317,7 @@ export default function SuperAdminSettingsPage() {
           />
           <InputField
             name="idNumber"
-            label="National ID number"
+            label="ID Number"
             type="text"
             placeholder="Enter your ID number"
             value={profileForm.idNumber ?? ""}
@@ -332,14 +328,14 @@ export default function SuperAdminSettingsPage() {
             name="occupation"
             label="Occupation"
             type="text"
-            placeholder="What do you do?"
+            placeholder="Enter your occupation"
             value={profileForm.occupation ?? ""}
             onChange={handleProfileInputChange("occupation")}
             error={profileErrors.occupation}
           />
           <InputField
             name="dateOfBirth"
-            label="Date of birth"
+            label="Date of Birth"
             type="date"
             value={profileForm.dateOfBirth ?? ""}
             onChange={handleProfileInputChange("dateOfBirth")}
@@ -347,12 +343,12 @@ export default function SuperAdminSettingsPage() {
           />
           <div className="flex flex-col gap-2">
             <label htmlFor="investmentExperience" className="text-sm font-medium text-[#004B5B]">
-              Investment experience
+              Investment Experience
             </label>
             <select
               id="investmentExperience"
               name="investmentExperience"
-              value={profileForm.investmentExperience ?? ""}
+              value={profileForm.investmentExperience ?? "beginner"}
               onChange={handleProfileSelectChange("investmentExperience")}
               className={`w-full rounded-full px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${
                 profileErrors.investmentExperience
@@ -366,167 +362,46 @@ export default function SuperAdminSettingsPage() {
                 </option>
               ))}
             </select>
-            {profileErrors.investmentExperience && (
-              <p className="text-sm text-red-500 ml-2">{profileErrors.investmentExperience}</p>
-            )}
+            {profileErrors.investmentExperience && <p className="text-sm text-red-500 ml-2">{profileErrors.investmentExperience}</p>}
           </div>
         </div>
 
-        <div className="md:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-2">
           <FileUploadField
             name="passportPhoto"
-            label="Passport photo"
+            label="Passport Photo"
+            accept="image/*"
             value={profileForm.passportPhoto ?? ""}
             onChange={handleProfileFileChange("passportPhoto")}
             error={profileErrors.passportPhoto}
-            accept="image/*"
-            helperText="Upload a clear passport-style photo (JPEG, PNG, WEBP)"
           />
           <FileUploadField
             name="idDocument"
-            label="Identification document"
+            label="ID Document"
+            accept="image/*,application/pdf"
             value={profileForm.idDocument ?? ""}
             onChange={handleProfileFileChange("idDocument")}
             error={profileErrors.idDocument}
-            accept="image/*,application/pdf"
-            helperText="Provide a copy of your ID document (image or PDF)"
           />
         </div>
 
         <div className="flex justify-end">
           <Button
             type="submit"
-            variant="outline"
             disabled={profileStatus === "saving"}
-            className="min-w-40 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
+            className="min-w-32"
           >
             {profileStatus === "saving" ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Saving...
-              </span>
+              </>
             ) : (
-              "Update profile"
+              "Save Changes"
             )}
           </Button>
         </div>
       </form>
-    </Card>
-  );
-
-  
-  const renderPlatform = () => (
-    <Card className="p-6" hover={false}>
-      <h2 className="text-xl font-semibold text-[#004B5B]">Platform wide defaults</h2>
-      <p className="mt-1 text-base text-slate-600">Set the baseline configuration all entities inherit unless overridden.</p>
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <InputField
-          name="primaryContact"
-          label="Primary contact"
-          type="text"
-          placeholder="Name"
-          value={platformForm.primaryContact}
-          onChange={handlePlatformChange("primaryContact")}
-        />
-        <InputField
-          name="supportEmail"
-          label="Support email"
-          type="email"
-          placeholder="support@example.com"
-          value={platformForm.supportEmail}
-          onChange={handlePlatformChange("supportEmail")}
-        />
-        <InputField
-          name="maintenanceWindow"
-          label="Maintenance window"
-          type="text"
-          placeholder="Schedule"
-          value={platformForm.maintenanceWindow}
-          onChange={handlePlatformChange("maintenanceWindow")}
-        />
-      </div>
-      <div className="mt-6 flex justify-end gap-3">
-        <Button variant="outline">Preview communication</Button>
-        <Button>Publish defaults</Button>
-      </div>
-    </Card>
-  );
-  const renderSecurity = () => (
-    <Card className="p-6" hover={false}>
-      <h2 className="text-xl font-semibold text-[#004B5B]">Security posture</h2>
-      <p className="mt-1 text-base text-slate-600">Apply consistent controls across all dashboards and service accounts.</p>
-      <div className="mt-6 space-y-4 text-base text-slate-600">
-        <label className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
-          <span>Enforce multi-factor authentication</span>
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-slate-300"
-            checked={securityForm.enforceMfa}
-            onChange={handleSecurityToggle("enforceMfa")}
-          />
-        </label>
-        <label className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
-          <span>Allow API access</span>
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-slate-300"
-            checked={securityForm.allowApiAccess}
-            onChange={handleSecurityToggle("allowApiAccess")}
-          />
-        </label>
-        <div className="rounded-2xl border border-slate-200 px-4 py-3">
-          <span className="block text-base font-medium text-slate-700">Session timeout (minutes)</span>
-          <input
-            type="number"
-            min={5}
-            className="mt-2 w-32 rounded-full border border-slate-200 px-4 py-2 text-base text-slate-700 focus:border-[#004B5B] focus:outline-none"
-            value={securityForm.sessionTimeout}
-            onChange={handleSessionTimeoutChange}
-          />
-        </div>
-      </div>
-    </Card>
-  );
-
-  const renderMonitoring = () => (
-    <Card className="p-6" hover={false}>
-      <h2 className="text-xl font-semibold text-[#004B5B]">Monitoring & alerts</h2>
-      <p className="mt-1 text-base text-slate-600">Track uptime and data objectives while keeping execs informed.</p>
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <InputField
-          name="rpo"
-          label="Recovery point objective"
-          type="text"
-          placeholder="e.g. 15 minutes"
-          value={monitoringForm.rpo}
-          onChange={(event) =>
-            setMonitoringForm((prev) => ({ ...prev, rpo: event.target.value }))
-          }
-        />
-        <InputField
-          name="rto"
-          label="Recovery time objective"
-          type="text"
-          placeholder="e.g. 1 hour"
-          value={monitoringForm.rto}
-          onChange={(event) =>
-            setMonitoringForm((prev) => ({ ...prev, rto: event.target.value }))
-          }
-        />
-      </div>
-      <div className="mt-6 space-y-3 text-base text-slate-600">
-        {Object.keys(monitoringForm.notifyChannels).map((channel) => (
-          <label key={channel} className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
-            <span>{channel}</span>
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300"
-              checked={monitoringForm.notifyChannels[channel]}
-              onChange={() => toggleChannel(channel)}
-            />
-          </label>
-        ))}
-      </div>
     </Card>
   );
 
@@ -535,11 +410,11 @@ export default function SuperAdminSettingsPage() {
       case "profile":
         return renderProfile();
       case "platform":
-        return renderPlatform();
+        return <div className="p-6">Platform controls coming soon...</div>;
       case "security":
-        return renderSecurity();
+        return <div className="p-6">Security settings coming soon...</div>;
       case "monitoring":
-        return renderMonitoring();
+        return <div className="p-6">Monitoring settings coming soon...</div>;
       default:
         return renderProfile();
     }
@@ -552,7 +427,6 @@ export default function SuperAdminSettingsPage() {
       navItems={navItems}
       activeItem={activeSection}
       onItemSelect={setActiveSection}
-      actions={<Button size="sm">Save changes</Button>}
     >
       {renderContent()}
     </SettingsLayout>

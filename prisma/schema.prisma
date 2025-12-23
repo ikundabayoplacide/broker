@@ -171,7 +171,7 @@ model CompanyWallet {
 }
 
 model MarketSnapshot {
-  id                   String   @id
+  id                   String   @id @default(cuid())
   companyId            String?
   security             String
   symbol               String?

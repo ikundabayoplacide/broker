@@ -94,16 +94,16 @@ export const FileUploadField: FC<FileUploadFieldProps> = ({
               : "border-dashed border-[#004B5B]/50 hover:border-[#004B5B]"
         } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#004B5B]/10 text-[#004B5B]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#004B5B]/10 text-[#004B5B] flex-shrink-0">
               {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <UploadCloud className="h-6 w-6" />}
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0 flex-1">
               <p className="text-sm font-medium text-[#004B5B]">
                 {uploading ? "Uploading..." : hasFile ? "File uploaded" : "Upload a file"}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 break-words">
                 {helperText ?? "Accepted formats: images up to 10MB"}
               </p>
               {hasFile && (
@@ -111,28 +111,28 @@ export const FileUploadField: FC<FileUploadFieldProps> = ({
                   href={value}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-[#004B5B] underline"
+                  className="inline-flex items-center gap-1 text-xs text-[#004B5B] underline break-all"
                 >
-                  <Link className="h-3 w-3" /> View uploaded file
+                  <Link className="h-3 w-3 flex-shrink-0" /> View uploaded file
                 </a>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-2 w-full">
             {hasFile && !uploading && (
               <button
                 type="button"
                 onClick={() => onChange("")}
                 disabled={disabled}
-                className="inline-flex items-center gap-2 rounded-full border border-red-500 px-4 py-2 text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-red-500 px-3 py-2 text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" /> Remove
               </button>
             )}
             <label
               htmlFor={`${name}-upload`}
-              className={`inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-sm transition ${
+              className={`w-full inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-3 py-2 text-sm transition ${
                 uploading
                   ? "bg-gray-200 text-gray-600"
                   : "bg-[#004B5B] text-white hover:bg-[#006B85]"

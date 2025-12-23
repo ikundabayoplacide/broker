@@ -31,6 +31,7 @@ interface SettingsLayoutProps {
 	userEmail?: string;
 	onDeleteAccount?: () => void;
 	onLogout?: () => void;
+	hideAccountActions?: boolean;
 	children: ReactNode;
 }
 
@@ -46,6 +47,7 @@ export default function SettingsLayout({
 	userEmail,
 	onDeleteAccount,
 	onLogout,
+	hideAccountActions = false,
 	children,
 }: SettingsLayoutProps) {
 	const hasNavigation = navItems.length > 0;
@@ -230,46 +232,48 @@ export default function SettingsLayout({
 						</aside>
 					)}
 
-					<main className="rounded-3xl bg-white p-6 shadow-sm md:p-8">
+					<main className="rounded-3xl bg-white p-4 shadow-sm md:p-8">
 						<div className="flex flex-col gap-6">
 							{children}
-							<Card className="p-6" hover={false}>
-								<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-									<div>
-										<h3 className="text-lg font-semibold text-[#004B5B]">Account actions</h3>
-										<p className="mt-1 text-sm text-slate-500">
-											Sign out safely or permanently delete your account. Deletion is irreversible.
-										</p>
+							{!hideAccountActions && (
+								<Card className="p-4 md:p-6" hover={false}>
+									<div className="flex flex-col gap-4">
+										<div>
+											<h3 className="text-lg font-semibold text-[#004B5B]">Account actions</h3>
+											<p className="mt-1 text-sm text-slate-500">
+												Sign out safely or permanently delete your account. Deletion is irreversible.
+											</p>
+										</div>
+										<div className="flex flex-col gap-3 sm:flex-row">
+											<Button
+												type="button"
+												variant="primary"
+												className="flex items-center justify-center gap-2 px-4 py-2 text-sm w-full sm:w-auto"
+												onClick={handleLogout}
+												disabled={logoutLoading || deleteLoading}
+											>
+												<LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+												<span>{logoutLoading ? "Logging out..." : "Log out"}</span>
+											</Button>
+											<Button
+												type="button"
+												variant="secondary"
+												className="flex items-center justify-center border gap-2 px-4 py-2 text-sm bg-red-50! text-red-600! hover:bg-red-500! hover:text-white! w-full sm:w-auto"
+												onClick={handleDeleteAccount}
+												disabled={deleteLoading || logoutLoading}
+											>
+												<Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+												<span>{deleteLoading ? "Deleting..." : "Delete account"}</span>
+											</Button>
+										</div>
+										{deleteError && !isDeleteModalOpen && (
+											<p className="text-sm text-red-600">
+												{deleteError}
+											</p>
+										)}
 									</div>
-									<div className="flex flex-row gap-3">
-										<Button
-											type="button"
-											variant="primary"
-											className="flex items-center hover:border  gap-2 px-4 py-2 text-sm whitespace-nowrap"
-											onClick={handleLogout}
-											disabled={logoutLoading || deleteLoading}
-										>
-											<LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-											<span>{logoutLoading ? "Logging out..." : "Log out"}</span>
-										</Button>
-										<Button
-											type="button"
-											variant="secondary"
-											className="flex items-center border gap-2 px-4 py-2 text-sm whitespace-nowrap bg-red-50! text-red-600! hover:bg-red-500! hover:text-white!"
-											onClick={handleDeleteAccount}
-											disabled={deleteLoading || logoutLoading}
-										>
-											<Trash2 className="h-3.5 w-3.5"  aria-hidden="true" />
-											<span>{deleteLoading ? "Deleting..." : "Delete account"}</span>
-										</Button>
-									</div>
-									{deleteError && !isDeleteModalOpen && (
-										<p className="text-sm text-red-600">
-											{deleteError}
-										</p>
-									)}
-								</div>
-							</Card>
+								</Card>
+							)}
 						</div>
 					</main>
 				</section>
