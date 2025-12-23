@@ -175,9 +175,14 @@ export default function ViewUserPage() {
       setLoading(true);
       setFetchError(null);
       const res = await api.get(`/user/${userId}`);
-      setUser(res?.data || res || null);
+      console.log('Fetch user response:', res);
+      console.log('Fetched user data:', res?.data || res);
+      const userData = res?.data || res || null;
+      console.log('Setting user to:', userData);
+      setUser(userData);
     } catch (error) {
       const err = error as any;
+      console.error('Error fetching user:', err);
       if (err?.status === 401) {
         setFetchError("Unauthorized. Please login and try again.");
       } else if (err?.status === 403) {

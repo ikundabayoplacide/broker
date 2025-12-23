@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "100");
     const requestedUserId = searchParams.get("userId");
+    const companyId = searchParams.get("companyId");
     
     // Get authenticated user's role to check permissions
     const authenticatedUser = await prisma.user.findUnique({
@@ -58,10 +59,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const whereClause: any = { userId: targetUserId };
+    if (companyId) {
+      whereClause.companyId = companyId;
+    }
+    
     const trades = await prisma.trade.findMany({
-      where: { userId: targetUserId },
+      where: whereClause,
       include: {
-        company: {
+        Company: {
           select: {
             name: true,
             symbol: true,
@@ -72,7 +78,13 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    return NextResponse.json({ trades });
+    // Map to match expected format
+    const formattedTrades = trades.map(trade => ({
+      ...trade,
+      company: trade.Company,
+    }));
+
+    return NextResponse.json({ trades: formattedTrades });
   } catch (error) {
     console.error("Error fetching trade history:", error);
     return NextResponse.json(

@@ -73,6 +73,18 @@ export default function TradePage() {
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [companiesLoading, setCompaniesLoading] = useState(false);
   const [tradesLoading, setTradesLoading] = useState(false);
+  const [showHoldingsModal, setShowHoldingsModal] = useState(false);
+  const [holdingsData, setHoldingsData] = useState<{
+    holding: Portfolio | null;
+    trades: Array<{
+      id: string;
+      type: string;
+      quantity: number;
+      executedPrice: string;
+      totalAmount: string;
+      createdAt: string;
+    }>;
+  } | null>(null);
 
   const { displayName, dashboardRole, userRole, isClient, canSelectClient, isManager } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
@@ -331,6 +343,44 @@ export default function TradePage() {
     }
   };
 
+  const handleShowHoldings = async () => {
+    if (!selectedCompany) return;
+    
+    let targetUserId = null;
+    if (isClient) {
+      targetUserId = user?.id;
+    } else if (isManager && tradingMode === "self") {
+      targetUserId = user?.id;
+    } else if (tradingMode === "client" && selectedClient) {
+      targetUserId = selectedClient.id;
+    }
+    
+    if (!targetUserId) return;
+    
+    try {
+      // Fetch detailed holdings for the selected company
+      const [holdingResponse, tradesResponse] = await Promise.all([
+        fetch(`/api/portfolio?userId=${targetUserId}&companyId=${selectedCompany.id}`),
+        fetch(`/api/trade/history?userId=${targetUserId}&companyId=${selectedCompany.id}&limit=20`)
+      ]);
+      
+      const holdingData = await holdingResponse.json();
+      const tradesData = await tradesResponse.json();
+      
+      const holding = holdingData.success && holdingData.portfolio?.length > 0 
+        ? holdingData.portfolio[0] 
+        : null;
+      
+      const trades = tradesData.success ? tradesData.trades : [];
+      
+      setHoldingsData({ holding, trades });
+      setShowHoldingsModal(true);
+    } catch (error) {
+      console.error("Error fetching holdings details:", error);
+      toast.error("Failed to load holdings details");
+    }
+  };
+
   const handleRefreshAll = async () => {
     // Refresh companies
     fetchCompanies();
@@ -449,7 +499,10 @@ export default function TradePage() {
             </div>
           </Card>
 
-          <Card className="p-6 hover:shadow-lg transition-all">
+          <Card 
+            className="p-6 hover:shadow-lg transition-all cursor-pointer" 
+            onClick={() => selectedCompany && availableQuantity > 0 && handleShowHoldings()}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-base font-medium text-gray-500 mb-2">Holdings</p>
@@ -461,7 +514,10 @@ export default function TradePage() {
                 ) : (
                   <p className="text-xl font-semibold text-gray-700">{availableQuantity.toLocaleString()}</p>
                 )}
-                <p className="text-sm text-gray-400">{selectedCompany?.symbol || "Select stock"}</p>
+                <p className="text-sm text-gray-400">
+                  {selectedCompany?.symbol || "Select stock"}
+                  {selectedCompany && availableQuantity > 0 && " • Click to view details"}
+                </p>
               </div>
               <div className="w-11 h-11 bg-blue-100 rounded-full flex items-center justify-center">
                 <FiShoppingCart className="w-6 h-6 text-blue-600" />
@@ -959,6 +1015,168 @@ export default function TradePage() {
           onClose={() => setShowTransactionModal(false)}
           onGenerate={handleGenerateStatement}
         />
+
+        {/* Holdings Modal */}
+        {showHoldingsModal && selectedCompany && (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+            <Card className="max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Holdings in {selectedCompany.name}
+                  </h3>
+                  <p className="text-sm text-gray-600">{selectedCompany.symbol}</p>
+                </div>
+                <button
+                  onClick={() => setShowHoldingsModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {holdingsData?.holding ? (
+                <div className="space-y-6">
+                  {/* Holdings Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <p className="text-sm font-medium text-blue-600">Shares Owned</p>
+                      <p className="text-2xl font-bold text-blue-900">
+                        {holdingsData.holding.quantity.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <p className="text-sm font-medium text-green-600">Current Value</p>
+                      <p className="text-2xl font-bold text-green-900">
+                        Rwf {(holdingsData.holding.quantity * currentPrice).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-lg">
+                      <p className="text-sm font-medium text-purple-600">Total Invested</p>
+                      <p className="text-2xl font-bold text-purple-900">
+                        Rwf {Number(holdingsData.holding.totalInvested).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-orange-50 p-4 rounded-lg">
+                      <p className="text-sm font-medium text-orange-600">Avg. Buy Price</p>
+                      <p className="text-2xl font-bold text-orange-900">
+                        Rwf {Number(holdingsData.holding.averageBuyPrice).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Profit/Loss */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Profit/Loss</p>
+                        {(() => {
+                          const currentValue = holdingsData.holding.quantity * currentPrice;
+                          const invested = Number(holdingsData.holding.totalInvested);
+                          const profitLoss = currentValue - invested;
+                          const profitLossPercentage = invested > 0 ? (profitLoss / invested) * 100 : 0;
+                          
+                          return (
+                            <div>
+                              <p className={`text-2xl font-bold ${
+                                profitLoss >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {profitLoss >= 0 ? '+' : ''}Rwf {profitLoss.toLocaleString()}
+                              </p>
+                              <p className={`text-sm ${
+                                profitLoss >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {profitLossPercentage >= 0 ? '+' : ''}{profitLossPercentage.toFixed(2)}%
+                              </p>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      <div className="flex gap-3">
+                        <Button
+                          onClick={() => {
+                            setShowHoldingsModal(false);
+                            setTradeType("BUY");
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          Buy More
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setShowHoldingsModal(false);
+                            setTradeType("SELL");
+                          }}
+                          variant="outline"
+                          className="border-red-500 text-red-600 hover:bg-red-50"
+                        >
+                          Sell Shares
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trade History for this company */}
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                      Recent Trades ({holdingsData.trades.length})
+                    </h4>
+                    {holdingsData.trades.length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">No recent trades for this company</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {holdingsData.trades.map((trade) => (
+                              <tr key={trade.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                    trade.type === 'BUY' 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {trade.type}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  {trade.quantity.toLocaleString()}
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  Rwf {Number(trade.executedPrice || 0).toFixed(2)}
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  Rwf {Number(trade.totalAmount).toLocaleString()}
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {new Date(trade.createdAt).toLocaleDateString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No holdings found for this company</p>
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

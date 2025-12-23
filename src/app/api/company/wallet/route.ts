@@ -16,9 +16,11 @@ export async function GET(req: NextRequest) {
     if (!wallet) {
       wallet = await prisma.companyWallet.create({
         data: {
+          id: crypto.randomUUID(),
           companyId: auth.companyId,
           balance: 0,
           lockedBalance: 0,
+          updatedAt: new Date(),
         },
       });
     }

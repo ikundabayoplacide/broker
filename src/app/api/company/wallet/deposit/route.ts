@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
           if (PaypackClient.isFailed(externalStatus)) {
             await prisma.companyTransaction.create({
               data: {
+                id: crypto.randomUUID(),
                 companyId: auth.companyId,
                 type: "DEPOSIT",
                 amount: new Prisma.Decimal(numericAmount),
@@ -69,6 +70,7 @@ export async function POST(req: NextRequest) {
                 reference,
                 description: response.processor_message || "Deposit declined",
                 metadata: { paymentMethodId, accountNumber: paymentMethod.accountNumber, paypack: JSON.parse(JSON.stringify(response)) },
+                updatedAt: new Date(),
               },
             });
             return NextResponse.json({ error: response.processor_message || "Deposit declined" }, { status: 400 });
@@ -80,6 +82,7 @@ export async function POST(req: NextRequest) {
           }
           await prisma.companyTransaction.create({
             data: {
+              id: crypto.randomUUID(),
               companyId: auth.companyId,
               type: "DEPOSIT",
               amount: new Prisma.Decimal(numericAmount),
@@ -88,6 +91,7 @@ export async function POST(req: NextRequest) {
               reference,
               description: message,
               metadata: { paymentMethodId, accountNumber: paymentMethod.accountNumber, error: error instanceof Error ? error.message : String(error) },
+              updatedAt: new Date(),
             },
           });
           return NextResponse.json({ error: message }, { status: 400 });
@@ -97,6 +101,7 @@ export async function POST(req: NextRequest) {
 
     const transaction = await prisma.companyTransaction.create({
       data: {
+        id: crypto.randomUUID(),
         companyId: auth.companyId,
         type: "DEPOSIT",
         amount: new Prisma.Decimal(numericAmount),
@@ -111,6 +116,7 @@ export async function POST(req: NextRequest) {
           externalReference: externalReference || reference,
           paypack: paypackResponse ? JSON.parse(JSON.stringify(paypackResponse)) : null,
         },
+        updatedAt: new Date(),
       },
     });
 

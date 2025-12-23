@@ -298,11 +298,10 @@ export default function AddUserModal({
     if (creating) return;
 
     setCreateError(null);
-
     const validation = userCreationSchema.safeParse(createForm);
+    
     if (!validation.success) {
-      const flattened = validation.error.flatten();
-      const fieldErrors = Object.entries(flattened.fieldErrors).reduce<
+      const fieldErrors = Object.entries(validation.error.flatten().fieldErrors).reduce<
         Partial<Record<keyof AdminSignupFormData, string>>
       >((acc, [key, messages]) => {
         if (messages && messages[0]) {
@@ -312,35 +311,19 @@ export default function AddUserModal({
       }, {});
 
       setCreateErrors(fieldErrors);
-      setCreateError(flattened.formErrors[0] ?? "Please fix the highlighted fields");
+      setCreateError("Please fix the highlighted fields");
       return;
     }
 
-    const normalized: UserCreationPayload = validation.data;
-
     const payload: Record<string, unknown> = {
-      ...normalized,
+      ...validation.data,
+      notificationPreferences: createExtras.notificationPreferences,
+      role: createExtras.role,
+      isVerified: false,
     };
 
-    if (Object.keys(createExtras.notificationPreferences).length > 0) {
-      payload.notificationPreferences = createExtras.notificationPreferences;
-    }
-
-    if (createExtras.role) {
-      payload.role = filteredRoles.includes(createExtras.role)
-        ? createExtras.role
-        : (filteredRoles[0] || defaultCreateRole);
-    }
-
-    // Add branch and teller associations
-    if (createExtras.branchId) {
-      payload.branchId = createExtras.branchId;
-    }
-    if (createExtras.createdById) {
-      payload.createdById = createExtras.createdById;
-    }
-
-    payload.isVerified = false;
+    if (createExtras.branchId) payload.branchId = createExtras.branchId;
+    if (createExtras.createdById) payload.createdById = createExtras.createdById;
 
     setCreating(true);
 
@@ -352,10 +335,7 @@ export default function AddUserModal({
       setCreateExtras(createInitialExtras(filteredRoles[0] || defaultCreateRole));
       setCreateErrors({});
       setCreateError(null);
-      setBranches([]);
-      setTellers([]);
       
-      // Close modal and notify parent
       onClose();
       onUserCreated(newUser.email, newUser.id);
     } catch (err) {
@@ -373,10 +353,8 @@ export default function AddUserModal({
           return acc;
         }, {});
         setCreateErrors(fieldErrors);
-        setCreateError("Please fix the highlighted fields and try again.");
-      } else {
-        setCreateError(enrichedError.message || "Failed to create user");
       }
+      setCreateError(enrichedError.message || "Failed to create user");
     } finally {
       setCreating(false);
     }
@@ -388,8 +366,6 @@ export default function AddUserModal({
     setCreateExtras(createInitialExtras(filteredRoles[0] || defaultCreateRole));
     setCreateErrors({});
     setCreateError(null);
-    setBranches([]);
-    setTellers([]);
     onClose();
   };
 

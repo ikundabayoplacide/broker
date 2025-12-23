@@ -39,12 +39,14 @@ export async function POST(req: NextRequest) {
 
     const paymentMethod = await prisma.companyPaymentMethod.create({
       data: {
+        id: crypto.randomUUID(),
         companyId: auth.companyId,
         type,
         provider,
         accountNumber,
         accountName,
         isDefault,
+        updatedAt: new Date(),
       },
     });
 

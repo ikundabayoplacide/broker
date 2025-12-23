@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
 
       const trade = await tx.companyTrade.create({
         data: {
+          id: crypto.randomUUID(),
           companyId,
           targetCompanyId: targetCompany.id,
           type: "BUY",
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
           totalAmount,
           fees: new Decimal(0),
           executedAt: new Date(),
+          updatedAt: new Date(),
         },
       });
 
@@ -78,6 +80,7 @@ export async function POST(request: NextRequest) {
 
       await tx.companyTransaction.create({
         data: {
+          id: crypto.randomUUID(),
           companyId,
           type: "BUY_SHARES",
           amount: totalAmount,
@@ -85,6 +88,7 @@ export async function POST(request: NextRequest) {
           reference: `TRADE-${trade.id}`,
           description: `Purchase of ${quantity} shares of ${targetCompany.symbol} at Rwf ${priceDecimal.toFixed(2)} per share`,
           metadata: { tradeId: trade.id, targetCompanyId: targetCompany.id, companySymbol: targetCompany.symbol, quantity, pricePerShare: priceDecimal.toNumber() },
+          updatedAt: new Date(),
         },
       });
 
@@ -102,7 +106,15 @@ export async function POST(request: NextRequest) {
         });
       } else {
         await tx.companyPortfolio.create({
-          data: { companyId, targetCompanyId: targetCompany.id, quantity, averageBuyPrice: priceDecimal, totalInvested: totalAmount },
+          data: {
+            id: crypto.randomUUID(),
+            companyId,
+            targetCompanyId: targetCompany.id,
+            quantity,
+            averageBuyPrice: priceDecimal,
+            totalInvested: totalAmount,
+            updatedAt: new Date(),
+          },
         });
       }
 

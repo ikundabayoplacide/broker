@@ -7,11 +7,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   try {
     const { id } = params;
     const body = await request.json();
-    
-    console.log("=== BRANCH UPDATE DEBUG ===");
-    console.log("Branch ID:", id);
-    console.log("Request body:", JSON.stringify(body, null, 2));
-    
     if (!id) {
       return NextResponse.json({ error: "Branch ID is required" }, { status: 400 });
     }
@@ -31,13 +26,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
       // Update manager if manager data is provided
       const hasManagerData = body.managerName || body.managerEmail || body.managerPhone || body.managerCountryCode;
-      console.log("Has manager data to update:", hasManagerData);
-      console.log("Manager fields:", {
-        managerName: body.managerName,
-        managerEmail: body.managerEmail,
-        managerPhone: body.managerPhone,
-        managerCountryCode: body.managerCountryCode
-      });
 
       if (hasManagerData) {
         const managerUpdateData: any = {};
@@ -46,16 +34,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         if (body.managerPhone) managerUpdateData.phone = body.managerPhone;
         if (body.managerCountryCode) managerUpdateData.phoneCountryCode = body.managerCountryCode;
 
-        console.log("Manager update data:", JSON.stringify(managerUpdateData, null, 2));
-        console.log("Current branch managerId:", currentBranch.managerId);
-
         if (currentBranch.managerId && Object.keys(managerUpdateData).length > 0) {
-          console.log("Updating manager with ID:", currentBranch.managerId);
           const updatedManager = await tx.user.update({
             where: { id: currentBranch.managerId },
             data: managerUpdateData
           });
-          console.log("Manager updated successfully:", JSON.stringify(updatedManager, null, 2));
         } else {
           console.log("Skipping manager update - no managerId or no update data");
         }

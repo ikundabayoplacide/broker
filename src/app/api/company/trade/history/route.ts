@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const trades = await prisma.companyTrade.findMany({
       where: { companyId },
       include: {
-        targetCompany: {
+        Company_CompanyTrade_targetCompanyIdToCompany: {
           select: { name: true, symbol: true },
         },
       },
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     // Map to match client trade response format
     const formattedTrades = trades.map(trade => ({
       ...trade,
-      company: trade.targetCompany,
+      company: trade.Company_CompanyTrade_targetCompanyIdToCompany,
     }));
 
     return NextResponse.json({ trades: formattedTrades });

@@ -669,10 +669,6 @@ export default function CompaniesPage() {
             >
               <div className="relative max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
                 <div className="mb-4 flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-700">Add a new company</h3>
-                    <p className="text-sm text-gray-500">Publish issuers to the shared directory.</p>
-                  </div>
                   <button
                     type="button"
                     onClick={() => setIsCreateOpen(false)}

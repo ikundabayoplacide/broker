@@ -5,13 +5,10 @@ const numericString = z
   .union([z.string(), z.number()])
   .transform((value) => {
     if (typeof value === "number") return value.toString();
-    return value
-      .replace(/[\s,]/g, "")
-      .replace(/[^0-9.\-]/g, "")
-      .trim();
+    return value.toString().trim();
   })
-  .refine((value) => value === "" || !Number.isNaN(Number(value)), {
-    message: "Value must be a valid number",
+  .refine((value) => value === "" || (!Number.isNaN(Number(value)) && Number(value) >= 0), {
+    message: "Share price must be a valid positive number",
   });
 
 const positiveInteger = z

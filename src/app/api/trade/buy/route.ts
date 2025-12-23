@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
       // 7. Create trade record
       const trade = await tx.trade.create({
         data: {
+          id: crypto.randomUUID(),
           userId,
           companyId: company.id,
           type: "BUY",
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
           totalAmount,
           fees: new Decimal(0), // Can add trading fees here
           executedAt: new Date(),
+          updatedAt: new Date(),
         },
       });
 
@@ -131,9 +133,10 @@ export async function POST(request: NextRequest) {
       // 9. Create transaction record
       await tx.transaction.create({
         data: {
+          id: crypto.randomUUID(),
           userId,
           type: "BUY_SHARES",
-          amount: totalAmount,
+          amount: totalAmount.neg(), // Make it negative to show money going out
           status: "COMPLETED",
           reference: `TRADE-${trade.id}`,
           description: `Purchase of ${quantity} shares of ${company.symbol} at Rwf ${priceDecimal.toFixed(2)} per share`,
@@ -144,6 +147,7 @@ export async function POST(request: NextRequest) {
             quantity,
             pricePerShare: priceDecimal.toNumber(),
           },
+          updatedAt: new Date(),
         },
       });
 
@@ -181,11 +185,13 @@ export async function POST(request: NextRequest) {
         // Create new portfolio entry
         await tx.portfolio.create({
           data: {
+            id: crypto.randomUUID(),
             userId,
             companyId: company.id,
             quantity,
             averageBuyPrice: priceDecimal,
             totalInvested: totalAmount,
+            updatedAt: new Date(),
           },
         });
       }
@@ -231,6 +237,7 @@ export async function POST(request: NextRequest) {
       // 13. Create notification
       await tx.notification.create({
         data: {
+          id: crypto.randomUUID(),
           userId,
           title: "Trade Executed Successfully",
           message: `You have successfully purchased ${quantity} shares of ${company.symbol} (${company.name}) at Rwf ${priceDecimal.toFixed(2)} per share. Total: Rwf ${totalAmount.toFixed(2)}`,
@@ -244,6 +251,7 @@ export async function POST(request: NextRequest) {
             totalAmount: totalAmount.toNumber(),
             type: "BUY",
           },
+          updatedAt: new Date(),
         },
       });
 

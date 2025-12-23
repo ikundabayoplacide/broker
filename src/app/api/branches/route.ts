@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     });
     
     // Map the response to more user-friendly field names
-    const formattedBranches = branches.map(branch => ({
+    const formattedBranches = branches.map((branch: any) => ({
       ...branch,
       manager: branch.User_Branch_managerIdToUser,
       employeeCount: branch._count.User_User_branchIdToBranch,

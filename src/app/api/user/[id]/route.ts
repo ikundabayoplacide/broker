@@ -41,14 +41,7 @@ const userSelect = {
 	role: true,
 	isVerified: true,
 	createdById: true,
-	createdBy: {
-		select: {
-			id: true,
-			fullName: true,
-			email: true,
-			role: true,
-		},
-	},
+	branchId: true,
 	otp: false,
 	otpExpiresAt: false,
 	createdAt: true,
@@ -174,12 +167,7 @@ type UserResponse = {
 	role: Role;
 	isVerified: boolean;
 	createdById: string | null;
-	createdBy: {
-		id: string;
-		fullName: string;
-		email: string;
-		role: Role;
-	} | null;
+	branchId: string | null;
 	createdAt: Date;
 	updatedAt: Date;
 };

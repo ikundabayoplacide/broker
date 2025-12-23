@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const requesterId = authResult.userId || authResult.id;
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
+    const companyId = searchParams.get("companyId");
 
     // Determine target user ID
     let targetUserId = requesterId;
@@ -51,8 +52,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Get portfolio
+    const whereClause: any = { userId: targetUserId };
+    if (companyId) {
+      whereClause.companyId = companyId;
+    }
+    
     const portfolio = await prisma.portfolio.findMany({
-      where: { userId: targetUserId },
+      where: whereClause,
       include: {
         company: {
           select: {

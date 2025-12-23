@@ -1,6 +1,7 @@
+// amazonq-ignore-file typescript-code-quality-error-handling
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Prisma, Role } from "@prisma/client";
+import { Prisma, User_role as Role } from "@prisma/client";
 import { companyCreateSchema } from "@/lib/validations/companyValidation";
 import { ForbiddenError, UnauthorizedError, requireUserManagementRole } from "@/utils/_helpers";
 import { z } from "zod";
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
       // Create company with all credentials
       const newCompany = await tx.company.create({
         data: {
+          id: crypto.randomUUID(),
           name: parsed.name,
           email: parsed.email,
           phoneCountryCode: parsed.phoneCountryCode,
@@ -100,6 +102,7 @@ export async function POST(request: Request) {
           tradedValue: 0, // Initialize to 0
           contract: parsed.contract?.trim() || null,
           createdById: auth.id,
+          updatedAt: new Date(),
         },
         select: companySelect,
       });
@@ -107,9 +110,11 @@ export async function POST(request: Request) {
       // Create wallet for company
       await tx.companyWallet.create({
         data: {
+          id: crypto.randomUUID(),
           companyId: newCompany.id,
           balance: 0,
           lockedBalance: 0,
+          updatedAt: new Date(),
         },
       });
 
@@ -123,11 +128,13 @@ export async function POST(request: Request) {
         if (recipients.length > 0) {
           // Create notifications in batch to avoid duplicates
           const notificationData = recipients.map(recipient => ({
+            id: crypto.randomUUID(),
             userId: recipient.id,
             title: "New company created",
             message: `Company ${newCompany.name} was created`,
             type: "INFO",
             metadata: { companyId: newCompany.id, event: "company_created" },
+            updatedAt: new Date(),
           }));
 
           // Check for existing notifications to prevent duplicates

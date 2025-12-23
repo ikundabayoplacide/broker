@@ -15,7 +15,7 @@ export interface CompanySummary {
   status:string;
   description: string | null;
   sector: string | null;
-  sharePrice: string | null;
+  sharePrice: string | number | null;
   totalShares: number | null;
   availableShares: number | null;
   closingPrice: string | null;
@@ -157,6 +157,12 @@ export function CompanyCreateForm({ authToken, onCreated, onCancel, withCard = t
       return date.toISOString();
     };
 
+    const toNumberOrUndefined = (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      return trimmed;
+    };
+
     const payload = {
       name: formState.name.trim(),
       email: formState.email.trim(),
@@ -170,10 +176,9 @@ export function CompanyCreateForm({ authToken, onCreated, onCancel, withCard = t
       sector: formState.sector === "Other" && formState.sectorOther.trim() 
         ? formState.sectorOther.trim() 
         : formState.sector.trim() || undefined,
-      sharePrice: formState.sharePrice.trim() || undefined,
+      sharePrice: toNumberOrUndefined(formState.sharePrice),
       totalShares: toIntegerOrUndefined(formState.totalShares),
       availableShares: toIntegerOrUndefined(formState.availableShares),
-
       contract: normalizeRichText(formState.contract),
     };
 

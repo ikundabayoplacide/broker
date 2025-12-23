@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const portfolios = await prisma.companyPortfolio.findMany({
       where: { companyId: userId },
       include: {
-        targetCompany: {
+        Company_CompanyPortfolio_targetCompanyIdToCompany: {
           select: {
             id: true,
             name: true,
@@ -29,18 +29,19 @@ export async function GET(request: NextRequest) {
     });
 
     const portfolioWithMetrics = portfolios.map((portfolio) => {
-      const currentPrice = Number(portfolio.targetCompany.closingPrice || portfolio.targetCompany.sharePrice || 0);
+      const targetCompany = portfolio.Company_CompanyPortfolio_targetCompanyIdToCompany;
+      const currentPrice = Number(targetCompany.closingPrice || targetCompany.sharePrice || 0);
       const currentValue = currentPrice * portfolio.quantity;
       const totalInvested = Number(portfolio.totalInvested);
       const profitLoss = currentValue - totalInvested;
       const profitLossPercentage = totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0;
-      const priceChange = portfolio.targetCompany.priceChange || "0.00";
+      const priceChange = targetCompany.priceChange || "0.00";
 
       return {
         id: portfolio.id,
-        companyId: portfolio.targetCompany.id,
-        companyName: portfolio.targetCompany.name,
-        sector: portfolio.targetCompany.sector,
+        companyId: targetCompany.id,
+        companyName: targetCompany.name,
+        sector: targetCompany.sector,
         quantity: portfolio.quantity,
         averageBuyPrice: Number(portfolio.averageBuyPrice),
         currentPrice,

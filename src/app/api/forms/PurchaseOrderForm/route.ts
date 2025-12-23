@@ -12,7 +12,7 @@ export async function GET() {
 	try {
 		const orders = await prisma.purchaseOrder.findMany({
 			orderBy: { createdAt: "desc" },
-			include: { items: true },
+			include: { PurchaseOrderItem: true },
 		});
 		return NextResponse.json({ data: orders });
 	} catch (error) {
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
 		const order = await prisma.purchaseOrder.create({
 			data: cleanedCreateData,
-			include: { items: true },
+			include: { PurchaseOrderItem: true },
 		});
 
 		return NextResponse.json({ data: order }, { status: 201 });

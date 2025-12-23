@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
       // Create wallet transaction
       const transaction = await tx.transaction.create({
         data: {
+          id: crypto.randomUUID(),
           userId,
           type: type === "BUY" ? "BUY_SHARES" : "SELL_SHARES",
           amount: finalAmount,
@@ -113,12 +114,14 @@ export async function POST(request: NextRequest) {
             price: Number(executionPrice),
             fees,
           },
+          updatedAt: new Date(),
         },
       });
 
       // Create trade record
       const trade = await tx.trade.create({
         data: {
+          id: crypto.randomUUID(),
           userId,
           companyId,
           type,
@@ -132,6 +135,7 @@ export async function POST(request: NextRequest) {
           fees,
           transactionId: transaction.id,
           executedAt: new Date(),
+          updatedAt: new Date(),
         },
         include: {
           company: {
@@ -178,11 +182,13 @@ export async function POST(request: NextRequest) {
           // Create new portfolio entry
           await tx.portfolio.create({
             data: {
+              id: crypto.randomUUID(),
               userId,
               companyId,
               quantity,
               totalInvested: totalAmount,
               averageBuyPrice: Number(executionPrice),
+              updatedAt: new Date(),
             },
           });
         }

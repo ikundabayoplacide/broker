@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
           bestMarketPrice: true,
           priceLimit: false,
           termsAccepted: true,
+          updatedAt: new Date(),
           PurchaseOrderItem: {
             create: {
               id: uuidv4(),

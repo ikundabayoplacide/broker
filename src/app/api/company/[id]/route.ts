@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Prisma, Role } from "@prisma/client";
+import { Prisma, User_role as Role } from "@prisma/client";
 import { companySelect } from "../companySelect";
 import { companyUpdateSchema } from "@/lib/validations/companyValidation";
 import {

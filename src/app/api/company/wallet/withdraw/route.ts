@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const companyId = auth.companyId; // Store to ensure TypeScript knows it's not undefined
     const { amount, paymentMethodId } = await req.json();
     const numericAmount = Number(amount);
 
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     const paymentMethod = await prisma.companyPaymentMethod.findFirst({
-      where: { id: paymentMethodId, companyId: auth.companyId, isActive: true },
+      where: { id: paymentMethodId, companyId, isActive: true },
     });
 
     if (!paymentMethod) {
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     const wallet = await prisma.companyWallet.findUnique({
-      where: { companyId: auth.companyId },
+      where: { companyId },
     });
 
     if (!wallet) {
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
           amount: numericAmount,
           phone: paymentMethod.accountNumber,
           reference,
-          description: `Company wallet withdrawal for ${auth.companyId}`,
+          description: `Company wallet withdrawal for ${companyId}`,
         });
 
         paypackResponse = response;
@@ -60,7 +61,8 @@ export async function POST(req: NextRequest) {
         if (PaypackClient.isFailed(externalStatus)) {
           await prisma.companyTransaction.create({
             data: {
-              companyId: auth.companyId,
+              id: crypto.randomUUID(),
+              companyId,
               type: "WITHDRAW",
               amount: new Prisma.Decimal(numericAmount),
               status: "FAILED",
@@ -68,6 +70,7 @@ export async function POST(req: NextRequest) {
               reference,
               description: response.processor_message || "Withdrawal declined",
               metadata: { paymentMethodId, accountNumber: paymentMethod.accountNumber, paypack: JSON.parse(JSON.stringify(response)) },
+              updatedAt: new Date(),
             },
           });
           return NextResponse.json({ error: response.processor_message || "Withdrawal declined" }, { status: 400 });
@@ -76,7 +79,8 @@ export async function POST(req: NextRequest) {
         const message = error instanceof PaypackError ? error.message : "Paypack withdrawal failed";
         await prisma.companyTransaction.create({
           data: {
-            companyId: auth.companyId,
+            id: crypto.randomUUID(),
+            companyId,
             type: "WITHDRAW",
             amount: new Prisma.Decimal(numericAmount),
             status: "FAILED",
@@ -84,6 +88,7 @@ export async function POST(req: NextRequest) {
             reference,
             description: message,
             metadata: { paymentMethodId, accountNumber: paymentMethod.accountNumber },
+            updatedAt: new Date(),
           },
         });
         return NextResponse.json({ error: message }, { status: 400 });
@@ -95,13 +100,14 @@ export async function POST(req: NextRequest) {
 
     const result = await prisma.$transaction(async (tx) => {
       const updatedWallet = await tx.companyWallet.update({
-        where: { companyId: auth.companyId },
+        where: { companyId },
         data: { balance: { decrement: new Prisma.Decimal(numericAmount) } },
       });
 
       const transaction = await tx.companyTransaction.create({
         data: {
-          companyId: auth.companyId,
+          id: crypto.randomUUID(),
+          companyId,
           type: "WITHDRAW",
           amount: new Prisma.Decimal(numericAmount),
           status: "COMPLETED",
@@ -115,6 +121,7 @@ export async function POST(req: NextRequest) {
             externalReference: externalReference || reference,
             paypack: paypackResponse ? JSON.parse(JSON.stringify(paypackResponse)) : null,
           },
+          updatedAt: new Date(),
         },
       });
 
