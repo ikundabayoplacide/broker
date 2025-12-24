@@ -25,7 +25,7 @@ model Branch {
   isActive                    Boolean       @default(true)
   createdAt                   DateTime      @default(now())
   updatedAt                   DateTime
-  User_Branch_managerIdToUser User?         @relation("Branch_managerIdToUser", fields: [managerId], references: [id])
+User_Branch_managerIdToUser   User? @relation("Branch_managerIdToUser", fields: [managerId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   Trade                       Trade[]
   User_User_branchIdToBranch  User[]        @relation("User_branchIdToBranch")
 
@@ -385,8 +385,8 @@ model User {
   Portfolio                     Portfolio[]
   Trade                         Trade[]
   Transaction                   Transaction[]
-  Branch_User_branchIdToBranch  Branch?         @relation("User_branchIdToBranch", fields: [branchId], references: [id])
-  User                          User?           @relation("UserToUser", fields: [createdById], references: [id])
+Branch_User_branchIdToBranch    Branch? @relation("User_branchIdToBranch", fields: [branchId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  User                          User?           @relation("UserToUser", fields: [createdById], references: [id],onDelete: SetNull, onUpdate: NoAction)
   other_User                    User[]          @relation("UserToUser")
   Wallet                        Wallet?
 
