@@ -296,9 +296,9 @@ export default function BranchDetailsPage() {
         } else {
           setError('Failed to fetch branch details');
         }
-      } catch (err) {
+      } catch (error) {
         setError('Error loading branch details');
-        console.error('Error fetching branch details:', err);
+        console.error('Error fetching branch details:', error);
       } finally {
         setIsLoading(false);
       }
