@@ -59,11 +59,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine the actual client for the trade
-    let actualClientId = executorId;
+    let actualClientId = executorId; // Default to executor trading for themselves
     
     // Role-based client selection logic
-    if (executor.role === "TELLER" || executor.role === "MANAGER") {
-      // Verify the client exists and belongs to the same branch (for tellers)
+    if ((executor.role === "TELLER" || executor.role === "MANAGER") && clientId) {
+      // Only when clientId is provided, trade for the client
       const client = await prisma.user.findUnique({
         where: { id: clientId },
         select: { id: true, role: true, branchId: true, fullName: true }
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      actualClientId = clientId!;
+      actualClientId = clientId;
     }
 
     // Start transaction

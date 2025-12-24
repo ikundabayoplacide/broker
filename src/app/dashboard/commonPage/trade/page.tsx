@@ -127,7 +127,7 @@ export default function TradePage() {
     fetchCompanies();
     setCurrentPage(1); // Reset to page 1 when context changes
     fetchRecentTrades(1);
-  }, [isManager, tradingMode, selectedClient, user?.id]);
+  }, [canSelectClient, tradingMode, selectedClient, user?.id]);
 
   // Load clients for teller/manager
   useEffect(() => {
@@ -136,13 +136,13 @@ export default function TradePage() {
     }
   }, [canSelectClient]);
 
-  // Load wallet and portfolio when client is selected, for direct client, or when manager trades for self
+  // Load wallet and portfolio when client is selected, for direct client, or when teller/manager trades for self
   useEffect(() => {
     let targetUserId = null;
     
     if (isClient) {
       targetUserId = user?.id;
-    } else if (isManager && tradingMode === "self") {
+    } else if (canSelectClient && tradingMode === "self") {
       targetUserId = user?.id;
     } else if (tradingMode === "client" && selectedClient) {
       targetUserId = selectedClient.id;
@@ -152,7 +152,7 @@ export default function TradePage() {
       fetchWallet(targetUserId);
       fetchPortfolio(targetUserId);
     }
-  }, [selectedClient, user?.id, isClient, isManager, tradingMode]);
+  }, [selectedClient, user?.id, isClient, canSelectClient, tradingMode]);
 
   // Refresh portfolio when company is selected to ensure accurate holdings
   useEffect(() => {
@@ -161,7 +161,7 @@ export default function TradePage() {
       
       if (isClient) {
         targetUserId = user?.id;
-      } else if (isManager && tradingMode === "self") {
+      } else if (canSelectClient && tradingMode === "self") {
         targetUserId = user?.id;
       } else if (tradingMode === "client" && selectedClient) {
         targetUserId = selectedClient.id;
@@ -171,7 +171,7 @@ export default function TradePage() {
         fetchPortfolio(targetUserId);
       }
     }
-  }, [selectedCompany, isClient, isManager, tradingMode, selectedClient, user?.id]);
+  }, [selectedCompany, isClient, canSelectClient, tradingMode, selectedClient, user?.id]);
 
   const fetchCompanies = async () => {
     try {
@@ -257,7 +257,7 @@ export default function TradePage() {
       // Determine whose trades to fetch based on current context
       if (isClient) {
         targetUserId = user?.id;
-      } else if (isManager && tradingMode === "self") {
+      } else if (canSelectClient && tradingMode === "self") {
         targetUserId = user?.id;
       } else if (tradingMode === "client" && selectedClient) {
         targetUserId = selectedClient.id;
@@ -349,16 +349,11 @@ export default function TradePage() {
         tradeType,
         priceType,
         ...(priceType === "LIMIT" && { limitPrice: parseFloat(limitPrice) }),
-        ...(canSelectClient && tradingMode === "client" && selectedClient && { clientId: selectedClient.id }),
-        ...(isManager && tradingMode === "self" && { tradingForSelf: true })
+        ...(canSelectClient && tradingMode === "client" && selectedClient && { clientId: selectedClient.id })
       };
 
-      // Use different endpoint based on trading mode
-      const endpoint = (isManager && tradingMode === "self") 
-        ? "/api/trade/buy"  // Use the same endpoint as manager/trade page
-        : "/api/trade";
-        
-      const response = await fetch(endpoint, {
+      // Use the standard trade endpoint for all cases
+      const response = await fetch("/api/trade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -376,7 +371,7 @@ export default function TradePage() {
         let targetUserId = null;
         if (isClient) {
           targetUserId = user?.id;
-        } else if (isManager && tradingMode === "self") {
+        } else if (canSelectClient && tradingMode === "self") {
           targetUserId = user?.id;
         } else if (tradingMode === "client" && selectedClient) {
           targetUserId = selectedClient.id;
@@ -405,7 +400,7 @@ export default function TradePage() {
     let targetUserId = null;
     if (isClient) {
       targetUserId = user?.id;
-    } else if (isManager && tradingMode === "self") {
+    } else if (canSelectClient && tradingMode === "self") {
       targetUserId = user?.id;
     } else if (tradingMode === "client" && selectedClient) {
       targetUserId = selectedClient.id;
@@ -445,7 +440,7 @@ export default function TradePage() {
     let targetUserId = null;
     if (isClient) {
       targetUserId = user?.id;
-    } else if (isManager && tradingMode === "self") {
+    } else if (canSelectClient && tradingMode === "self") {
       targetUserId = user?.id;
     } else if (tradingMode === "client" && selectedClient) {
       targetUserId = selectedClient.id;
@@ -484,8 +479,8 @@ export default function TradePage() {
             </Button>
           </div>
           
-          {/* Trading Mode Toggle for Managers */}
-          {isManager && (
+          {/* Trading Mode Toggle for Tellers and Managers */}
+          {canSelectClient && (
             <div className="mt-4 flex gap-3">
               <button
                 onClick={() => {
@@ -520,7 +515,7 @@ export default function TradePage() {
                 Trading for: Myself
               </span>
             )}
-            {isManager && tradingMode === "self" && (
+            {canSelectClient && tradingMode === "self" && (
               <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                 Trading for: Myself
               </span>
@@ -936,7 +931,7 @@ export default function TradePage() {
               <p className="text-sm text-gray-600 mt-1">
                 {isClient 
                   ? "Your recent trading activity"
-                  : isManager && tradingMode === "self"
+                  : canSelectClient && tradingMode === "self"
                   ? "Your personal trading activity"
                   : selectedClient
                   ? `${selectedClient.fullName}'s trading activity`
@@ -1002,7 +997,7 @@ export default function TradePage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Total
                     </th>
-                    {isManager && (
+                    {canSelectClient && (
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Client
                       </th>
@@ -1040,7 +1035,7 @@ export default function TradePage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         Rwf {parseFloat(trade.totalAmount).toLocaleString()}
                       </td>
-                      {isManager && (
+                      {canSelectClient && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {trade.user?.fullName || "Self"}
                         </td>
@@ -1281,7 +1276,7 @@ export default function TradePage() {
   );
 
   function handleGenerateStatement(config: TransactionConfig) {
-    const currentUser = isClient || (isManager && tradingMode === "self")
+    const currentUser = isClient || (canSelectClient && tradingMode === "self")
       ? { name: displayName, email: user?.email || "" }
       : { name: selectedClient?.fullName || "Client", email: selectedClient?.email || "" };
     

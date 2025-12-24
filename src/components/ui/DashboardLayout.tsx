@@ -156,7 +156,7 @@ export default function DashboardLayout({
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/teller" },
           { name: "Users", icon: FiUsers, href: "/dashboard/teller/users" },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
-          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/teller/trade" },
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
           { name: "Orders", icon: FiClipboard, href: "/dashboard/teller/orders" },
           { name: "Executions", icon: FiZap, href: "/dashboard/teller/executions" },
           { name: "Reports", icon: FiTrendingUp, href: "/dashboard/teller/reports" },

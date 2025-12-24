@@ -40,12 +40,9 @@ export const validateTradePermissions = (
     return true;
   }
 
-  // Tellers and managers must select a client
+  // Tellers and managers can trade for themselves (no clientId) or for clients (with clientId)
   if (["TELLER", "MANAGER"].includes(userRole)) {
-    if (!clientId) {
-      throw new Error("Client selection is required for tellers and managers");
-    }
-    return true;
+    return true; // Allow both self-trading and client trading
   }
 
   throw new Error("Unauthorized role for trading");
