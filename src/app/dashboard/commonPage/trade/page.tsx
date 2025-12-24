@@ -35,6 +35,8 @@ interface Wallet {
 interface Portfolio {
   companyId: string;
   quantity: number;
+  totalInvested?: number;
+  averageBuyPrice?: number;
   company: {
     symbol: string;
     name: string;
@@ -85,6 +87,22 @@ export default function TradePage() {
       createdAt: string;
     }>;
   } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalTrades, setTotalTrades] = useState(0);
+  const tradesPerPage = 5; // show 5 trades per page
+
+  const handlePrevious = () => {
+    const newPage = Math.max(currentPage - 1, 1);
+    setCurrentPage(newPage);
+    fetchRecentTrades(newPage);
+  };
+  
+  const handleNext = () => {
+    const newPage = Math.min(currentPage + 1, totalPages);
+    setCurrentPage(newPage);
+    fetchRecentTrades(newPage);
+  };
 
   const { displayName, dashboardRole, userRole, isClient, canSelectClient, isManager } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
@@ -107,7 +125,8 @@ export default function TradePage() {
   // Load companies and recent trades
   useEffect(() => {
     fetchCompanies();
-    fetchRecentTrades();
+    setCurrentPage(1); // Reset to page 1 when context changes
+    fetchRecentTrades(1);
   }, [isManager, tradingMode, selectedClient, user?.id]);
 
   // Load clients for teller/manager
@@ -134,6 +153,25 @@ export default function TradePage() {
       fetchPortfolio(targetUserId);
     }
   }, [selectedClient, user?.id, isClient, isManager, tradingMode]);
+
+  // Refresh portfolio when company is selected to ensure accurate holdings
+  useEffect(() => {
+    if (selectedCompany) {
+      let targetUserId = null;
+      
+      if (isClient) {
+        targetUserId = user?.id;
+      } else if (isManager && tradingMode === "self") {
+        targetUserId = user?.id;
+      } else if (tradingMode === "client" && selectedClient) {
+        targetUserId = selectedClient.id;
+      }
+      
+      if (targetUserId) {
+        fetchPortfolio(targetUserId);
+      }
+    }
+  }, [selectedCompany, isClient, isManager, tradingMode, selectedClient, user?.id]);
 
   const fetchCompanies = async () => {
     try {
@@ -211,7 +249,7 @@ export default function TradePage() {
     }
   };
 
-  const fetchRecentTrades = async () => {
+  const fetchRecentTrades = async (page = 1) => {
     try {
       setTradesLoading(true);
       let targetUserId = null;
@@ -227,27 +265,40 @@ export default function TradePage() {
       
       if (!targetUserId) {
         setRecentTrades([]);
+        setTotalPages(1);
+        setCurrentPage(1);
         return;
       }
       
-      const response = await fetch(`/api/trade/history?limit=10&userId=${targetUserId}`);
+      const response = await fetch(`/api/trade/history?limit=${tradesPerPage}&page=${page}&userId=${targetUserId}`);
       const data = await response.json();
-      console.log('Recent trades response:', data); // Debug log
-      
-      // Handle different response structures
-      if (data.success && data.trades) {
-        setRecentTrades(data.trades);
-      } else if (Array.isArray(data)) {
-        setRecentTrades(data);
-      } else if (data.trades) {
-        setRecentTrades(data.trades);
-      }
+
+      // Normalize values coming from the API (they might be strings)
+      const apiTrades = Array.isArray(data.trades) ? data.trades : [];
+      const apiTotal = Number(data.total ?? (Array.isArray(data.trades) ? data.trades.length : 0)) || 0;
+      const apiPage = Number(data.page ?? page) || page;
+      const apiLimit = Number(data.limit ?? tradesPerPage) || tradesPerPage;
+
+      setRecentTrades(apiTrades);
+
+      // Compute totalPages robustly on the client as a fallback
+      const computedTotalPages = Math.max(1, Math.ceil(apiTotal / apiLimit));
+      const serverTotalPages = Number(data.totalPages ?? computedTotalPages) || computedTotalPages;
+
+      setTotalPages(serverTotalPages);
+      setTotalTrades(apiTotal);
+      setCurrentPage(apiPage);
     } catch (error) {
       console.error("Error fetching recent trades:", error);
+      setRecentTrades([]);
+      setTotalPages(1);
+      setCurrentPage(1);
     } finally {
       setTradesLoading(false);
     }
   };
+
+  // Pagination state is handled; debug logs removed
 
   const filteredCompanies = companies.filter(company =>
     company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -259,7 +310,12 @@ export default function TradePage() {
   const fees = totalCost * 0.01; // 1% fee
   const finalTotal = totalCost + fees;
 
-  const availableQuantity = portfolio.find(p => p.companyId === selectedCompany?.id)?.quantity || 0;
+  const availableQuantity = useMemo(() => {
+    if (!selectedCompany || !portfolio.length) return 0;
+    return portfolio
+      .filter(p => p.companyId === selectedCompany.id)
+      .reduce((total, holding) => total + holding.quantity, 0);
+  }, [portfolio, selectedCompany]);
 
   const validateTrade = () => {
     if (!selectedCompany) return "Please select a company";
@@ -499,11 +555,11 @@ export default function TradePage() {
             </div>
           </Card>
 
-          <Card 
-            className="p-6 hover:shadow-lg transition-all cursor-pointer" 
-            onClick={() => selectedCompany && availableQuantity > 0 && handleShowHoldings()}
-          >
-            <div className="flex items-center justify-between">
+          <Card className="p-6 hover:shadow-lg transition-all">
+            <div 
+              className="flex items-center justify-between cursor-pointer" 
+              onClick={() => selectedCompany && availableQuantity > 0 && handleShowHoldings()}
+            >
               <div>
                 <p className="text-base font-medium text-gray-500 mb-2">Holdings</p>
                 {portfolioLoading ? (
@@ -902,7 +958,7 @@ export default function TradePage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={fetchRecentTrades}
+                onClick={() => fetchRecentTrades(currentPage)}
                 className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
               >
                 <FiRefreshCw className="h-4 w-4" />
@@ -1005,6 +1061,49 @@ export default function TradePage() {
                   ))}
                 </tbody>
               </table>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-3">
+                  <div className="text-sm text-gray-500">
+                    {totalTrades === 0 ? (
+                      "Showing 0 of 0"
+                    ) : (
+                      <>
+                        Showing {(currentPage - 1) * tradesPerPage + 1}–
+                        {Math.min(currentPage * tradesPerPage, totalTrades)} of {totalTrades}
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={currentPage === 1 ? undefined : handlePrevious}
+                      disabled={currentPage === 1 || tradesLoading}
+                      className={`px-3 py-1 rounded-full text-white transition-colors ${
+                        currentPage === 1 || tradesLoading
+                          ? "bg-gray-300 cursor-not-allowed" 
+                          : "bg-[#004B5B] hover:bg-[#006B85]"
+                      }`}
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-700">
+                      Page {totalTrades === 0 ? 0 : currentPage} of {totalTrades === 0 ? 0 : totalPages}
+                    </span>
+                    <button
+                      onClick={currentPage === totalPages ? undefined : handleNext}
+                      disabled={currentPage === totalPages || tradesLoading}
+                      className={`px-3 py-1 rounded-full text-white transition-colors ${
+                        currentPage === totalPages || tradesLoading
+                          ? "bg-gray-300 cursor-not-allowed" 
+                          : "bg-[#004B5B] hover:bg-[#006B85]"
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </Card>

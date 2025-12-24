@@ -54,6 +54,10 @@ export default function SuperAdminDashboard() {
     percentageChange: 0,
     isPositive: true
   });
+  const [tradingVolumeData, setTradingVolumeData] = useState({
+    daily: [] as Array<{ date: string; volume: number }>,
+    monthly: [] as Array<{ date: string; volume: number }>
+  });
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -119,10 +123,31 @@ export default function SuperAdminDashboard() {
       }
     };
 
+    const fetchTradingVolumeData = async () => {
+      try {
+        const response = await fetch("/api/trading/volume", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        if (data.success) {
+          setTradingVolumeData(data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching trading volume data:", error);
+      }
+    };
+
     fetchCompanies();
     fetchBranches();
     fetchDailyVolume();
+    fetchTradingVolumeData();
   }, [token]);
+
+  // Use real data or empty arrays if no data
+  const dailyTradingData = tradingVolumeData.daily;
+  const monthlyTradingData = tradingVolumeData.monthly;
 
   const { displayName, email, dashboardRole } = useMemo((): {
     displayName: string;
@@ -144,25 +169,6 @@ export default function SuperAdminDashboard() {
     const pending = companies.filter((c) => c.status === "pending").length;
     return { total, pending };
   }, [companies]);
-
-  const dailyTradingData = [
-    { date: "Jan 15", volume: 1850000 },
-    { date: "Jan 16", volume: 1920000 },
-    { date: "Jan 17", volume: 1780000 },
-    { date: "Jan 18", volume: 2100000 },
-    { date: "Jan 19", volume: 1950000 },
-    { date: "Jan 20", volume: 2200000 },
-    { date: "Jan 21", volume: 2004000 },
-  ];
-
-  const monthlyTradingData = [
-    { date: "Jul 2024", volume: 45000000 },
-    { date: "Aug 2024", volume: 52000000 },
-    { date: "Sep 2024", volume: 48000000 },
-    { date: "Oct 2024", volume: 61000000 },
-    { date: "Nov 2024", volume: 58000000 },
-    { date: "Dec 2024", volume: 67000000 },
-  ];
 
   const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16", "#f97316"];
   
@@ -207,7 +213,7 @@ export default function SuperAdminDashboard() {
       subtitle: companyStats.pending > 0 ? `${companyStats.pending} pending review` : "All approved",
       icon: <FiBriefcase className="w-6 h-6 text-white" />,
       gradient: "bg-gradient-to-r from-purple-500 to-purple-600",
-      link: "/dashboard/companies",
+      link: "/dashboard/commonPage/companies",
     },
     {
       title: "System Uptime",
@@ -255,7 +261,7 @@ export default function SuperAdminDashboard() {
       subtitle: "Shares ready to trade",
       icon: <FiShoppingBag className="w-6 h-6 text-white" />,
       gradient: "bg-gradient-to-r from-rose-500 to-rose-600",
-      link: "/dashboard/super-admin/shares",
+      link: null,
     },
   ];
 
@@ -280,7 +286,7 @@ export default function SuperAdminDashboard() {
     },
   ];
 
-  type QuickActionId = "create-company";
+  type QuickActionId = "create-company" | "invite-admin" | "review-alerts" | "platform-settings";
 
   interface QuickAction {
     label: string;
@@ -291,9 +297,9 @@ export default function SuperAdminDashboard() {
 
   const quickActions: QuickAction[] = [
     { label: "Create Company", icon: <FiPlus />, description: "List a new issuer", id: "create-company" },
-    { label: "Invite Admin", icon: <FiUsers />, description: "Provision platform administrators" },
-    { label: "Review Alerts", icon: <FiAlertTriangle />, description: "Address outstanding incidents" },
-    { label: "Platform Settings", icon: <FiSettings />, description: "Configure global policies" },
+    { label: "Invite Admin", icon: <FiUsers />, description: "Provision platform administrators", id: "invite-admin" },
+    { label: "Review Alerts", icon: <FiAlertTriangle />, description: "Address outstanding incidents", id: "review-alerts" },
+    { label: "Platform Settings", icon: <FiSettings />, description: "Configure global policies", id: "platform-settings" },
   ];
 
   const handleQuickActionClick = (action: QuickAction) => {
@@ -301,9 +307,22 @@ export default function SuperAdminDashboard() {
       setShowCreateModal(true);
       return;
     }
+    else if (action.id === "invite-admin") {
+     toast("Coming soon");
+      return;
+    }
+    else if (action.id === "review-alerts") {
+      router.push("/dashboard/commonPage/notification");
+      return;
+    }
+    else if (action.id === "platform-settings") {
+      router.push("/dashboard/commonPage/settings");
+      return;
+    }
 
     toast("Coming soon");
   };
+
 
   const handleCompanyCreated = (company: CompanySummary) => {
     setCompanies((prev) => {
@@ -342,7 +361,7 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slideInRight print:grid-cols-2 print:gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slideInRight print-summary-cards">
           {summaryCards.map((card) => (
             <div
               key={card.title}
@@ -350,16 +369,16 @@ export default function SuperAdminDashboard() {
               onClick={() => card.link && router.push(card.link)}
             >
               <Card className={`p-6 hover:shadow-lg transition-all ${card.link ? "hover:scale-105" : ""
-                }`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-base font-medium text-gray-500 mb-5">{card.title}</p>
-                    <p className="text-xl font-semibold text-gray-700">{card.value}</p>
-                    <p className="text-sm text-gray-500 mt-1">{card.subtitle || card.change}</p>
+                } print:p-3 print:shadow-none print:border print:border-gray-300`}>
+                <div className="flex items-center justify-between print:flex-col print:items-start print:space-y-2">
+                  <div className="print:w-full">
+                    <p className="text-base font-medium text-gray-500 mb-5 print:text-xs print:mb-1 print:text-gray-700">{card.title}</p>
+                    <p className="text-xl font-semibold text-gray-700 print:text-sm print:font-bold">{card.value}</p>
+                    <p className="text-sm text-gray-500 mt-1 print:text-xs print:mt-0">{card.subtitle || card.change}</p>
                   </div>
                   <div
                     className={`w-11 h-11 rounded-full flex items-center justify-center ${card.gradient || "bg-gray-100"
-                      }`}
+                      } print:hidden`}
                   >
                     {card.icon}
                   </div>
@@ -374,12 +393,12 @@ export default function SuperAdminDashboard() {
           {/* Daily Trading Volume */}
           <Card className="p-6 animate-fadeInUp print:break-inside-avoid">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-500">Daily Trading Volume</h2>
+              <h2 className="text-lg font-semibold text-gray-500 print:text-base print:mb-3">Daily Trading Volume</h2>
               <Button variant="outline" className="text-xs print:hidden hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
                 View details
               </Button>
             </div>
-            <div className="h-64 w-full overflow-hidden print:hidden">
+            <div className="h-64 w-full overflow-hidden print-trading-chart">
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={dailyTradingData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="1 1" stroke="#f0f0f0" />
@@ -415,17 +434,40 @@ export default function SuperAdminDashboard() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            {/* Print Table for Daily Trading Volume */}
+            <div className="hidden print-trading-table">
+              <table className="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 px-2 py-1 text-left text-xs font-semibold">Date</th>
+                    <th className="border border-gray-300 px-2 py-1 text-right text-xs font-semibold">Volume (RWF)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dailyTradingData.length > 0 ? dailyTradingData.map((item, index) => (
+                    <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                      <td className="border border-gray-300 px-2 py-1 text-xs">{item.date}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-xs text-right">{item.volume.toLocaleString()}</td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={2} className="border border-gray-300 px-2 py-1 text-xs text-center text-gray-500">No data available</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </Card>
 
           {/* Monthly Trading Volume */}
           <Card className="p-6 animate-fadeInUp print:break-inside-avoid">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-500">Monthly Trading Volume</h2>
+              <h2 className="text-lg font-semibold text-gray-500 print:text-base print:mb-3">Monthly Trading Volume</h2>
               <Button variant="outline" className="text-xs print:hidden hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
                 View details
               </Button>
             </div>
-            <div className="h-64 w-full overflow-hidden print:hidden">
+            <div className="h-64 w-full overflow-hidden print-trading-chart">
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={monthlyTradingData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="1 1" stroke="#f0f0f0" />
@@ -461,8 +503,32 @@ export default function SuperAdminDashboard() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            {/* Print Table for Monthly Trading Volume */}
+            <div className="hidden print-trading-table">
+              <table className="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 px-2 py-1 text-left text-xs font-semibold">Month</th>
+                    <th className="border border-gray-300 px-2 py-1 text-right text-xs font-semibold">Volume (RWF)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlyTradingData.length > 0 ? monthlyTradingData.map((item, index) => (
+                    <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                      <td className="border border-gray-300 px-2 py-1 text-xs">{item.date}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-xs text-right">{item.volume.toLocaleString()}</td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={2} className="border border-gray-300 px-2 py-1 text-xs text-center text-gray-500">No data available</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </Card>
         </div>
+
 
         <div className="grid lg:grid-cols-3 gap-6 mb-6 print:block print:space-y-4">
           <Card className="p-6 lg:col-span-2 animate-fadeInUp">

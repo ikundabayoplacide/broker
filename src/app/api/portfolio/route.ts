@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     const portfolio = await prisma.portfolio.findMany({
       where: whereClause,
       include: {
-        company: {
+        Company: {
           select: {
             id: true,
             symbol: true,
@@ -81,12 +81,12 @@ export async function GET(request: NextRequest) {
       quantity: item.quantity,
       averageBuyPrice: Number(item.averageBuyPrice),
       totalInvested: Number(item.totalInvested),
-      currentValue: item.quantity * Number(item.company.closingPrice || item.company.sharePrice || 0),
+      currentValue: item.quantity * Number(item.Company.closingPrice || item.Company.sharePrice || 0),
       company: {
-        id: item.company.id,
-        symbol: item.company.symbol,
-        name: item.company.name,
-        currentPrice: Number(item.company.closingPrice || item.company.sharePrice || 0)
+        id: item.Company.id,
+        symbol: item.Company.symbol,
+        name: item.Company.name,
+        currentPrice: Number(item.Company.closingPrice || item.Company.sharePrice || 0)
       }
     }));
 

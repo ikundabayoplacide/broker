@@ -99,27 +99,25 @@
   }
 
   /* Grid adjustments for print */
-  .print-grid-cols-2 {
+  .print-summary-cards {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 0.5rem !important;
+    gap: 1rem !important;
+    margin-bottom: 1rem !important;
   }
 
-  .print-grid-cols-2 > * {
+  .print-summary-cards > * {
     width: 100% !important;
+    break-inside: avoid !important;
   }
 
-  .print-gap-2 {
-    gap: 0.5rem !important;
-  }
-
-  .grid:not(.print-grid-cols-2) {
+  /* Trading volume tables for print */
+  .print-trading-table {
     display: block !important;
   }
 
-  .grid:not(.print-grid-cols-2) > * {
-    margin-bottom: 0.75rem;
-    width: 100% !important;
+  .print-trading-chart {
+    display: none !important;
   }
 
   /* Space adjustments */

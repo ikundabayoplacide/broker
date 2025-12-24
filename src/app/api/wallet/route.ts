@@ -10,11 +10,15 @@ export async function GET(request: NextRequest) {
     }
 
     const requesterId = authResult.userId || authResult.id;
+    if (!requesterId) {
+      return NextResponse.json({ error: "User ID not found" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
 
     // Determine target user ID
-    let targetUserId = requesterId;
+    let targetUserId: string = requesterId;
     
     if (userId && userId !== requesterId) {
       // Check if requester has permission to view other user's wallet

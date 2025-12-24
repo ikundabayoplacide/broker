@@ -15,9 +15,13 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "100");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const page = parseInt(searchParams.get("page") || "1");
     const requestedUserId = searchParams.get("userId");
     const companyId = searchParams.get("companyId");
+    
+    const offset = (page - 1) * limit;
+
     
     // Get authenticated user's role to check permissions
     const authenticatedUser = await prisma.user.findUnique({
@@ -64,27 +68,36 @@ export async function GET(request: NextRequest) {
       whereClause.companyId = companyId;
     }
     
+    const totalCount = await prisma.trade.count({ where: whereClause });
+
+    
     const trades = await prisma.trade.findMany({
       where: whereClause,
       include: {
-        Company: {
-          select: {
-            name: true,
-            symbol: true,
-          },
-        },
+        Company: { select: { name: true, symbol: true } },
+        User: { select: { fullName: true } },
       },
       orderBy: { createdAt: "desc" },
       take: limit,
+      skip: offset,
     });
 
-    // Map to match expected format
+    // Normal operation: return trades and counts
+
     const formattedTrades = trades.map(trade => ({
       ...trade,
       company: trade.Company,
+      user: trade.User,
     }));
 
-    return NextResponse.json({ trades: formattedTrades });
+    return NextResponse.json({ 
+      success: true,
+      trades: formattedTrades,
+      total: totalCount,
+      page,
+      limit,
+      totalPages: Math.ceil(totalCount / limit) || 1
+    });
   } catch (error) {
     console.error("Error fetching trade history:", error);
     return NextResponse.json(
