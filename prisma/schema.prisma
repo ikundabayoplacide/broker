@@ -321,7 +321,7 @@ model Trade {
   executedAt       DateTime?
   updatedAt        DateTime
   branchId         String?
-  Branch           Branch?         @relation(fields: [branchId], references: [id])
+  Branch           Branch?         @relation(fields: [branchId], references: [id],onDelete:NoAction,onUpdate:NoAction)
   Company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   User             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -386,7 +386,7 @@ model User {
   Trade                         Trade[]
   Transaction                   Transaction[]
 Branch_User_branchIdToBranch    Branch? @relation("User_branchIdToBranch", fields: [branchId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  User                          User?           @relation("UserToUser", fields: [createdById], references: [id],onDelete: SetNull, onUpdate: NoAction)
+  User                          User?           @relation("UserToUser", fields: [createdById], references: [id],onDelete: NoAction, onUpdate: NoAction)
   other_User                    User[]          @relation("UserToUser")
   Wallet                        Wallet?
 
