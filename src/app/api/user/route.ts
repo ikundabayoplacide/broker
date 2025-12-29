@@ -1,8 +1,8 @@
-// amazonq-ignore-file typescript-code-quality-error-handling
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/apiAuth";
 import { userCreationSchema } from "@/lib/validations/signupValidation";
+import { sendOTPEmail } from "@/utils/mailer";
 import bcrypt from "bcryptjs";
 
 type PrismaRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER" | "CLIENT";
@@ -47,6 +47,11 @@ export async function POST(req: NextRequest) {
     const hashed = await bcrypt.hash(password, 10);
     const role = (data.role as PrismaRole) || "CLIENT";
     
+    // Generate OTP for email verification
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    console.log('🔑 Generated OTP for user creation:', otp, 'expires at:', otpExpiresAt);
+    
     // Role-based creation restrictions
     if (requestingUser.role === "TELLER" && role !== "CLIENT") {
       return NextResponse.json({ error: "Tellers can only create Client accounts" }, { status: 403 });
@@ -69,6 +74,8 @@ export async function POST(req: NextRequest) {
       country,
       city,
       role,
+      otp,
+      otpExpiresAt,
       isVerified: data.isVerified || false,
       notificationPreferences: data.notificationPreferences || { email: true, sms: false, push: false },
       updatedAt: new Date(),
@@ -100,6 +107,16 @@ export async function POST(req: NextRequest) {
 
       return user;
     });
+
+    // Send OTP email for verification
+    console.log('📧 Attempting to send OTP email to:', email);
+    try {
+      await sendOTPEmail(email, otp);
+      console.log('✅ OTP email sent successfully for user creation');
+    } catch (emailErr) {
+      console.error("❌ Error sending OTP email for user creation:", emailErr);
+      // Don't fail user creation if email fails, just log the error
+    }
 
     return NextResponse.json({
       message: "User created successfully",
@@ -149,10 +166,21 @@ export async function GET(request: NextRequest) {
         id: true,
         fullName: true,
         email: true,
+        phoneCountryCode: true,
+        phone: true,
         csdNumber: true,
         role: true,
         branchId: true,
         isVerified: true,
+        country: true,
+        city: true,
+        idDocument: true,
+        passportPhoto: true,
+        idNumber: true,
+        dateOfBirth: true,
+        gender: true,
+        occupation: true,
+        investmentExperience: true,
         createdAt: true,
       },
       orderBy: { fullName: "asc" }

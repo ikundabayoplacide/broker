@@ -27,12 +27,13 @@ export default function ClientDashboard() {
   });
   const [loading, setLoading] = useState(true);
 
+  const [fullUserData, setFullUserData] = useState<any>(null);
+
   const profileReminder = useMemo(() => {
-    if (!user) {
+    if (!fullUserData) {
       return { needed: false, tasks: [] as string[] };
     }
 
-    const record = user as Record<string, unknown>;
     const isEmpty = (value: unknown) =>
       value === null || value === undefined || (typeof value === 'string' && value.trim().length === 0);
 
@@ -41,46 +42,42 @@ export default function ClientDashboard() {
         id: 'verify-email',
         message: 'verify your email',
         optional: false,
-        isComplete: () => record.isVerified !== false,
+        isComplete: () => fullUserData.isVerified === true,
       },
       {
         id: 'phone',
         message: 'add a phone number',
         optional: false,
-        isComplete: () => !isEmpty(record.phone) && !isEmpty(record.phoneCountryCode),
+        isComplete: () => !isEmpty(fullUserData.phone) && !isEmpty(fullUserData.phoneCountryCode),
       },
       {
         id: 'address',
         message: 'confirm your address',
         optional: false,
-        isComplete: () => !isEmpty(record.country) && !isEmpty(record.city),
+        isComplete: () => !isEmpty(fullUserData.country) && !isEmpty(fullUserData.city),
       },
       {
         id: 'id-document',
         message: 'upload your ID document',
-        optional: true,
-        isComplete: () => !isEmpty(record.idDocument),
+        optional: false,
+        isComplete: () => !isEmpty(fullUserData.idDocument),
       },
       {
         id: 'passport-photo',
         message: 'add a passport photo',
-        optional: true,
-        isComplete: () => !isEmpty(record.passportPhoto),
+        optional: false,
+        isComplete: () => !isEmpty(fullUserData.passportPhoto),
       },
     ];
 
     const missingEssentials = requirements.filter((item) => !item.optional && !item.isComplete());
-    const missingOptional = requirements.filter((item) => item.optional && !item.isComplete());
-
-    const tasks = missingEssentials.length > 0
-      ? [...missingEssentials, ...missingOptional].map((item) => item.message)
-      : [];
+    const tasks = missingEssentials.map((item) => item.message);
 
     return {
       needed: missingEssentials.length > 0,
       tasks,
     };
-  }, [user]);
+  }, [fullUserData]);
 
   const { displayName, email, dashboardRole } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? '';
@@ -99,15 +96,21 @@ export default function ClientDashboard() {
     const fetchDashboardData = async () => {
       if (!user?.id || !token) return;
       try {
-        const [walletData, portfolioRes, tradesResponse] = await Promise.all([
-          axios.get('/wallet', { headers: { Authorization: `Bearer ${token}` } }) as Promise<{ wallet: { balance: string } }>,
+        const [walletData, portfolioRes, tradesResponse, userResponse] = await Promise.all([
+          axios.get('/wallet', { headers: { Authorization: `Bearer ${token}` } }) as Promise<{ success: boolean; wallet: { balance: number; lockedBalance: number } }>,
           fetch(`/api/portfolio?userId=${user.id}`).then(r => r.json()),
-          axios.get('/trade/history?limit=1000', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ trades: [] })) as Promise<{ trades: Array<{ type: string; status: string; executedQuantity?: number; quantity: number; companyId: string; userId: string }> }>,
+          axios.get('/trade/history?limit=1000', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ trades: [] })) as Promise<{ trades: Array<{ type: string; status: string; executedQuantity?: number; quantity: number; companyId: string; userId: string; executedPrice?: number; company?: { name: string }; Company?: { name: string } }> }>,
+          axios.get('/user', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { user: null } })) as Promise<{ data: { user: any } }>,
         ]);
+
+        const currentUser = Array.isArray(userResponse.data) 
+          ? userResponse.data.find((u: any) => u.id === user.id)
+          : userResponse.data;
         
+        setFullUserData(currentUser);
         setTradesData(tradesResponse.trades || []);
         
-        const walletBalance = parseFloat(walletData.wallet?.balance || '0');
+        const walletBalance = (walletData.wallet?.balance || 0) - (walletData.wallet?.lockedBalance || 0);
         const portfolioValue = portfolioRes.summary?.totalCurrentValue || 0;
         const portfolioChange = portfolioRes.summary?.totalProfitLossPercentage || 0;
         const totalShares = portfolioRes.portfolio?.reduce((sum: number, h: { quantity: number }) => sum + h.quantity, 0) || 0;
@@ -120,11 +123,12 @@ export default function ClientDashboard() {
         const companiesSold = new Set(sellTrades.map((t: { companyId: string }) => t.companyId)).size;
 
         // Get market updates from portfolio data using company priceChange (in Rwf cents)
-        const marketUpdates = (portfolioRes.portfolio || []).slice(0, 5).map((p: { companyName: string; currentPrice: number; priceChange: string | null }) => {
+        const marketUpdates = (portfolioRes.portfolio || []).slice(0, 5).map((p: { companyName: string; currentPrice?: number; priceChange: string | null }) => {
           const priceChange = p.priceChange ? parseFloat(p.priceChange) : 0;
+          const currentPrice = p.currentPrice || 0;
           return {
             name: p.companyName,
-            price: `Rwf ${p.currentPrice.toFixed(2)}`,
+            price: `Rwf ${currentPrice.toFixed(2)}`,
             change: `${priceChange >= 0 ? '+' : ''}Rwf ${priceChange.toFixed(2)}`,
             positive: priceChange >= 0,
           };
@@ -150,26 +154,54 @@ export default function ClientDashboard() {
     fetchDashboardData();
   }, [user?.id, token]);
 
-  const [tradesData, setTradesData] = useState<Array<{ type: string; status: string; executedQuantity?: number; quantity: number; companyId: string; userId: string }>>([]);
+  const [tradesData, setTradesData] = useState<Array<{ type: string; status: string; executedQuantity?: number; quantity: number; companyId: string; userId: string; executedPrice?: number; company?: { name: string }; Company?: { name: string } }>>([]);
 
-  const calculateTotalSharesBought = () => {
-    return tradesData
+  const calculateHoldingsFromTrades = () => {
+    const holdingsMap = new Map();
+    
+    // Process all executed trades for the user
+    tradesData
       .filter(trade => 
         trade.userId === user?.id && 
-        trade.type?.toLowerCase() === 'buy' && 
         trade.status?.toLowerCase() === 'executed'
       )
-      .reduce((total, trade) => total + (trade.executedQuantity || trade.quantity || 0), 0);
-  };
-
-  const calculateTotalSharesSold = () => {
-    return tradesData
-      .filter(trade => 
-        trade.userId === user?.id && 
-        trade.type?.toLowerCase() === 'sell' && 
-        trade.status?.toLowerCase() === 'executed'
-      )
-      .reduce((total, trade) => total + (trade.executedQuantity || trade.quantity || 0), 0);
+      .forEach(trade => {
+        const companyId = trade.companyId;
+        const companyName = trade.company?.name || trade.Company?.name || companyId;
+        const quantity = trade.executedQuantity || trade.quantity || 0;
+        const price = trade.executedPrice || 0;
+        
+        if (!holdingsMap.has(companyId)) {
+          holdingsMap.set(companyId, {
+            companyId,
+            companyName,
+            totalShares: 0,
+            totalInvested: 0,
+            averagePrice: 0
+          });
+        }
+        
+        const holding = holdingsMap.get(companyId);
+        
+        if (trade.type?.toLowerCase() === 'buy') {
+          // Add shares and investment
+          holding.totalInvested += quantity * price;
+          holding.totalShares += quantity;
+        } else if (trade.type?.toLowerCase() === 'sell') {
+          // Remove shares proportionally
+          const sellValue = quantity * price;
+          const avgPrice = holding.totalShares > 0 ? holding.totalInvested / holding.totalShares : 0;
+          holding.totalInvested -= quantity * avgPrice;
+          holding.totalShares -= quantity;
+        }
+        
+        // Calculate average price
+        holding.averagePrice = holding.totalShares > 0 ? holding.totalInvested / holding.totalShares : 0;
+      });
+    
+    // Filter out holdings with 0 or negative shares
+    const holdings = Array.from(holdingsMap.values()).filter(h => h.totalShares > 0);
+    return holdings;
   };
 
   const formatTaskList = (tasks: string[]) => {
@@ -253,7 +285,7 @@ export default function ClientDashboard() {
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1 mr-2">
                   <p className="text-[10px] md:text-xs font-medium text-gray-600 truncate">Total Shares Bought</p>
-                  <p className="text-base md:text-xl font-bold text-gray-900">{calculateTotalSharesBought()}</p>
+                  <p className="text-base md:text-xl font-bold text-gray-900">{tradesData.filter(t => t.userId === user?.id && t.type?.toLowerCase() === 'buy' && t.status?.toLowerCase() === 'executed').reduce((sum, t) => sum + (t.executedQuantity || t.quantity || 0), 0)}</p>
                   <p className="text-xs text-gray-600">{dashboardData.companiesCount} companies</p>
                 </div>
                 <div className="w-8 h-8 md:w-12 md:h-12 bg-green-100 rounded-full flex items-center justify-center shrink-0">
@@ -270,7 +302,7 @@ export default function ClientDashboard() {
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1 mr-2">
                   <p className="text-[10px] md:text-xs font-medium text-gray-600 truncate">Total Shares Sold</p>
-                  <p className="text-base md:text-xl font-bold text-gray-900">{calculateTotalSharesSold()}</p>
+                  <p className="text-base md:text-xl font-bold text-gray-900">{tradesData.filter(t => t.userId === user?.id && t.type?.toLowerCase() === 'sell' && t.status?.toLowerCase() === 'executed').reduce((sum, t) => sum + (t.executedQuantity || t.quantity || 0), 0)}</p>
                   <p className="text-xs text-orange-600">{dashboardData.companiesSold} companies</p>
                 </div>
                 <div className="w-8 h-8 md:w-12 md:h-12 bg-orange-100 rounded-full flex items-center justify-center shrink-0">
@@ -344,39 +376,47 @@ export default function ClientDashboard() {
 
           <Card className="p-4 md:p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
-            <div className="space-y-2">
-              <Link href="/dashboard/client/trade">
-                <Button 
-                  className="w-full text-xs py-2" 
-                  variant="outline"
-                >
-                  Buy Shares
-                </Button>
-              </Link>
-              <Link href="/dashboard/client/trade">
-                <Button 
-                  className="w-full text-xs py-2" 
-                  variant="outline"
-                >
-                  Sell Shares
-                </Button>
-              </Link>
-              <Link href="/dashboard/client/wallet">
-                <Button 
-                  className="w-full text-xs py-2" 
-                  variant="outline"
-                >
-                  Add Funds
-                </Button>
-              </Link>
-              <Link href="/dashboard/client/wallet">
-                <Button 
-                  className="w-full text-xs py-2" 
-                  variant="outline"
-                >
-                  Withdraw
-                </Button>
-              </Link>
+            <div className="space-y-3">
+              <div className="mb-3">
+                <Link href="/dashboard/client/trade">
+                  <Button 
+                    className="w-full text-xs py-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" 
+                    variant="outline"
+                  >
+                    Buy Shares
+                  </Button>
+                </Link>
+              </div>
+              <div className="mb-3">
+                <Link href="/dashboard/client/trade">
+                  <Button 
+                    className="w-full text-xs py-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" 
+                    variant="outline"
+                  >
+                    Sell Shares
+                  </Button>
+                </Link>
+              </div>
+              <div className="mb-3">
+                <Link href="/dashboard/client/wallet">
+                  <Button 
+                    className="w-full text-xs py-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" 
+                    variant="outline"
+                  >
+                    Add Funds
+                  </Button>
+                </Link>
+              </div>
+              <div>
+                <Link href="/dashboard/client/wallet">
+                  <Button 
+                    className="w-full text-xs py-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" 
+                    variant="outline"
+                  >
+                    Withdraw
+                  </Button>
+                </Link>
+              </div>
             </div>
           </Card>
         </div>
@@ -399,11 +439,11 @@ export default function ClientDashboard() {
                   <tbody>
                     {loading ? (
                       <tr><td colSpan={5} className="py-8 text-center text-slate-500 text-xs">Loading...</td></tr>
-                    ) : dashboardData.holdings.length === 0 ? (
+                    ) : calculateHoldingsFromTrades().length === 0 ? (
                       <tr><td colSpan={5} className="py-8 text-center text-slate-500 text-xs">No holdings yet</td></tr>
                     ) : (
-                      dashboardData.holdings.map((holding, index) => (
-                        <tr key={holding.id} className={`${index < dashboardData.holdings.length - 1 ? 'border-b border-gray-100' : ''} hover:bg-gray-50`}>
+                      calculateHoldingsFromTrades().map((holding, index) => (
+                        <tr key={holding.companyId} className={`${index < calculateHoldingsFromTrades().length - 1 ? 'border-b border-gray-100' : ''} hover:bg-gray-50`}>
                           <td className="py-2 px-1.5 md:px-3">
                             <div className="flex items-center">
                               <div className="w-5 h-5 md:w-6 md:h-6 bg-blue-100 rounded-full flex items-center justify-center mr-1.5 md:mr-2 shrink-0">
@@ -412,11 +452,11 @@ export default function ClientDashboard() {
                               <span className="font-medium text-xs md:text-sm truncate">{holding.companyName}</span>
                             </div>
                           </td>
-                          <td className="py-2 px-1.5 md:px-3">{holding.quantity}</td>
-                          <td className="py-2 px-1.5 md:px-3 whitespace-nowrap">Rwf {holding.currentPrice.toFixed(2)}</td>
-                          <td className="py-2 px-1.5 md:px-3 whitespace-nowrap hidden sm:table-cell">Rwf {holding.currentValue.toLocaleString()}</td>
-                          <td className={`py-2 px-1.5 md:px-3 whitespace-nowrap text-[10px] md:text-sm ${holding.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {holding.profitLoss >= 0 ? '+' : ''}Rwf {holding.profitLoss.toFixed(0)} ({holding.profitLossPercentage >= 0 ? '+' : ''}{holding.profitLossPercentage.toFixed(1)}%)
+                          <td className="py-2 px-1.5 md:px-3">{holding.totalShares}</td>
+                          <td className="py-2 px-1.5 md:px-3 whitespace-nowrap">Rwf {holding.averagePrice.toFixed(2)}</td>
+                          <td className="py-2 px-1.5 md:px-3 whitespace-nowrap hidden sm:table-cell">Rwf {holding.totalInvested.toLocaleString()}</td>
+                          <td className="py-2 px-1.5 md:px-3 whitespace-nowrap text-[10px] md:text-sm text-gray-600">
+                            Trade-based
                           </td>
                         </tr>
                       ))

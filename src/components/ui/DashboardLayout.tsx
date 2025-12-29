@@ -145,7 +145,7 @@ export default function DashboardLayout({
         return [
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/client" },
           { name: "Investments", icon: FiBriefcase, href: "/dashboard/client/investments" },
-          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/client/trade" },
+          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
           { name: "Wallet", icon: FiCreditCard, href: "/dashboard/client/wallet" },
           { name: "History", icon: FiClipboard, href: "/dashboard/client/history" },
           { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
@@ -156,6 +156,7 @@ export default function DashboardLayout({
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/teller" },
           { name: "Users", icon: FiUsers, href: "/dashboard/teller/users" },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
+          { name: "Wallets", icon: FiCreditCard, href: "/dashboard/teller/wallet" },
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
           { name: "Orders", icon: FiClipboard, href: "/dashboard/teller/orders" },
           { name: "Executions", icon: FiZap, href: "/dashboard/teller/executions" },

@@ -1,6 +1,14 @@
 import "dotenv/config";
 import nodemailer from "nodemailer";
 
+console.log('🔧 Initializing email transporter...');
+console.log('Email config check:', {
+  host: process.env.MAIL_HOST,
+  port: process.env.MAIL_PORT,
+  user: process.env.MAIL_USER,
+  passExists: !!process.env.MAIL_PASS
+});
+
 export const transporter = nodemailer.createTransport({
   host: process.env.MAIL_HOST,
   port: Number(process.env.MAIL_PORT),
@@ -9,9 +17,40 @@ export const transporter = nodemailer.createTransport({
     user: process.env.MAIL_USER,
     pass: process.env.MAIL_PASS,
   },
+  debug: true,
+  logger: true,
 });
 
+// Test transporter connection
+export const testEmailConnection = async () => {
+  try {
+    console.log('🔍 Testing email connection...');
+    await transporter.verify();
+    console.log('✅ Email server connection verified successfully!');
+    return true;
+  } catch (error) {
+    console.error('❌ Email server connection failed:', error);
+    return false;
+  }
+};
+
 export const sendOTPEmail = async (to: string, otp: string) => {
+  // Test connection first
+  const connectionOk = await testEmailConnection();
+  if (!connectionOk) {
+    throw new Error('Email server connection failed');
+  }
+  
+  console.log('🔧 Email Configuration Check:');
+  console.log('MAIL_HOST:', process.env.MAIL_HOST);
+  console.log('MAIL_PORT:', process.env.MAIL_PORT);
+  console.log('MAIL_USER:', process.env.MAIL_USER);
+  console.log('MAIL_PASS exists:', !!process.env.MAIL_PASS);
+  console.log('MAIL_PASS length:', process.env.MAIL_PASS?.length);
+  
+  console.log('📧 Attempting to send OTP email to:', to);
+  console.log('🔑 OTP code:', otp);
+  
   const htmlBody = `
     <!DOCTYPE html>
     <html>
@@ -54,16 +93,44 @@ export const sendOTPEmail = async (to: string, otp: string) => {
   `;
 
   try {
-    await transporter.sendMail({
+    console.log('🚀 Sending email with transporter...');
+    
+    const mailOptions = {
       from: `"Broker Platform" <${process.env.MAIL_USER}>`,
       to,
       subject: "Verify your email",
       html: htmlBody,
+    };
+    
+    console.log('📬 Mail options:', {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      htmlLength: mailOptions.html.length
     });
-
-    console.log("OTP email sent to:", to);
-  } catch (error) {
-    console.error("Error sending email:", error);
+    
+    const result = await transporter.sendMail(mailOptions);
+    
+    console.log('✅ Email sent successfully!');
+    console.log('📊 Send result:', {
+      messageId: result.messageId,
+      response: result.response,
+      accepted: result.accepted,
+      rejected: result.rejected
+    });
+    
+    console.log("✅ OTP email sent to:", to);
+  } catch (error: any) {
+    console.error("❌ Error sending email:", error);
+    console.error('📋 Error details:', {
+      name: error?.name,
+      message: error?.message,
+      code: error?.code,
+      command: error?.command,
+      response: error?.response,
+      responseCode: error?.responseCode
+    });
+    throw error;
   }
 };
 

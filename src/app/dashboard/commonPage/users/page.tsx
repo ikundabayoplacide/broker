@@ -813,8 +813,6 @@ export default function UserManagementPage() {
                 }}
               >
                 <option value="All">All roles</option>
-                <option value="Teller">Teller</option>
-                <option value="Client">Client</option>
                 {availableRoleFilters.map((label) => (
                   <option key={label} value={label}>
                     {label}
@@ -1041,16 +1039,20 @@ export default function UserManagementPage() {
         </Card>
 
         <AnimatePresence>
-          <AddUserModal
-            isOpen={isCreateOpen}
-            onClose={closeCreateModal}
-            onUserCreated={handleUserCreated}
-            allowedCreateRoles={config.allowedCreateRoles}
-            defaultCreateRole={config.defaultCreateRole}
-          />
+          {isCreateOpen && (
+            <AddUserModal
+              key="add-user-modal"
+              isOpen={isCreateOpen}
+              onClose={closeCreateModal}
+              onUserCreated={handleUserCreated}
+              allowedCreateRoles={config.allowedCreateRoles}
+              defaultCreateRole={config.defaultCreateRole}
+            />
+          )}
 
           {editUser && editForm && (
             <motion.div
+              key="edit-user-modal"
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1363,6 +1365,7 @@ export default function UserManagementPage() {
 
           {viewUser && (
             <motion.div
+              key="view-user-modal"
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1475,23 +1478,30 @@ export default function UserManagementPage() {
             </motion.div>
           )}
 
-          <DeleteUserModal
-            isOpen={Boolean(pendingDelete)}
-            onClose={closeDeleteModal}
-            user={pendingDelete ? { id: pendingDelete.id, fullName: pendingDelete.name, email: pendingDelete.email, role: pendingDelete.role } : null}
-            onUserDeleted={fetchUsers}
-          />
+          {Boolean(pendingDelete) && (
+            <DeleteUserModal
+              key="delete-user-modal"
+              isOpen={Boolean(pendingDelete)}
+              onClose={closeDeleteModal}
+              user={pendingDelete ? { id: pendingDelete.id, fullName: pendingDelete.name, email: pendingDelete.email, role: pendingDelete.role } : null}
+              onUserDeleted={fetchUsers}
+            />
+          )}
 
-          <OtpVerificationModal
-            isOpen={isOtpModalOpen}
-            onClose={closeOtpModal}
-            email={otpContext.email}
-            userId={otpContext.userId}
-            onVerificationSuccess={handleOtpVerificationSuccess}
-          />
+          {isOtpModalOpen && (
+            <OtpVerificationModal
+              key="otp-modal"
+              isOpen={isOtpModalOpen}
+              onClose={closeOtpModal}
+              email={otpContext.email}
+              userId={otpContext.userId}
+              onVerificationSuccess={handleOtpVerificationSuccess}
+            />
+          )}
 
           {showReportModal && (
             <ReportModal
+              key="report-modal"
               isOpen={showReportModal}
               onClose={() => {
                 setShowReportModal(false);

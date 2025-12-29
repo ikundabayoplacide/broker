@@ -75,24 +75,53 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Transform the data
-    const portfolioData = portfolio.map(item => ({
-      companyId: item.companyId,
-      quantity: item.quantity,
-      averageBuyPrice: Number(item.averageBuyPrice),
-      totalInvested: Number(item.totalInvested),
-      currentValue: item.quantity * Number(item.Company.closingPrice || item.Company.sharePrice || 0),
-      company: {
-        id: item.Company.id,
-        symbol: item.Company.symbol,
-        name: item.Company.name,
-        currentPrice: Number(item.Company.closingPrice || item.Company.sharePrice || 0)
-      }
-    }));
+    // Transform the data and calculate summary
+    const portfolioData = portfolio.map(item => {
+      const currentPrice = Number(item.Company.closingPrice || item.Company.sharePrice || 0);
+      const currentValue = item.quantity * currentPrice;
+      const totalInvested = Number(item.totalInvested);
+      const profitLoss = currentValue - totalInvested;
+      const profitLossPercentage = totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0;
+      
+      return {
+        id: item.id,
+        companyId: item.companyId,
+        companyName: item.Company.name,
+        sector: null, // Add sector if available in Company model
+        quantity: item.quantity,
+        averageBuyPrice: Number(item.averageBuyPrice),
+        currentPrice,
+        totalInvested,
+        currentValue,
+        profitLoss,
+        profitLossPercentage,
+        company: {
+          id: item.Company.id,
+          symbol: item.Company.symbol,
+          name: item.Company.name,
+          currentPrice
+        }
+      };
+    });
+
+    // Calculate summary from Portfolio table data
+    const summary = {
+      totalInvested: portfolioData.reduce((sum, item) => sum + item.totalInvested, 0),
+      totalCurrentValue: portfolioData.reduce((sum, item) => sum + item.currentValue, 0),
+      totalProfitLoss: portfolioData.reduce((sum, item) => sum + item.profitLoss, 0),
+      totalProfitLossPercentage: 0,
+      totalHoldings: portfolioData.length
+    };
+    
+    // Calculate overall profit/loss percentage
+    if (summary.totalInvested > 0) {
+      summary.totalProfitLossPercentage = (summary.totalProfitLoss / summary.totalInvested) * 100;
+    }
 
     return NextResponse.json({
       success: true,
-      portfolio: portfolioData
+      portfolio: portfolioData,
+      summary
     });
 
   } catch (error) {

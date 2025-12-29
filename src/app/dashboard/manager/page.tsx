@@ -105,7 +105,7 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             <div className="flex justify-between items-start animate-fadeInUp">
               <div>
-                <h1 className="text-2xl font-bold text-gray-500">Manager's Dashboard [ manager of branches]</h1>
+                <h1 className="text-2xl font-bold text-gray-500">Manager's Dashboard</h1>
                 <p className="text-base text-gray-400">
                   Manage clients, tellers, and oversee platform operations. for specific branch
                 </p>

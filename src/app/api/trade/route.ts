@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       actualClientId = clientId;
     }
 
-    // Start transaction
+    // Start transaction with increased timeout
     const result = await prisma.$transaction(async (tx) => {
       // Find the company
       const company = await tx.company.findFirst({
@@ -309,12 +309,7 @@ export async function POST(request: NextRequest) {
         ? BigInt(availableShares - quantity)
         : BigInt(availableShares + quantity);
 
-      const currentCompany = await tx.company.findUnique({
-        where: { id: company.id },
-        select: { closingPrice: true, tradedVolume: true, tradedValue: true }
-      });
-
-      const oldClosingPrice = currentCompany?.closingPrice || executionPrice;
+      const oldClosingPrice = company.closingPrice || company.sharePrice || executionPrice;
       const priceChangeInCents = Number(executionPrice) - Number(oldClosingPrice);
 
       await tx.company.update({
@@ -382,6 +377,8 @@ export async function POST(request: NextRequest) {
         executor: executor.fullName,
         executorRole: executor.role,
       };
+    }, {
+      timeout: 15000, // 15 seconds timeout
     });
 
     return NextResponse.json({

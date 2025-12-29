@@ -109,6 +109,13 @@ export default function InvestmentsPage() {
 
         {/* Portfolio Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+           <Card className="p-3 md:p-6" hover={false}>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-600">Total Invested</p>
+              <p className="text-xl md:text-2xl font-bold text-slate-900">Rwf {summary.totalInvested.toLocaleString()}</p>
+              <p className="text-sm text-slate-500">Initial capital deployed</p>
+            </div>
+          </Card>
           <Card className="p-3 md:p-6" hover={false}>
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-600">Total Value</p>
@@ -130,13 +137,7 @@ export default function InvestmentsPage() {
             </div>
           </Card>
 
-          <Card className="p-3 md:p-6" hover={false}>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-600">Total Invested</p>
-              <p className="text-xl md:text-2xl font-bold text-slate-900">Rwf {summary.totalInvested.toLocaleString()}</p>
-              <p className="text-sm text-slate-500">Initial capital deployed</p>
-            </div>
-          </Card>
+         
 
           <Card className="p-3 md:p-6" hover={false}>
             <div className="space-y-2">
@@ -203,7 +204,7 @@ export default function InvestmentsPage() {
                     borderRadius: '8px',
                     fontSize: '12px'
                   }}
-                  formatter={(value: number) => [`Rwf ${value.toLocaleString()}`, 'Portfolio Value']}
+                  formatter={(value: number | undefined) => [`Rwf ${(value || 0).toLocaleString()}`, 'Portfolio Value']}
                 />
                 <Line 
                   type="monotone" 
@@ -314,7 +315,7 @@ export default function InvestmentsPage() {
               )}
             </div>
             <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-slate-200">
-              <Button className="w-full text-xs md:text-sm" variant="outline">Rebalance Portfolio</Button>
+              <Button className="w-full text-xs md:text-sm hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200 " variant="outline">Rebalance Portfolio</Button>
             </div>
           </Card>
         </div>
