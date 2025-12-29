@@ -1,3 +1,3 @@
 'use client';
-
-export { default } from '../../client/trade/page';
+// i need to call commonPage/trade
+export { default } from '../../commonPage/trade/page';
