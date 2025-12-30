@@ -15,7 +15,7 @@ export async function GET(_request: Request, context: { params: RouteParams }) {
 	try {
 		const order = await prisma.purchaseOrder.findUnique({
 			where: { id },
-			include: { items: true },
+			include: { PurchaseOrderItem: true },
 		});
 
 		if (!order) {
@@ -59,13 +59,13 @@ export async function PATCH(request: Request, context: { params: RouteParams }) 
 					),
 					...(items
 						? {
-							items: {
+							PurchaseOrderItem: {
 								create: items,
 							},
 						}
 						: {}),
 				},
-				include: { items: true },
+				include: { PurchaseOrderItem: true },
 			});
 		});
 

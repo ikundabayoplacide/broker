@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 
 const priceSchema = z
 	.union([z.number(), z.string()])
@@ -65,6 +66,7 @@ export function normalizeSaleItems(items: Array<z.infer<typeof saleOrderItemSche
 		}))
 		.filter((item) => item.security.length > 0 && item.quantity > 0)
 		.map((item) => ({
+			id: randomUUID(),
 			security: item.security,
 			quantity: item.quantity,
 			...(item.price !== null ? { price: new Prisma.Decimal(item.price) } : {}),

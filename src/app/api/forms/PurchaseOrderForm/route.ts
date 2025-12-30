@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
 import {
 	buildPurchaseOrderData,
 	handlePurchaseOrderApiError,
@@ -33,11 +34,13 @@ export async function POST(request: Request) {
 		const data = buildPurchaseOrderData(payload);
 
 		const createData = {
+			id: randomUUID(),
 			...data,
 			termsAccepted: true,
 			bestMarketPrice: payload.bestMarketPrice ?? false,
 			priceLimit: payload.priceLimit ?? false,
-			items: {
+			updatedAt: new Date(),
+			PurchaseOrderItem: {
 				create: items,
 			},
 		};

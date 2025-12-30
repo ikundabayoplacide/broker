@@ -378,7 +378,7 @@ export default function ClientDashboard() {
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
             <div className="space-y-3">
               <div className="mb-3">
-                <Link href="/dashboard/client/trade">
+                <Link href="/dashboard/commonPage/trade">
                   <Button 
                     className="w-full text-xs py-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" 
                     variant="outline"
@@ -388,7 +388,7 @@ export default function ClientDashboard() {
                 </Link>
               </div>
               <div className="mb-3">
-                <Link href="/dashboard/client/trade">
+                <Link href="/dashboard/commonPage/trade">
                   <Button 
                     className="w-full text-xs py-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" 
                     variant="outline"

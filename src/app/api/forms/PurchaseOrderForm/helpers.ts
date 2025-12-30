@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 
 // Define the standing frequency values directly
 const standingFrequencyValues = ["ANNUALLY", "WEEKLY", "MONTHLY", "NONE"] as const;
@@ -77,6 +78,7 @@ export function normalizePurchaseItems(items: Array<z.infer<typeof purchaseOrder
 		}))
 		.filter((item) => item.security.length > 0 && item.quantity > 0)
 		.map((item) => ({
+			id: randomUUID(),
 			security: item.security,
 			quantity: item.quantity,
 			...(item.price !== null ? { price: new Prisma.Decimal(item.price) } : {}),

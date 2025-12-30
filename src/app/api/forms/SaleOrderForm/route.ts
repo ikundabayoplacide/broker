@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
 import {
 	buildSaleOrderData,
 	handleSaleOrderApiError,
@@ -12,7 +13,7 @@ export async function GET() {
 	try {
 		const orders = await prisma.saleOrder.findMany({
 			orderBy: { createdAt: "desc" },
-			include: { items: true },
+			include: { SaleOrderItem: true },
 		});
 		return NextResponse.json({ data: orders });
 	} catch (error) {
@@ -33,11 +34,13 @@ export async function POST(request: Request) {
 		const data = buildSaleOrderData(payload);
 
 		const createData = {
+			id: randomUUID(),
 			...data,
 			termsAccepted: true,
 			bestMarketPrice: payload.bestMarketPrice ?? false,
 			priceLimit: payload.priceLimit ?? false,
-			items: {
+			updatedAt: new Date(),
+			SaleOrderItem: {
 				create: items,
 			},
 		};
@@ -48,7 +51,7 @@ export async function POST(request: Request) {
 
 		const order = await prisma.saleOrder.create({
 			data: cleanedCreateData,
-			include: { items: true },
+			include: { SaleOrderItem: true },
 		});
 
 		return NextResponse.json({ data: order }, { status: 201 });

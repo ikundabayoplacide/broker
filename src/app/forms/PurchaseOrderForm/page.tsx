@@ -1,13 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
 import Footer from "@/components/footer";
 import Header from "@/components/header";
 import { InputField } from "@/components/ui/InputField";
+import Toast from "@/components/ui/Toast";
 
 type ClientField = "clientName" | "csdNumber" | "phone" | "email" | "address";
-type StandingFrequency = "Annually" | "Weekly" | "Monthly" | "";
+type StandingFrequency = "ANNUALLY" | "WEEKLY" | "MONTHLY" | "";
 
 interface OrderRow {
 	security: string;
@@ -15,14 +16,15 @@ interface OrderRow {
 	price: string;
 }
 
-const initialRows: OrderRow[] = Array.from({ length: 6 }, () => ({
+const initialRows: OrderRow[] = [{
 	security: "",
 	quantity: "",
 	price: "",
-}));
+}];
 
 export default function PurchaseOrderForm() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [termsAccepted, setTermsAccepted] = useState(false);
 	const [clientFields, setClientFields] = useState<Record<ClientField, string>>({
 		clientName: "",
@@ -52,27 +54,88 @@ export default function PurchaseOrderForm() {
 		});
 	};
 
-	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [toast, setToast] = useState<{type: 'success' | 'error', title: string, message: string} | null>(null);
+
+	// Auto-populate security from URL params
+	useEffect(() => {
+		const security = searchParams.get('security');
+		if (security) {
+			setOrderRows([{
+				security: security,
+				quantity: "",
+				price: "",
+			}]);
+		}
+	}, [searchParams]);
+
+	const addOrderRow = () => {
+		setOrderRows(prev => [...prev, { security: "", quantity: "", price: "" }]);
+	};
+
+	const removeOrderRow = (index: number) => {
+		if (orderRows.length > 1) {
+			setOrderRows(prev => prev.filter((_, i) => i !== index));
+		}
+	};
+
+	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (!termsAccepted) {
-			alert("Please review and accept the Terms & Conditions before submitting.");
+			setToast({type: 'error', title: 'Terms Required', message: 'Please review and accept the Terms & Conditions before submitting.'});
 			return;
 		}
 
-		const payload = {
-			client: clientFields,
-			preferences: {
+		setIsSubmitting(true);
+
+		try {
+			// Filter out empty order rows
+			const validItems = orderRows
+				.filter(row => row.security.trim() && row.quantity.trim() && parseInt(row.quantity) > 0)
+				.map(row => ({
+					security: row.security.trim(),
+					quantity: parseInt(row.quantity),
+					price: row.price.trim() ? parseFloat(row.price) : null
+				}));
+
+			if (validItems.length === 0) {
+				setToast({type: 'error', title: 'Items Required', message: 'Please add at least one valid order item.'});
+				return;
+			}
+
+			const payload = {
+				...clientFields,
 				bestMarketPrice,
 				priceLimit,
-				standingOrderNote,
-			},
-			orders: orderRows,
-			standingOrder: {
-				frequency: standingFrequency,
-				instructions: additionalInstructions.trim(),
-			},
-		};
-		alert("Purchase order captured! (This demo does not submit to an API.)");
+				standingOrderNote: standingOrderNote.trim() || null,
+				standingFrequency: standingFrequency || "NONE",
+				additionalInstructions: additionalInstructions.trim() || null,
+				termsAccepted: true,
+				items: validItems
+			};
+
+			const response = await fetch('/api/forms/PurchaseOrderForm', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(payload)
+			});
+
+			if (response.ok) {
+				const result = await response.json();
+				setToast({type: 'success', title: 'Order Submitted', message: 'Your purchase order has been submitted successfully!'});
+				setTimeout(() => router.push('/dashboard'), 2000);
+			} else {
+				const error = await response.json();
+				setToast({type: 'error', title: 'Submission Failed', message: error.error || 'Failed to submit order'});
+			}
+		} catch (error) {
+			console.error('Submit error:', error);
+			setToast({type: 'error', title: 'Network Error', message: 'Please check your connection and try again.'});
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 		return (
@@ -82,7 +145,7 @@ export default function PurchaseOrderForm() {
 							<button
 								type="button"
 								onClick={() => router.back()}
-								className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-[#015B70] transition hover:text-[#013b4a]"
+								className="mb-6 inline-flex mt-5 bg-[#E0F2F7] px-3 py-2 rounded-full items-center gap-2 text-sm font-semibold text-[#015B70] transition hover:bg-[#C4E6F1]"
 							>
 								<span aria-hidden="true">←</span>
 								Back
@@ -240,7 +303,7 @@ export default function PurchaseOrderForm() {
 				<section className="rounded-3xl bg-white p-8 shadow-lg">
 					<header className="mb-6 flex flex-col gap-1">
 						<h2 className="text-xl font-semibold text-slate-900">Purchase Order Details</h2>
-						<p className="text-sm text-slate-600">Specify up to six securities with quantities and target prices.</p>
+						<p className="text-sm text-slate-600">Add securities with quantities and target prices. Click "+ Add Another Security" to add more.</p>
 					</header>
 
 					<div className="overflow-hidden rounded-2xl border border-slate-200">
@@ -251,6 +314,7 @@ export default function PurchaseOrderForm() {
 									<th className="px-4 py-3">Security</th>
 									<th className="px-4 py-3">Quantity</th>
 									<th className="px-4 py-3">Price</th>
+									<th className="px-4 py-3">Action</th>
 								</tr>
 							</thead>
 							<tbody className="divide-y divide-slate-200 bg-white">
@@ -287,10 +351,30 @@ export default function PurchaseOrderForm() {
 												placeholder="0.00"
 											/>
 										</td>
+										<td className="px-4 py-3">
+											{orderRows.length > 1 && (
+												<button
+													type="button"
+													onClick={() => removeOrderRow(index)}
+													className="text-red-600 hover:text-red-800 text-sm"
+												>
+													Remove
+												</button>
+											)}
+										</td>
 									</tr>
 								))}
 							</tbody>
 						</table>
+						<div className="p-4 border-t border-slate-200">
+							<button
+								type="button"
+								onClick={addOrderRow}
+								className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+							>
+								+ Add Another Security
+							</button>
+						</div>
 					</div>
 				</section>
 
@@ -306,7 +390,7 @@ export default function PurchaseOrderForm() {
 						<div className="space-y-3 rounded-2xl border border-slate-200 p-5">
 							<p className="text-sm font-medium text-slate-700">How often is the purchase to be made?</p>
 							<div className="flex flex-wrap gap-4">
-								{["Annually", "Weekly", "Monthly"].map((frequency) => (
+								{["ANNUALLY", "WEEKLY", "MONTHLY"].map((frequency) => (
 									<label key={frequency} className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm ${standingFrequency === frequency ? "border-rose-500 bg-rose-50 text-rose-600" : "border-slate-200 text-slate-600"}`}>
 										<input
 											type="radio"
@@ -316,7 +400,7 @@ export default function PurchaseOrderForm() {
 											onChange={(event) => setStandingFrequency(event.target.value as StandingFrequency)}
 											className="text-rose-600 focus:ring-rose-500"
 										/>
-										{frequency}
+										{frequency.charAt(0) + frequency.slice(1).toLowerCase()}
 									</label>
 								))}
 							</div>
@@ -342,14 +426,22 @@ export default function PurchaseOrderForm() {
 					<button
 						type="submit"
 						className="rounded-full bg-rose-600 px-8 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
-						disabled={!termsAccepted}
+						disabled={!termsAccepted || isSubmitting}
 					>
-						Submit Order
+						{isSubmitting ? 'Submitting...' : 'Submit Order'}
 					</button>
 				</div>
 						</form>
 					</main>
 					<Footer />
+					{toast && (
+						<Toast
+							type={toast.type}
+							title={toast.title}
+							message={toast.message}
+							onClose={() => setToast(null)}
+						/>
+					)}
 		</div>
 	);
 }

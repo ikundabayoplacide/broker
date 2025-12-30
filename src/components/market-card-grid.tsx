@@ -447,7 +447,7 @@ export function MarketCardGrid(): JSX.Element {
                     {/* Action Buttons */}
                     <div className="flex gap-2">
                       <Link
-                        href="/forms/PurchaseOrderForm"
+                        href={`/forms/PurchaseOrderForm?security=${card.security}`}
                         className="group/btn inline-flex items-center justify-center rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-md transition-all hover:bg-emerald-600 hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-300"
                       >
                         <span>Buy</span>
@@ -456,7 +456,7 @@ export function MarketCardGrid(): JSX.Element {
                         </svg>
                       </Link>
                       <Link
-                        href="/forms/SaleOrderForm"
+                        href={`/forms/SaleOrderForm?security=${card.security}`}
                         className="inline-flex items-center justify-center rounded-xl border-2 border-rose-400 bg-white px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-rose-500 transition-all hover:bg-rose-500 hover:text-white hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-4 focus:ring-rose-300"
                       >
                         <span>Sell</span>

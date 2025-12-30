@@ -257,6 +257,7 @@ model PurchaseOrder {
   standingFrequency      PurchaseOrder_standingFrequency?
   additionalInstructions String?
   termsAccepted          Boolean                          @default(false)
+  status                 PurchaseOrder_status             @default(PENDING)
   createdAt              DateTime                         @default(now())
   updatedAt              DateTime
   PurchaseOrderItem      PurchaseOrderItem[]
@@ -274,20 +275,21 @@ model PurchaseOrderItem {
 }
 
 model SaleOrder {
-  id                  String          @id
+  id                  String            @id
   clientName          String
   csdNumber           String?
   phone               String
   email               String
   address             String
-  bestMarketPrice     Boolean         @default(false)
-  priceLimit          Boolean         @default(false)
+  bestMarketPrice     Boolean           @default(false)
+  priceLimit          Boolean           @default(false)
   withinTimeLimitNote String?
   bankName            String?
   bankBranch          String?
   accountNumber       String?
-  termsAccepted       Boolean         @default(false)
-  createdAt           DateTime        @default(now())
+  termsAccepted       Boolean           @default(false)
+  status              SaleOrder_status  @default(PENDING)
+  createdAt           DateTime          @default(now())
   updatedAt           DateTime
   SaleOrderItem       SaleOrderItem[]
 }
@@ -405,6 +407,18 @@ model Wallet {
   User          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+enum PurchaseOrder_status {
+  PENDING
+  EXECUTED
+  REJECTED
+}
+
+enum SaleOrder_status {
+  PENDING
+  EXECUTED
+  REJECTED
 }
 
 enum CompanyPaymentMethod_type {

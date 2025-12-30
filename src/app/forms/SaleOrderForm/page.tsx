@@ -1,10 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
 import Footer from "@/components/footer";
 import Header from "@/components/header";
 import { InputField } from "@/components/ui/InputField";
+import Toast from "@/components/ui/Toast";
 
 type ClientField = "clientName" | "csdNumber" | "phone" | "email" | "address";
 
@@ -14,14 +15,15 @@ interface OrderRow {
 	price: string;
 }
 
-const initialRows: OrderRow[] = Array.from({ length: 6 }, () => ({
+const initialRows: OrderRow[] = [{
 	security: "",
 	quantity: "",
 	price: "",
-}));
+}];
 
 export default function SaleOrderForm() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [termsAccepted, setTermsAccepted] = useState(false);
 	const [clientFields, setClientFields] = useState<Record<ClientField, string>>({
 		clientName: "",
@@ -53,31 +55,89 @@ export default function SaleOrderForm() {
 		});
 	};
 
-	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [toast, setToast] = useState<{type: 'success' | 'error', title: string, message: string} | null>(null);
+
+	// Auto-populate security from URL params
+	useEffect(() => {
+		const security = searchParams.get('security');
+		if (security) {
+			setOrderRows([{
+				security: security,
+				quantity: "",
+				price: "",
+			}]);
+		}
+	}, [searchParams]);
+
+	const addOrderRow = () => {
+		setOrderRows(prev => [...prev, { security: "", quantity: "", price: "" }]);
+	};
+
+	const removeOrderRow = (index: number) => {
+		if (orderRows.length > 1) {
+			setOrderRows(prev => prev.filter((_, i) => i !== index));
+		}
+	};
+
+	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (!termsAccepted) {
-			alert("Please review and accept the Terms & Conditions before submitting.");
+			setToast({type: 'error', title: 'Terms Required', message: 'Please review and accept the Terms & Conditions before submitting.'});
 			return;
 		}
 
-		const payload = {
-			client: clientFields,
-			preferences: {
+		setIsSubmitting(true);
+
+		try {
+			// Filter out empty order rows
+			const validItems = orderRows
+				.filter(row => row.security.trim() && row.quantity.trim() && parseInt(row.quantity) > 0)
+				.map(row => ({
+					security: row.security.trim(),
+					quantity: parseInt(row.quantity),
+					price: row.price.trim() ? parseFloat(row.price) : null
+				}));
+
+			if (validItems.length === 0) {
+				setToast({type: 'error', title: 'Items Required', message: 'Please add at least one valid order item.'});
+				return;
+			}
+
+			const payload = {
+				...clientFields,
 				bestMarketPrice,
 				priceLimit,
-				withinTimeLimit,
-			},
-			orders: orderRows,
-			bankDetails: {
-				bankName,
-				bankBranch,
-				accountNumber,
-			},
-			officialUse: officialNote.trim(),
-		};
+				withinTimeLimitNote: withinTimeLimit.trim() || null,
+				bankName: bankName.trim() || null,
+				bankBranch: bankBranch.trim() || null,
+				accountNumber: accountNumber.trim() || null,
+				termsAccepted: true,
+				items: validItems
+			};
 
-		console.log("Sale order payload", payload);
-		alert("Sale order captured! (This demo does not submit to an API.)");
+			const response = await fetch('/api/forms/SaleOrderForm', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(payload)
+			});
+
+			if (response.ok) {
+				const result = await response.json();
+				setToast({type: 'success', title: 'Order Submitted', message: 'Your sale order has been submitted successfully!'});
+				setTimeout(() => router.push('/dashboard'), 2000);
+			} else {
+				const error = await response.json();
+				setToast({type: 'error', title: 'Submission Failed', message: error.error || 'Failed to submit order'});
+			}
+		} catch (error) {
+			console.error('Submit error:', error);
+			setToast({type: 'error', title: 'Network Error', message: 'Please check your connection and try again.'});
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 		return (
@@ -240,7 +300,7 @@ export default function SaleOrderForm() {
 				<section className="rounded-3xl bg-white p-8 shadow-lg">
 					<header className="mb-6 flex flex-col gap-1">
 						<h2 className="text-xl font-semibold text-slate-900">Sale Order Details</h2>
-						<p className="text-sm text-slate-600">List the securities you wish to sell along with quantities and price targets.</p>
+						<p className="text-sm text-slate-600">Add securities you wish to sell with quantities and price targets. Click "+ Add Another Security" to add more.</p>
 					</header>
 
 					<div className="overflow-hidden rounded-2xl border border-slate-200">
@@ -251,6 +311,7 @@ export default function SaleOrderForm() {
 									<th className="px-4 py-3">Security</th>
 									<th className="px-4 py-3">Quantity</th>
 									<th className="px-4 py-3">Price</th>
+									<th className="px-4 py-3">Action</th>
 								</tr>
 							</thead>
 							<tbody className="divide-y divide-slate-200 bg-white">
@@ -287,10 +348,30 @@ export default function SaleOrderForm() {
 												placeholder="0.00"
 											/>
 										</td>
+										<td className="px-4 py-3">
+											{orderRows.length > 1 && (
+												<button
+													type="button"
+													onClick={() => removeOrderRow(index)}
+													className="text-red-600 hover:text-red-800 text-sm"
+												>
+													Remove
+												</button>
+											)}
+										</td>
 									</tr>
 								))}
 							</tbody>
 						</table>
+						<div className="p-4 border-t border-slate-200">
+							<button
+								type="button"
+								onClick={addOrderRow}
+								className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+							>
+								+ Add Another Security
+							</button>
+						</div>
 					</div>
 				</section>
 
@@ -361,14 +442,22 @@ export default function SaleOrderForm() {
 					<button
 						type="submit"
 						className="rounded-full bg-rose-600 px-8 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
-						disabled={!termsAccepted}
+						disabled={!termsAccepted || isSubmitting}
 					>
-						Submit Order
+						{isSubmitting ? 'Submitting...' : 'Submit Order'}
 					</button>
 				</div>
 						</form>
 					</main>
 					<Footer />
+					{toast && (
+						<Toast
+							type={toast.type}
+							title={toast.title}
+							message={toast.message}
+							onClose={() => setToast(null)}
+						/>
+					)}
 		</div>
 	);
 }
