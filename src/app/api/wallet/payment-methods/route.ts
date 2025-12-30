@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/apiAuth";
+import { v4 as uuidv4 } from 'uuid';
 
 // GET /api/wallet/payment-methods - Get all payment methods for the current user
 export async function GET(req: NextRequest) {
@@ -53,12 +54,25 @@ export async function POST(req: NextRequest) {
     console.log("Payment methods POST - Auth successful:", { userId: auth.userId });
 
     const body = await req.json();
+    console.log("Payment methods POST - Request body:", body);
+    
     const { type, provider, accountNumber, accountName, isDefault, metadata } = body;
 
     // Validate required fields
     if (!type || !accountNumber) {
+      console.log("Payment methods POST - Validation failed:", { type, accountNumber });
       return NextResponse.json(
         { error: "Type and account number are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate type enum
+    const validTypes = ['MOBILE_MONEY', 'BANK_ACCOUNT', 'CREDIT_CARD'];
+    if (!validTypes.includes(type)) {
+      console.log("Payment methods POST - Invalid type:", { type, validTypes });
+      return NextResponse.json(
+        { error: `Invalid type. Must be one of: ${validTypes.join(', ')}` },
         { status: 400 }
       );
     }
@@ -71,18 +85,22 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Create the payment method
+    // Create the payment method with explicit ID
     const paymentMethod = await prisma.paymentMethod.create({
       data: {
+        id: uuidv4(),
         userId: auth.userId,
         type,
-        provider,
+        provider: provider || null,
         accountNumber,
-        accountName,
+        accountName: accountName || null,
         isDefault: isDefault ?? false,
-        metadata,
+        metadata: metadata || null,
+        updatedAt: new Date(),
       },
     });
+
+    console.log("Payment methods POST - Created successfully:", { id: paymentMethod.id });
 
     return NextResponse.json(
       { message: "Payment method added successfully", paymentMethod },

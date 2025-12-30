@@ -8,6 +8,7 @@ import ContactUs from '@/components/contactUs';
 import MarketSummary from '@/components/market';
 import { MarketHero } from '@/components/market-hero';
 import MarketCardGrid from '@/components/market-card-grid';
+import BackToTop from '@/components/back-to-top';
 
 export default function LandingPage() {
   return (
@@ -24,6 +25,7 @@ export default function LandingPage() {
       <Partners />
       <ContactUs />
       <Footer />
+      <BackToTop />
     </div>
   );
 }

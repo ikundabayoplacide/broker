@@ -9,8 +9,9 @@ import { useMarketSummary } from "@/hooks/useMarketSummary";
 
 const links = [
   { label: "Home", target: "home" },
-  { label: "Services", target: "services" },
   { label: "Market", target: "market" },
+  {label: "Securities", target: "securities" },
+  { label: "Services", target: "services" },
   { label: "About us", target: "about-us" },
   { label: "Contact us", target: "contactUs" },
 ];
@@ -178,6 +179,8 @@ export default function Header() {
       const yOffset = -80;
       const y = section.getBoundingClientRect().top + window.scrollY + yOffset;
       window.scrollTo({ top: y, behavior: "smooth" });
+    } else {
+      const allElements = document.querySelectorAll('[id]');
     }
   };
 

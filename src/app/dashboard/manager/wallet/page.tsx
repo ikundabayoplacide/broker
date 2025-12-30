@@ -62,7 +62,7 @@ interface TransactionActionResponse {
   status?: string;
 }
 
-export default function WalletPage() {
+export default function ManagerWalletPage() {
   const { user, token } = useAuth();
   const [activeTab, setActiveTab] = useState<TransactionType>("deposit");
   const [amount, setAmount] = useState("");
@@ -93,23 +93,16 @@ export default function WalletPage() {
   const transactionsPerPage = 10;
   const [deleteModal, setDeleteModal] = useState<{ show: boolean; id: string; name: string }>({ show: false, id: "", name: "" });
 
-  const { displayName, email, dashboardRole } = useMemo(() => {
+  const { displayName, email } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
-    const fallbackName = user?.email ? user.email.split("@")[0] : "User";
-    const role = user?.role?.toLowerCase();
-    const dashboardRole =
-      role === "client" || role === "teller" || role === "admin" || role === "company" 
-        ? (role as "client" | "teller" | "admin" | "company") 
-        : "client";
+    const fallbackName = user?.email ? user.email.split("@")[0] : "Manager";
     return {
       displayName: fullName || fallbackName,
       email: user?.email ?? "Not provided",
-      dashboardRole,
     };
-  }, [user?.email, user?.fullName, user?.role]);
+  }, [user?.email, user?.fullName]);
 
-  const isCompany = useMemo(() => dashboardRole === "company", [dashboardRole]);
-  const apiPrefix = useMemo(() => isCompany ? "/company" : "", [isCompany]);
+  const apiPrefix = "";
 
   // Fetch wallet data and payment methods on component mount
   useEffect(() => {
@@ -381,12 +374,12 @@ export default function WalletPage() {
   };
 
   return (
-    <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
+    <DashboardLayout userRole="manager" userName={displayName} userEmail={email}>
       <div className="space-y-4 md:space-y-6 max-w-full overflow-hidden">
         {/* Header */}
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Wallet</h1>
-          <p className="text-sm md:text-base text-slate-600 mt-1">Manage your funds and payment methods</p>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Manager Wallet</h1>
+          <p className="text-sm md:text-base text-slate-600 mt-1">Manage branch funds and payment methods</p>
         </div>
 
         {/* Pending Transactions Alert */}
@@ -431,8 +424,6 @@ export default function WalletPage() {
 
         {/* Balance Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
-         
-
           <Card className="p-3 md:p-6" hover={false}>
             <div className="flex items-center gap-2 md:gap-4">
               <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
@@ -447,7 +438,7 @@ export default function WalletPage() {
             </div>
           </Card>
 
-           <Card className="p-3 md:p-6" hover={false}>
+          <Card className="p-3 md:p-6" hover={false}>
             <div className="flex items-center gap-2 md:gap-4">
               <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
                 <Wallet className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
@@ -481,7 +472,7 @@ export default function WalletPage() {
           <Card className="p-3 md:p-6 lg:col-span-2" hover={false}>
             <div className="mb-4 md:mb-6">
               <h2 className="text-lg md:text-xl font-semibold text-slate-900">Manage Funds</h2>
-              <p className="text-sm md:text-base text-slate-600 mt-1">Add or withdraw money from your wallet</p>
+              <p className="text-sm md:text-base text-slate-600 mt-1">Add or withdraw money from branch wallet</p>
             </div>
 
             {/* Tab Toggle */}
@@ -679,24 +670,30 @@ export default function WalletPage() {
                 </div>
 
                 <InputField
-                    name="provider"
-                    label="Provider (e.g., MTN, Bank of Kigali)"
-                    value={newPaymentMethod.provider}
-                    onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, provider: e.target.value })}
-                    required type={""}                />
+                  name="provider"
+                  label="Provider (e.g., MTN, Bank of Kigali)"
+                  value={newPaymentMethod.provider}
+                  onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, provider: e.target.value })}
+                  required
+                  type=""
+                />
 
                 <InputField
-                    name="accountNumber"
-                    label={newPaymentMethod.type === "MOBILE_MONEY" ? "Phone Number" : "Account Number"}
-                    value={newPaymentMethod.accountNumber}
-                    onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, accountNumber: e.target.value })}
-                    required type={""}                />
+                  name="accountNumber"
+                  label={newPaymentMethod.type === "MOBILE_MONEY" ? "Phone Number" : "Account Number"}
+                  value={newPaymentMethod.accountNumber}
+                  onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, accountNumber: e.target.value })}
+                  required
+                  type=""
+                />
 
                 <InputField
-                    name="accountName"
-                    label="Account Name (Optional)"
-                    value={newPaymentMethod.accountName}
-                    onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, accountName: e.target.value })} type={""}                />
+                  name="accountName"
+                  label="Account Name (Optional)"
+                  value={newPaymentMethod.accountName}
+                  onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, accountName: e.target.value })}
+                  type=""
+                />
 
                 <div className="flex gap-2">
                   <Button type="submit" className="flex-1" disabled={loading}>

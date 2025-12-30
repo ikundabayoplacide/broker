@@ -180,6 +180,7 @@ export default function DashboardLayout({
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
           // { name: "Trade", icon: FiTrendingUp, href: "/dashboard/manager/trade"},
           { name: "Trade", icon: FiDollarSign, href: "/dashboard/commonPage/trade" },
+          {name:"Wallets",icon:FiCreditCard,href:"/dashboard/manager/wallet"},
           // { name: "Reports", icon: FiTrendingUp, href: "/dashboard/manager/reports" },
           { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },

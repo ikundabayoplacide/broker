@@ -436,7 +436,7 @@ export function CompanyCreateForm({ authToken, onCreated, onCancel, withCard = t
         />
 
         <div className="flex items-center justify-end gap-3">
-          <Button variant="outline" type="button" onClick={() => setFormState(INITIAL_STATE)} disabled={submitting}>
+          <Button variant="outline" type="button" className="hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" onClick={() => setFormState(INITIAL_STATE)} disabled={submitting}>
             Reset
           </Button>
           <Button type="submit" disabled={submitting}>
