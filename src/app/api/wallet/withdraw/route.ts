@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
     const numericAmount = Number(amount);
 
     // Validate amount
-    if (!numericAmount || Number.isNaN(numericAmount) || numericAmount < 10000) {
+    if (!numericAmount || Number.isNaN(numericAmount) || numericAmount < 100) {
       return NextResponse.json(
-        { error: "Invalid amount. Minimum withdrawal is 10,000 RWF" },
+        { error: "Invalid amount. Minimum withdrawal is 100 RWF" },
         { status: 400 }
       );
     }
@@ -104,6 +104,7 @@ export async function POST(req: NextRequest) {
         if (PaypackClient.isFailed(externalStatus)) {
           await prisma.transaction.create({
             data: {
+              id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               userId: userId,
               type: "WITHDRAW",
               amount: new Prisma.Decimal(numericAmount),
@@ -111,6 +112,7 @@ export async function POST(req: NextRequest) {
               paymentMethod: `${paymentMethod.type} - ${paymentMethod.provider || ""}`,
               reference,
               description: response.processor_message || "Withdrawal declined by Paypack",
+              updatedAt: new Date(),
               metadata: {
                 paymentMethodId,
                 accountNumber: paymentMethod.accountNumber,
@@ -129,6 +131,7 @@ export async function POST(req: NextRequest) {
 
         await prisma.transaction.create({
           data: {
+            id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             userId: userId,
             type: "WITHDRAW",
             amount: new Prisma.Decimal(numericAmount),
@@ -136,6 +139,7 @@ export async function POST(req: NextRequest) {
             paymentMethod: `${paymentMethod.type} - ${paymentMethod.provider || ""}`,
             reference,
             description: message,
+            updatedAt: new Date(),
             metadata: {
               paymentMethodId,
               accountNumber: paymentMethod.accountNumber,
@@ -165,6 +169,7 @@ export async function POST(req: NextRequest) {
       // Create transaction record
       const transaction = await tx.transaction.create({
         data: {
+          id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           userId: userId,
           type: "WITHDRAW",
           amount: new Prisma.Decimal(numericAmount),
@@ -172,6 +177,7 @@ export async function POST(req: NextRequest) {
           paymentMethod: `${paymentMethod.type} - ${paymentMethod.provider || ""}`,
           reference,
           description: `Withdrawal to ${paymentMethod.provider || paymentMethod.type}`,
+          updatedAt: new Date(),
           metadata: {
             paymentMethodId,
             accountNumber: paymentMethod.accountNumber,

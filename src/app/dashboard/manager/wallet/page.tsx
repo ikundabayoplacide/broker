@@ -647,7 +647,7 @@ export default function ManagerWalletPage() {
 
                 <Button
                   variant="outline"
-                  className="w-full mt-3 md:mt-4 text-xs md:text-sm"
+                  className="w-full mt-3 md:mt-4 text-xs md:text-sm hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                   onClick={() => setShowAddPaymentMethod(true)}
                 >
                   <Plus className="h-4 w-4 mr-2" />

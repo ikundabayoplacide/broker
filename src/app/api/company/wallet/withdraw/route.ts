@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
     const { amount, paymentMethodId } = await req.json();
     const numericAmount = Number(amount);
 
-    if (!numericAmount || numericAmount < 10000) {
-      return NextResponse.json({ error: "Invalid amount. Minimum withdrawal is 10,000 RWF" }, { status: 400 });
+    if (!numericAmount || numericAmount < 5000) {
+      return NextResponse.json({ error: "Invalid amount. Minimum withdrawal is 5,000 RWF" }, { status: 400 });
     }
 
     const paymentMethod = await prisma.companyPaymentMethod.findFirst({

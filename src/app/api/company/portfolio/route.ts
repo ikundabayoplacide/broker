@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthenticatedCompany } from "@/lib/apiAuth";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 401 });
+    const auth = await getAuthenticatedCompany(request);
+    if (!auth || !auth.companyId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const portfolios = await prisma.companyPortfolio.findMany({
-      where: { companyId: userId },
+      where: { companyId: auth.companyId },
       include: {
         Company_CompanyPortfolio_targetCompanyIdToCompany: {
           select: {
