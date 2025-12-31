@@ -241,7 +241,7 @@ export default function CompanyDashboard() {
                 <YAxis stroke="#64748b" fontSize={12} tickLine={false} tickFormatter={(value) => `${value.toFixed(0)}`} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
-                  formatter={(value: number) => [`Rwf ${value.toFixed(2)}`, 'Share Price']}
+                  formatter={(value: number | undefined) => [`Rwf ${(value || 0).toFixed(2)}`, 'Share Price']}
                 />
                 <Area type="monotone" dataKey="price" stroke="#004B5B" strokeWidth={2} fillOpacity={1} fill="url(#colorPrice)" />
               </AreaChart>

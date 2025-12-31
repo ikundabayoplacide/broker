@@ -4,7 +4,7 @@ import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   FiSearch,
   FiFilter,
@@ -13,13 +13,29 @@ import {
   FiXCircle,
   FiClock,
   FiEye,
+  FiRefreshCw,
 } from "react-icons/fi";
+
+interface Order {
+  id: string;
+  clientName: string;
+  phone: string;
+  type: string;
+  company: string;
+  quantity: number;
+  price: number;
+  total: number;
+  date: string;
+  status: string;
+}
 
 export default function TellerOrders() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const { displayName, email, dashboardRole } = useMemo((): {
     displayName: string;
@@ -36,73 +52,77 @@ export default function TellerOrders() {
     };
   }, [user?.email, user?.fullName]);
 
-  // Mock data - replace with actual API calls
-  const orders = [
-    {
-      id: "ORD-001",
-      client: "John Doe",
-      clientId: "#12345",
-      type: "BUY",
-      company: "BK Group",
-      quantity: 50,
-      price: 85.5,
-      total: 4275,
-      date: "2025-11-17 10:30:00",
-      status: "pending",
-    },
-    {
-      id: "ORD-002",
-      client: "Jane Smith",
-      clientId: "#12346",
-      type: "SELL",
-      company: "Equity Bank",
-      quantity: 25,
-      price: 42.3,
-      total: 1057.5,
-      date: "2025-11-17 09:15:00",
-      status: "pending",
-    },
-    {
-      id: "ORD-003",
-      client: "Mike Johnson",
-      clientId: "#12347",
-      type: "BUY",
-      company: "MTN Rwanda",
-      quantity: 100,
-      price: 28.75,
-      total: 2875,
-      date: "2025-11-17 08:45:00",
-      status: "completed",
-    },
-    {
-      id: "ORD-004",
-      client: "Sarah Williams",
-      clientId: "#12348",
-      type: "SELL",
-      company: "BK Group",
-      quantity: 75,
-      price: 86.0,
-      total: 6450,
-      date: "2025-11-16 16:20:00",
-      status: "completed",
-    },
-    {
-      id: "ORD-005",
-      client: "David Brown",
-      clientId: "#12349",
-      type: "BUY",
-      company: "Bralirwa",
-      quantity: 30,
-      price: 145.0,
-      total: 4350,
-      date: "2025-11-16 14:10:00",
-      status: "rejected",
-    },
-  ];
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const handleExcute = () => {
+    alert("Execute order functionality to be implemented. just wait!");
+  };
+
+  const handleReject = () => {
+    alert("Reject order functionality to be implemented. just wait!");
+  };
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      
+      const [sellOrdersResponse, purchaseOrdersResponse] = await Promise.all([
+        fetch('/api/forms/SaleOrderForm'),
+        fetch('/api/forms/PurchaseOrderForm')
+      ]);
+      
+      const sellOrdersData = sellOrdersResponse.ok ? (await sellOrdersResponse.json()).data || [] : [];
+      const purchaseOrdersData = purchaseOrdersResponse.ok ? (await purchaseOrdersResponse.json()).data || [] : [];
+      
+      const transformedSellOrders = sellOrdersData.flatMap((order: any) => 
+        order.SaleOrderItem?.map((item: any, index: number) => ({
+          id: `SO-${order.id}-${index + 1}`,
+          client: order.user?.fullName || order.user?.email || 'Unknown',
+          clientId: `#${order.userId}`,
+          clientName: order.clientName || 'Unknown',
+          phone: order.phone || 'N/A',
+          type: 'SELL',
+          company: item.security || 'Unknown Security',
+          quantity: item.quantity,
+          price: Number(item.price || 0),
+          total: Number(item.quantity || 0) * Number(item.price || 0),
+          date: order.createdAt,
+          status: order.status
+        } as Order)) || []
+      );
+      
+      const transformedPurchaseOrders = purchaseOrdersData.flatMap((order: any) => 
+        order.PurchaseOrderItem?.map((item: any, index: number) => ({
+          id: `PO-${order.id}-${index + 1}`,
+          client: order.user?.fullName || order.user?.email || 'Unknown',
+          clientId: `#${order.userId}`,
+          clientName: order.clientName || 'Unknown',
+          phone: order.phone || 'N/A',
+          type: 'BUY',
+          company: item.security || 'Unknown Security',
+          quantity: item.quantity,
+          price: Number(item.price || 0),
+          total: Number(item.quantity || 0) * Number(item.price || 0),
+          date: order.createdAt,
+          status: order.status
+        } as Order)) || []
+      );
+      
+      const allOrders = [...transformedSellOrders, ...transformedPurchaseOrders]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      setOrders(allOrders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
+      case "PENDING":
         return (
           <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-sm flex items-center gap-1">
             <FiClock className="w-3 h-3" />
@@ -142,7 +162,7 @@ export default function TellerOrders() {
 
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
-      order.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.id.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === "all" || order.status === filterStatus;
@@ -152,21 +172,34 @@ export default function TellerOrders() {
   });
 
   const stats = {
-    pending: orders.filter((o) => o.status === "pending").length,
-    completed: orders.filter((o) => o.status === "completed").length,
-    rejected: orders.filter((o) => o.status === "rejected").length,
+    pending: orders.filter((o) => o.status === "PENDING").length,
+    completed: orders.filter((o) => o.status === "COMPLETED").length,
+    rejected: orders.filter((o) => o.status === "REJECTED").length,
     total: orders.length,
+    sellOrders: orders.filter((o) => o.type === "SELL").length,
+    purchaseOrders: orders.filter((o) => o.type === "BUY").length,
   };
 
   return (
     <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
       <div className="space-y-2">
         {/* Header */}
-        <div className="animate-fadeInUp space-y-2">
-          <h1 className="text-2xl font-bold text-gray-600">Orders Management</h1>
-          <p className="text-base text-gray-400">
-            View, manage, and execute client orders across all portfolios.
-          </p>
+        <div className="animate-fadeInUp space-y-2 flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-600">Orders Management</h1>
+            <p className="text-base text-gray-400">
+              View, manage, and execute client orders across all portfolios.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={fetchOrders}
+            disabled={loading}
+            className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
+          >
+            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
 
         {/* Stats Cards */}
@@ -180,6 +213,32 @@ export default function TellerOrders() {
               </div>
               <div className="w-11 h-11 gradient-primary rounded-full flex items-center justify-center">
                 <FiFilter className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 hover:shadow-lg transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base font-medium text-gray-500 mb-2">Sell Orders</p>
+                <p className="text-xl font-semibold text-red-600">{stats.sellOrders}</p>
+                <p className="text-sm text-gray-400">Total sell orders</p>
+              </div>
+              <div className="w-11 h-11 bg-red-100 rounded-full flex items-center justify-center">
+                <FiXCircle className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 hover:shadow-lg transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base font-medium text-gray-500 mb-2">Purchase Orders</p>
+                <p className="text-xl font-semibold text-green-600">{stats.purchaseOrders}</p>
+                <p className="text-sm text-gray-400">Total purchase orders</p>
+              </div>
+              <div className="w-11 h-11 bg-green-100 rounded-full flex items-center justify-center">
+                <FiCheckCircle className="w-6 h-6 text-green-600" />
               </div>
             </div>
           </Card>
@@ -256,7 +315,7 @@ export default function TellerOrders() {
               <option value="buy">Buy Orders</option>
               <option value="sell">Sell Orders</option>
             </select>
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
               <FiDownload className="w-4 h-4" />
               Export
             </Button>
@@ -269,7 +328,7 @@ export default function TellerOrders() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Order ID</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">No</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Client</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Type</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Company</th>
@@ -282,15 +341,15 @@ export default function TellerOrders() {
                 </tr>
               </thead>
               <tbody>
-                {filteredOrders.map((order) => (
+                {filteredOrders.map((order, index) => (
                   <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">
-                      <p className="font-medium text-sm">{order.id}</p>
+                      <p className="font-medium text-sm text-gray-600">{index + 1}</p>
                     </td>
                     <td className="py-3 px-4">
                       <div>
-                        <p className="font-medium text-sm">{order.client}</p>
-                        <p className="text-xs text-gray-600">{order.clientId}</p>
+                        <p className="font-medium text-sm">{order.clientName}</p>
+                        <p className="text-xs text-gray-600">{order.phone}</p>
                       </div>
                     </td>
                     <td className="py-3 px-4">{getTypeBadge(order.type)}</td>
@@ -301,10 +360,10 @@ export default function TellerOrders() {
                       <p className="font-medium text-sm">{order.quantity}</p>
                     </td>
                     <td className="py-3 px-4">
-                      <p className="font-medium text-sm">Rwf {order.price.toFixed(2)}</p>
+                      <p className="font-medium text-sm">Rwf {Number(order.price || 0).toFixed(2)}</p>
                     </td>
                     <td className="py-3 px-4">
-                      <p className="font-medium text-sm">Rwf {order.total.toLocaleString()}</p>
+                      <p className="font-medium text-sm">Rwf {Number(order.total || 0).toLocaleString()}</p>
                     </td>
                     <td className="py-3 px-4">
                       <p className="text-sm text-gray-600">
@@ -320,12 +379,12 @@ export default function TellerOrders() {
                         <button className="p-2 hover:bg-gray-100 rounded-lg transition">
                           <FiEye className="w-4 h-4 text-gray-600" />
                         </button>
-                        {order.status === "pending" && (
+                        {order.status === "PENDING" && (
                           <>
-                            <Button size="sm" className="px-3 py-1">
+                            <Button size="sm" className="px-3 py-1" onClick={handleExcute}>
                               Execute
                             </Button>
-                            <Button size="sm" variant="outline" className="px-3 py-1">
+                            <Button size="sm" variant="outline" className="px-3 py-1 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" onClick={handleReject}>
                               Reject
                             </Button>
                           </>
@@ -338,7 +397,13 @@ export default function TellerOrders() {
             </table>
           </div>
 
-          {filteredOrders.length === 0 && (
+          {loading && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Loading orders...</p>
+            </div>
+          )}
+
+          {!loading && filteredOrders.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500">No orders found matching your criteria.</p>
             </div>
