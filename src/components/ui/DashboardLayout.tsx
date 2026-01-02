@@ -204,7 +204,7 @@ export default function DashboardLayout({
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/super-admin/trade" },
           {name:"Branches",icon:FiMenu,href:"/dashboard/super-admin/branches"},
           { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
-          { name: "Settings", icon: FiSettings, href: "/dashboard/company/settings" },
+          { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
         ];
       case "company":
         return [
