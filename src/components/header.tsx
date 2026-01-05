@@ -6,6 +6,7 @@ import { HiOutlineSearch, HiOutlineUser, HiOutlineChevronDown } from "react-icon
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useMarketSummary } from "@/hooks/useMarketSummary";
+import { LanguageSelector } from "@/components/translation/LanguageSelector";
 
 const links = [
   { label: "Home", target: "home" },
@@ -81,9 +82,7 @@ interface TickerSecurity {
 export default function Header() {
   const [isPaused, setIsPaused] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("English");
   const { isAuthenticated, dashboardPath, loading } = useAuth();
   const { data: marketSummary, loading: marketLoading, error: marketError } = useMarketSummary();
   const tickerWrapperRef = useRef<HTMLDivElement>(null);
@@ -240,37 +239,7 @@ export default function Header() {
             </div>
 
             {/* Language Selector */}
-            <div className="relative">
-              <button
-                onClick={() => setIsLanguageOpen(!isLanguageOpen)}
-                className="flex items-center gap-1 text-gray-700 text-sm font-medium hover:text-[#006b7d] transition"
-              >
-                {selectedLanguage}
-                <HiOutlineChevronDown
-                  className={`h-4 w-4 text-gray-400 transition-transform ${
-                    isLanguageOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-              {isLanguageOpen && (
-                <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50">
-                  {["English", "French", "Kinyarwanda", "Swahili"].map(
-                    (lang) => (
-                      <button
-                        key={lang}
-                        onClick={() => {
-                          setSelectedLanguage(lang);
-                          setIsLanguageOpen(false);
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
-                      >
-                        {lang}
-                      </button>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
+            <LanguageSelector />
 
             {/* Sign In */}
             {showPrimaryCta && (

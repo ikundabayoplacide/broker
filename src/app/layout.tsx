@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Poppins } from "next/font/google";
 import "./globals.css";
+import { TranslationProvider } from "@/components/translation/TranslationProvider";
 
 
 const poppins = Poppins({
@@ -37,7 +38,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable}`}>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {children}
+        <TranslationProvider originalLang="en">
+          {children}
+        </TranslationProvider>
       </body>
     </html>
   );

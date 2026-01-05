@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 interface ButtonProps {
   children: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'outline';
@@ -6,6 +8,7 @@ interface ButtonProps {
   className?: string;
   type?: 'button' | 'submit';
   disabled?: boolean;
+  href?: string;
 }
 
 export default function Button({ 
@@ -15,7 +18,8 @@ export default function Button({
   onClick, 
   className = '',
   type = 'button',
-  disabled = false
+  disabled = false,
+  href
 }: ButtonProps) {
   const baseClasses = 'font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100';
   
@@ -30,11 +34,37 @@ export default function Button({
     md: 'px-6 py-3 text-base',
     lg: 'px-8 py-4 text-lg'
   };
+
+  const handleLogout = async () => {
+    if (href === '/auth/logout') {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        sessionStorage.setItem('santech:logoutRedirect', 'true');
+        window.location.href = '/';
+      } catch (error) {
+        console.error('Logout failed:', error);
+        window.location.href = '/';
+      }
+    } else if (onClick) {
+      onClick();
+    }
+  };
+  
+  if (href && href !== '/auth/logout') {
+    return (
+      <Link
+        href={href}
+        className={`inline-block ${baseClasses} ${variants[variant]} ${sizes[size]} ${className} ${disabled ? 'pointer-events-none' : ''}`}
+      >
+        {children}
+      </Link>
+    );
+  }
   
   return (
     <button
       type={type}
-      onClick={onClick}
+      onClick={href === '/auth/logout' ? handleLogout : onClick}
       disabled={disabled}
       className={`${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`}
     >

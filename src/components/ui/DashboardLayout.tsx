@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
@@ -26,6 +24,8 @@ import {
 } from "react-icons/fi";
 import { useAuth } from "@/hooks/useAuth";
 import NotificationBell from '@/components/ui/NotificationBell';
+import { LanguageSelector } from '@/components/translation/LanguageSelector';
+import Button from "@/components/ui/Button";
 
 
 type DashboardRole = "client" | "teller" | "manager" | "admin" | "super-admin" | "company";
@@ -383,12 +383,10 @@ export default function DashboardLayout({
                 <FiHelpCircle className="w-6 h-6" />
               </button>
 
-              <select className="text-sm font-medium text-gray-600 border-none bg-transparent focus:outline-none cursor-pointer">
-                <option>EN</option>
-                <option>FR</option>
-                <option>RW</option>
-                <option>SW</option>
-              </select>
+              <LanguageSelector className="text-sm" />
+              <Button size="sm" href="/auth/logout" className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
+                Logout
+              </Button>
             </div>
           </div>
         </header>

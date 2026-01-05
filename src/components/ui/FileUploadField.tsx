@@ -147,7 +147,11 @@ export const FileUploadField: FC<FileUploadFieldProps> = ({
                 onChange={handleChange}
                 className="hidden"
               />
-              {hasFile && !uploading ? <CheckCircle className="h-4 w-4" /> : <UploadCloud className="h-4 w-4" />}
+              {hasFile && !uploading ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                <UploadCloud className="h-4 w-4" />
+              )}
               {uploading ? "Uploading" : hasFile ? "Replace" : "Choose file"}
             </label>
           </div>
