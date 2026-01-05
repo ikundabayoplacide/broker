@@ -26,7 +26,7 @@ model Branch {
   isActive                    Boolean       @default(true)
   createdAt                   DateTime      @default(now())
   updatedAt                   DateTime
-User_Branch_managerIdToUser   User? @relation("Branch_managerIdToUser", fields: [managerId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  User_Branch_managerIdToUser User?         @relation("Branch_managerIdToUser", fields: [managerId], references: [id], onUpdate: NoAction)
   Trade                       Trade[]
   User_User_branchIdToBranch  User[]        @relation("User_branchIdToBranch")
 
@@ -72,7 +72,6 @@ model Company {
   CompanyTrade_CompanyTrade_targetCompanyIdToCompany         CompanyTrade[]         @relation("CompanyTrade_targetCompanyIdToCompany")
   CompanyTransaction                                         CompanyTransaction[]
   CompanyWallet                                              CompanyWallet?
-  CompanyNotification                                        CompanyNotification[]
   Portfolio                                                  Portfolio[]
   Trade                                                      Trade[]
 }
@@ -193,23 +192,6 @@ model MarketSnapshot {
   @@index([syncedAt])
 }
 
-model CompanyNotification {
-  id        String   @id
-  companyId String
-  title     String
-  message   String   @db.Text
-  type      String   @default("INFO")
-  metadata  Json?
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime
-  Company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([createdAt])
-  @@index([isRead])
-}
-
 model Notification {
   id        String   @id
   userId    String
@@ -275,10 +257,14 @@ model PurchaseOrder {
   standingFrequency      PurchaseOrder_standingFrequency?
   additionalInstructions String?
   termsAccepted          Boolean                          @default(false)
-  status                 PurchaseOrder_status             @default(PENDING)
   createdAt              DateTime                         @default(now())
   updatedAt              DateTime
+  status                 PurchaseOrder_status             @default(PENDING)
+  userId                 String
+  User                   User                             @relation(fields: [userId], references: [id], onDelete: Cascade)
   PurchaseOrderItem      PurchaseOrderItem[]
+
+  @@index([userId])
 }
 
 model PurchaseOrderItem {
@@ -293,23 +279,27 @@ model PurchaseOrderItem {
 }
 
 model SaleOrder {
-  id                  String            @id
+  id                  String           @id
   clientName          String
   csdNumber           String?
   phone               String
   email               String
   address             String
-  bestMarketPrice     Boolean           @default(false)
-  priceLimit          Boolean           @default(false)
+  bestMarketPrice     Boolean          @default(false)
+  priceLimit          Boolean          @default(false)
   withinTimeLimitNote String?
   bankName            String?
   bankBranch          String?
   accountNumber       String?
-  termsAccepted       Boolean           @default(false)
-  status              SaleOrder_status  @default(PENDING)
-  createdAt           DateTime          @default(now())
+  termsAccepted       Boolean          @default(false)
+  createdAt           DateTime         @default(now())
   updatedAt           DateTime
+  status              SaleOrder_status @default(PENDING)
+  userId              String
+  User                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   SaleOrderItem       SaleOrderItem[]
+
+  @@index([userId])
 }
 
 model SaleOrderItem {
@@ -327,6 +317,7 @@ model Trade {
   id               String          @id
   userId           String
   companyId        String
+  branchId         String?
   type             Trade_type
   status           Trade_status    @default(PENDING)
   priceType        Trade_priceType @default(MARKET)
@@ -341,8 +332,7 @@ model Trade {
   createdAt        DateTime        @default(now())
   executedAt       DateTime?
   updatedAt        DateTime
-  branchId         String?
-  Branch           Branch?         @relation(fields: [branchId], references: [id],onDelete:NoAction,onUpdate:NoAction)
+  Branch           Branch?         @relation(fields: [branchId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   User             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -396,18 +386,20 @@ model User {
   isVerified                    Boolean         @default(false)
   otp                           String?
   otpExpiresAt                  DateTime?
+  branchId                      String?
   createdAt                     DateTime        @default(now())
   updatedAt                     DateTime
   createdById                   String?
-  branchId                      String?
   Branch_Branch_managerIdToUser Branch[]        @relation("Branch_managerIdToUser")
   Notification                  Notification[]
   PaymentMethod                 PaymentMethod[]
   Portfolio                     Portfolio[]
+  PurchaseOrder                 PurchaseOrder[]
+  SaleOrder                     SaleOrder[]
   Trade                         Trade[]
   Transaction                   Transaction[]
-Branch_User_branchIdToBranch    Branch? @relation("User_branchIdToBranch", fields: [branchId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  User                          User?           @relation("UserToUser", fields: [createdById], references: [id],onDelete: NoAction, onUpdate: NoAction)
+  Branch_User_branchIdToBranch  Branch?         @relation("User_branchIdToBranch", fields: [branchId], references: [id], onUpdate: NoAction)
+  User                          User?           @relation("UserToUser", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_User                    User[]          @relation("UserToUser")
   Wallet                        Wallet?
 

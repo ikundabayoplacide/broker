@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
+import { getAuthenticatedUser } from "@/lib/apiAuth";
 import {
 	buildPurchaseOrderData,
 	handlePurchaseOrderApiError,
@@ -23,6 +24,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
 	try {
+		// Get authenticated user
+		const auth = await getAuthenticatedUser(request as any);
+		if (!auth?.userId) {
+			return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+		}
+
 		const body = await request.json();
 		const payload = purchaseOrderCreateSchema.parse(body);
 		const items = normalizePurchaseItems(payload.items);
@@ -31,7 +38,7 @@ export async function POST(request: Request) {
 			return NextResponse.json({ error: "At least one valid order item is required" }, { status: 400 });
 		}
 
-		const data = buildPurchaseOrderData(payload);
+		const data = buildPurchaseOrderData(payload, auth.userId);
 
 		const createData = {
 			id: randomUUID(),

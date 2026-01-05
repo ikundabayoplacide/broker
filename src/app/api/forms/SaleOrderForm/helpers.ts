@@ -73,8 +73,12 @@ export function normalizeSaleItems(items: Array<z.infer<typeof saleOrderItemSche
 		}));
 }
 
-export function buildSaleOrderData(payload: SaleOrderCreateInput | SaleOrderUpdateInput) {
+export function buildSaleOrderData(
+	payload: SaleOrderCreateInput | SaleOrderUpdateInput,
+	userId?: string
+) {
 	return {
+		...(userId && { userId }),
 		clientName: payload.clientName ? payload.clientName.trim() : undefined,
 		csdNumber: payload.csdNumber !== undefined ? toNullableString(payload.csdNumber) : undefined,
 		phone: payload.phone ? payload.phone.trim() : undefined,

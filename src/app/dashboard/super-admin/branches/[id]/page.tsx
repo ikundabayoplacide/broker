@@ -450,7 +450,7 @@ export default function BranchDetailsPage() {
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <p className="text-red-500">{error || 'Branch not found'}</p>
-            <Button onClick={() => router.back()} className="mt-4">
+            <Button onClick={() => router.back()} className="mt-4 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
               Go Back
             </Button>
           </div>
@@ -472,7 +472,7 @@ export default function BranchDetailsPage() {
               variant="outline"
               size="sm"
               onClick={() => router.back()}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
             >
               <ArrowLeft className="w-4 h-4" />
               Back
@@ -490,7 +490,7 @@ export default function BranchDetailsPage() {
               <Button 
                 size="sm" 
                 variant="outline"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                 onClick={() => alert('Analytics coming soon')}
               >
                 <BarChart3 className="w-4 h-4" />
@@ -499,7 +499,7 @@ export default function BranchDetailsPage() {
               <Button 
                 size="sm" 
                 variant="outline"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                 onClick={() => window.print()}
               >
                 <Printer className="w-4 h-4" />
@@ -507,7 +507,7 @@ export default function BranchDetailsPage() {
               </Button>
               <Button 
                 size="sm" 
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
                 onClick={() => setShowEditModal(true)}
               >
                 <Edit className="w-4 h-4" />
@@ -516,7 +516,7 @@ export default function BranchDetailsPage() {
               <Button 
                 size="sm" 
                 variant="outline"
-                className="flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                className="flex items-center gap-2 text-red-600 hover:text-red-800 hover:bg-red-900 hover:border-red-800 transition-all duration-200"
                 onClick={() => setShowDeleteModal(true)}
               >
                 <Trash2 className="w-4 h-4" />

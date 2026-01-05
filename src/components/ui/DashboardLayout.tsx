@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import NotificationBell from '@/components/ui/NotificationBell';
 import { LanguageSelector } from '@/components/translation/LanguageSelector';
 import Button from "@/components/ui/Button";
+import { MarketStatus } from '@/components/market/MarketStatus';
 
 
 type DashboardRole = "client" | "teller" | "manager" | "admin" | "super-admin" | "company";
@@ -378,6 +379,7 @@ export default function DashboardLayout({
             </div>
 
             <div className="flex items-center space-x-4 ml-auto">
+              <MarketStatus />
               <NotificationBell />
               <button className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
                 <FiHelpCircle className="w-6 h-6" />

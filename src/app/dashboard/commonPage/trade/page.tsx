@@ -47,6 +47,10 @@ export default function TradePage() {
   const { user } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [clientSearchTerm, setClientSearchTerm] = useState("");
+  const [clientCurrentPage, setClientCurrentPage] = useState(1);
+  const [clientTotalPages, setClientTotalPages] = useState(1);
+  const clientsPerPage = 5;
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
@@ -132,9 +136,17 @@ export default function TradePage() {
   // Load clients for teller/manager
   useEffect(() => {
     if (canSelectClient) {
-      fetchClients();
+      fetchClients(1, clientSearchTerm);
     }
   }, [canSelectClient]);
+
+  // Handle client search
+  useEffect(() => {
+    if (canSelectClient) {
+      setClientCurrentPage(1);
+      fetchClients(1, clientSearchTerm);
+    }
+  }, [clientSearchTerm, canSelectClient]);
 
   // Load wallet and portfolio when client is selected, for direct client, or when teller/manager trades for self
   useEffect(() => {
@@ -188,12 +200,14 @@ export default function TradePage() {
     }
   };
 
-  const fetchClients = async () => {
+  const fetchClients = async (page = 1, search = "") => {
     try {
-      const response = await fetch("/api/user?role=CLIENT");
+      const searchParam = search ? `&search=${encodeURIComponent(search)}` : "";
+      const response = await fetch(`/api/user?forTrade=true&page=${page}&limit=${clientsPerPage}${searchParam}`);
       const data = await response.json();
       if (data.success) {
         setClients(data.users || []);
+        setClientTotalPages(Math.ceil((data.total || 0) / clientsPerPage));
       }
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -619,85 +633,166 @@ export default function TradePage() {
           </Card>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-4">
+        <div className="space-y-4">
           {/* Left Column - Market Selection */}
           <div className="space-y-4">
-            {/* Client Selection */}
+            {/* Client Selection - Full Width */}
             {canSelectClient && tradingMode === "client" && (
               <Card className="p-6 animate-fadeInUp">
                 <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center">
                   <FiUser className="mr-2" /> Select Client
                 </h3>
-                <select
-                  value={selectedClient?.id || ""}
-                  onChange={(e) => {
-                    const client = clients.find(c => c.id === e.target.value);
-                    setSelectedClient(client || null);
-                  }}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#004F64] focus:border-transparent"
-                >
-                  <option value="">Choose a client...</option>
-                  {clients.map(client => (
-                    <option key={client.id} value={client.id}>
-                      {client.fullName} ({client.csdNumber})
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-4">
+                  <div className="relative">
+                    <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search clients..."
+                      value={clientSearchTerm}
+                      onChange={(e) => setClientSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#004F64] focus:border-transparent"
+                    />
+                  </div>
+                  
+                  {clients.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No clients found</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">CSD</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {clients.map((client) => (
+                              <tr key={client.id} className={`hover:bg-gray-50 ${
+                                selectedClient?.id === client.id ? 'bg-blue-50' : ''
+                              }`}>
+                                <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                  {client.fullName}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {client.email}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {client.csdNumber || '-'}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Button
+                                    size="sm"
+                                    variant={selectedClient?.id === client.id ? "primary" : "outline"}
+                                    onClick={() => setSelectedClient(client)}
+                                    className="text-xs"
+                                  >
+                                    {selectedClient?.id === client.id ? 'Selected' : 'Select'}
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      {clientTotalPages > 1 && (
+                        <div className="flex justify-between items-center mt-4">
+                          <div className="text-sm text-gray-500">
+                            Page {clientCurrentPage} of {clientTotalPages}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const newPage = Math.max(clientCurrentPage - 1, 1);
+                                setClientCurrentPage(newPage);
+                                fetchClients(newPage, clientSearchTerm);
+                              }}
+                              disabled={clientCurrentPage === 1}
+                              className="text-xs"
+                            >
+                              Previous
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const newPage = Math.min(clientCurrentPage + 1, clientTotalPages);
+                                setClientCurrentPage(newPage);
+                                fetchClients(newPage, clientSearchTerm);
+                              }}
+                              disabled={clientCurrentPage === clientTotalPages}
+                              className="text-xs"
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </Card>
             )}
 
-            {/* Market Selector */}
-            <Card className="p-6 animate-fadeInUp max-h-[500px] overflow-y-auto rounded-lg">
-              <h3 className="text-lg font-semibold text-gray-700 mb-4">Select Security</h3>
-              <div className="relative mb-4">
-                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search companies..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#004F64] focus:border-transparent"
-                />
-              </div>
-              <div className=" overflow-y-auto space-y-2">
-                {filteredCompanies.map(company => (
-                  <div
-                    key={company.id}
-                    onClick={() => setSelectedCompany(company)}
-                    className={`p-3 rounded-lg cursor-pointer transition-all ${
-                      selectedCompany?.id === company.id
-                        ? "bg-blue-50 border-2 border-[#004F64] shadow-sm"
-                        : "bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:shadow-sm"
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-semibold text-gray-900">{company.symbol}</div>
-                        <div className="text-sm text-gray-600 truncate">{company.name}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold">Rwf {(company.closingPrice || company.sharePrice).toFixed(2)}</div>
-                        <div className={`text-sm flex items-center ${
-                          parseFloat(company.priceChange) >= 0 ? "text-green-600" : "text-red-600"
-                        }`}>
-                          {parseFloat(company.priceChange) >= 0 ? <FiTrendingUp className="mr-1" /> : <FiTrendingDown className="mr-1" />}
-                          {company.priceChange}
+            <div className="grid lg:grid-cols-3 gap-4">
+              {/* Market Selector */}
+              <Card className="p-6 animate-fadeInUp max-h-[500px] overflow-y-auto rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">Select Security</h3>
+                <div className="relative mb-4">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search companies..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#004F64] focus:border-transparent"
+                  />
+                </div>
+                <div className=" overflow-y-auto space-y-2">
+                  {filteredCompanies.map(company => (
+                    <div
+                      key={company.id}
+                      onClick={() => setSelectedCompany(company)}
+                      className={`p-3 rounded-lg cursor-pointer transition-all ${
+                        selectedCompany?.id === company.id
+                          ? "bg-blue-50 border-2 border-[#004F64] shadow-sm"
+                          : "bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:shadow-sm"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-semibold text-gray-900">{company.symbol}</div>
+                          <div className="text-sm text-gray-600 truncate">{company.name}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold">Rwf {(company.closingPrice || company.sharePrice).toFixed(2)}</div>
+                          <div className={`text-sm flex items-center ${
+                            parseFloat(company.priceChange) >= 0 ? "text-green-600" : "text-red-600"
+                          }`}>
+                            {parseFloat(company.priceChange) >= 0 ? <FiTrendingUp className="mr-1" /> : <FiTrendingDown className="mr-1" />}
+                            {company.priceChange}
+                          </div>
                         </div>
                       </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Available: {company.availableShares.toLocaleString()} shares
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Available: {company.availableShares.toLocaleString()} shares
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
+                  ))}
+                </div>
+              </Card>
 
-          {/* Right Column - Trade Form */}
-          <div className="lg:col-span-2">
-            <Card className="p-6 animate-slideInRight">
-              <h3 className="text-xl font-semibold text-gray-700 mb-6">Place Order</h3>
+              {/* Place Order - Now spans 2 columns */}
+              <div className="lg:col-span-2">
+                <Card className="p-6 animate-slideInRight">
+                  <h3 className="text-xl font-semibold text-gray-700 mb-6">Place Order</h3>
               
               {!selectedCompany ? (
                 <div className="text-center py-12 text-gray-500">
@@ -867,7 +962,9 @@ export default function TradePage() {
                   </Button>
                 </div>
               )}
-            </Card>
+                </Card>
+              </div>
+            </div>
           </div>
         </div>
 

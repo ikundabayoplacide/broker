@@ -9,87 +9,27 @@ import { useMemo, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   FiClock,
-  FiCheckCircle,
   FiTrendingUp,
   FiUsers,
   FiDollarSign,
-  FiAlertTriangle,
-  FiPhone,
-  FiMail,
-  FiCalendar,
 } from "react-icons/fi";
-
-// Mock data for development (keeping only what's needed)
-const mockOrders = [
-  {
-    id: "ORD001",
-    client: { name: "Mujawamariya", id: "CL001", csdNumber: "20241201 1 RW01" },
-    company: { symbol: "BK", name: "Bank of Kigali" },
-    type: "BUY",
-    quantity: 100,
-    price: "450.00",
-    createdAt: "2024-12-23T09:30:00Z",
-    priority: "high"
-  },
-  {
-    id: "ORD002",
-    client: { name: "Tuyisenge Bosco", id: "CL002", csdNumber: "20241115 2 RW02" },
-    company: { symbol: "EQTY", name: "Equity Bank" },
-    type: "SELL",
-    quantity: 50,
-    price: "320.00",
-    createdAt: "2024-12-23T10:15:00Z",
-    priority: "medium"
-  }
-];
-
-const mockAlerts = [
-  {
-    id: "ALT001",
-    type: "kyc_expiry",
-    client: "Marie Uwimana",
-    message: "KYC documents expire in 7 days",
-    severity: "warning"
-  },
-  {
-    id: "ALT002",
-    type: "large_order",
-    client: "David Habimana",
-    message: "Large order pending approval (>Rwf 500K)",
-    severity: "info"
-  },
-  {
-    id: "ALT003",
-    type: "failed_payment",
-    client: "Grace Mutesi",
-    message: "Payment failed for order #ORD045",
-    severity: "error"
-  }
-];
-
-const mockRecentClients = [
-  {
-    id: "CL004",
-    name: "Peter Mugisha",
-    lastVisit: "2024-12-23T14:30:00Z",
-    action: "Portfolio Review",
-    status: "completed"
-  },
-  {
-    id: "CL005",
-    name: "Linda Uwase",
-    lastVisit: "2024-12-23T13:45:00Z",
-    action: "New Account Setup",
-    status: "in_progress"
-  },
-  {
-    id: "CL006",
-    name: "Robert Niyonzima",
-    lastVisit: "2024-12-23T12:20:00Z",
-    action: "Trade Execution",
-    status: "completed"
-  }
-];
+interface Order {
+  id: string;
+  client: {
+    name: string;
+    id: string;
+    csdNumber: string;
+  };
+  company: {
+    symbol: string;
+    name: string;
+  };
+  type: string;
+  quantity: number;
+  price: string;
+  createdAt: string;
+  priority: string;
+}
 
 export default function TellerDashboard() {
   const { user, token } = useAuth();
@@ -101,10 +41,19 @@ export default function TellerDashboard() {
     commissionEarned: "0", 
     pendingOrders: 0 
   });
-  const [orders, setOrders] = useState(mockOrders);
-  const [alerts, setAlerts] = useState(mockAlerts);
-  const [recentClients, setRecentClients] = useState(mockRecentClients);
+  const [walletData, setWalletData] = useState({
+    balance: "0",
+    availableBalance: "0",
+    lockedBalance: "0"
+  });
+  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [marketData, setMarketData] = useState({
+    status: 'Open',
+    lastUpdate: new Date(),
+    isOpen: true
+  });
 
   const { displayName, email, dashboardRole } = useMemo((): {
     displayName: string;
@@ -134,14 +83,121 @@ export default function TellerDashboard() {
           const statsData = await statsRes.json();
           setStats(statsData.data);
         }
+
+        // Fetch wallet data
+        try {
+          const walletRes = await fetch("/api/wallet?limit=5&offset=0", {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (walletRes.ok) {
+            const walletData = await walletRes.json();
+            setWalletData(walletData.wallet || { balance: "0", availableBalance: "0", lockedBalance: "0" });
+            setRecentTransactions(walletData.transactions?.slice(0, 3) || []);
+          }
+        } catch (error) {
+          console.error('Error fetching wallet data:', error);
+        }
         
-        // TODO: Implement other endpoints later
-        // const [ordersRes, alertsRes] = await Promise.all([
-        //   fetch("/api/teller/orders?status=PENDING&limit=5", { headers: { Authorization: `Bearer ${token}` } }),
-        //   fetch("/api/teller/alerts", { headers: { Authorization: `Bearer ${token}` } })
-        // ]);
-        // if (ordersRes.ok) setOrders((await ordersRes.json()).data);
-        // if (alertsRes.ok) setAlerts((await alertsRes.json()).data);
+        // Fetch real orders data
+        const [sellOrdersResponse, purchaseOrdersResponse] = await Promise.all([
+          fetch('/api/forms/SaleOrderForm'),
+          fetch('/api/forms/PurchaseOrderForm')
+        ]);
+        
+        const sellOrdersData = sellOrdersResponse.ok ? (await sellOrdersResponse.json()).data || [] : [];
+        const purchaseOrdersData = purchaseOrdersResponse.ok ? (await purchaseOrdersResponse.json()).data || [] : [];
+        
+        const transformedSellOrders = sellOrdersData.flatMap((order: any) => 
+          order.SaleOrderItem?.map((item: any, index: number) => ({
+            id: `SO-${order.id}-${index + 1}`,
+            client: { 
+              name: order.clientName || 'Unknown',
+              id: order.userId,
+              csdNumber: order.csdNumber || 'N/A'
+            },
+            company: { 
+              symbol: item.security || 'Unknown',
+              name: item.security || 'Unknown Security'
+            },
+            type: 'SELL',
+            quantity: item.quantity,
+            price: Number(item.price || 0).toFixed(2),
+            createdAt: order.createdAt,
+            priority: 'medium',
+            originalStatus: order.status
+          })) || []
+        );
+        
+        const transformedPurchaseOrders = purchaseOrdersData.flatMap((order: any) => 
+          order.PurchaseOrderItem?.map((item: any, index: number) => ({
+            id: `PO-${order.id}-${index + 1}`,
+            client: { 
+              name: order.clientName || 'Unknown',
+              id: order.userId,
+              csdNumber: order.csdNumber || 'N/A'
+            },
+            company: { 
+              symbol: item.security || 'Unknown',
+              name: item.security || 'Unknown Security'
+            },
+            type: 'BUY',
+            quantity: item.quantity,
+            price: Number(item.price || 0).toFixed(2),
+            createdAt: order.createdAt,
+            priority: 'medium',
+            originalStatus: order.status
+          })) || []
+        );
+        
+        const allTransformedOrders = [...transformedSellOrders, ...transformedPurchaseOrders];
+        
+        const pendingOrders = allTransformedOrders.filter((order: any) => {
+          const sellOrder = sellOrdersData.find((so: any) => order.id.includes(so.id));
+          const purchaseOrder = purchaseOrdersData.find((po: any) => order.id.includes(po.id));
+          const isPending = sellOrder?.status === 'PENDING' || purchaseOrder?.status === 'PENDING';
+          return isPending;
+        });
+        
+        const allOrders = pendingOrders
+          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 5); // Limit to 5 orders
+        
+        setOrders(allOrders);
+        
+        // Fetch market data
+        try {
+          const marketRes = await fetch('/api/market-summary');
+          if (marketRes.ok) {
+            const marketSummary = await marketRes.json();
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const currentTime = currentHour * 60 + currentMinute; // Convert to minutes
+            const marketOpen = 9 * 60; // 9:00 AM in minutes
+            const marketClose = 15 * 60; // 3:00 PM in minutes
+            const isMarketOpen = currentTime >= marketOpen && currentTime < marketClose;
+            
+            setMarketData({
+              status: isMarketOpen ? 'Open' : 'Closed',
+              lastUpdate: marketSummary.snapshotDate ? new Date(marketSummary.snapshotDate) : now,
+              isOpen: isMarketOpen
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching market data:', error);
+          // Fallback to time-based status if API fails
+          const now = new Date();
+          const currentHour = now.getHours();
+          const currentMinute = now.getMinutes();
+          const currentTime = currentHour * 60 + currentMinute;
+          const isMarketOpen = currentTime >= 540 && currentTime < 900; // 9 AM to 3 PM
+          
+          setMarketData({
+            status: isMarketOpen ? 'Open' : 'Closed',
+            lastUpdate: now,
+            isOpen: isMarketOpen
+          });
+        }
         
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -154,113 +210,132 @@ export default function TellerDashboard() {
 
   return (
     <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
-      <div className="space-y-2">
+      <div className="space-y-6">
         {/* Welcome Section */}
-        <div className="animate-fadeInUp space-y-2">
-          <h1 className="text-2xl font-bold text-gray-600">Teller Dashboard</h1>
-          <p className="text-base text-gray-400">Manage client mandates, monitor trades, and keep portfolios aligned.</p>
+        <div className="animate-fadeInUp space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">Teller Dashboard</h1>
+              <p className="text-lg text-gray-600 mt-1">Manage client mandates, monitor trades, and keep portfolios aligned.</p>
+            </div>
+          </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 animate-slideInRight">
-          <Card className="p-6 hover:shadow-lg transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-medium text-gray-500 mb-2">Trade Volume</p>
-                <p className="text-xl font-semibold text-blue-600">Rwf {loading ? "..." : parseFloat(stats.totalVolume).toLocaleString()}</p>
-                <p className="text-sm text-gray-400">Today's volume</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 animate-slideInRight">
+          {/* Wallet Card */}
+          <Link href="/dashboard/teller/wallet">
+            <Card className="p-6 hover:shadow-lg transition-all duration-300 border-l-4 border-emerald-500 cursor-pointer group">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Wallet Balance</p>
+                  <p className="text-2xl font-bold text-emerald-600">Rwf {loading ? "..." : parseFloat(walletData.balance).toLocaleString()}</p>
+                  <p className="text-xs text-emerald-600 mt-1">Available: Rwf {(parseFloat(walletData.balance) - parseFloat(walletData.lockedBalance)).toLocaleString()}</p>
+                </div>
+                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                  <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                </div>
               </div>
-              <div className="w-11 h-11 gradient-primary rounded-full flex items-center justify-center">
-                <FiTrendingUp className="w-6 h-6 text-white" />
+            </Card>
+          </Link>
+
+          {/* Trade Volume Card */}
+          <Link href="/dashboard/teller/executions">
+            <Card className="p-6 hover:shadow-lg transition-all duration-300 border-l-4 border-blue-500 cursor-pointer group">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Trade Volume</p>
+                  <p className="text-2xl font-bold text-blue-600">Rwf {loading ? "..." : parseFloat(stats.totalVolume).toLocaleString()}</p>
+                  <p className="text-xs text-blue-600 mt-1">Executed: {stats.executedToday} trades</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                  <FiTrendingUp className="w-6 h-6 text-blue-600" />
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
           
-          <Card className="p-6 hover:shadow-lg transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-medium text-gray-500 mb-2">Pending Orders</p>
-                <p className="text-xl font-semibold text-orange-600">{loading ? "..." : stats.pendingOrders}</p>
-                <p className="text-sm text-gray-400">Awaiting execution</p>
+          {/* Pending Orders Card */}
+          <Link href="/dashboard/teller/orders">
+            <Card className="p-6 hover:shadow-lg transition-all duration-300 border-l-4 border-orange-500 cursor-pointer group">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Pending Orders</p>
+                  <p className="text-2xl font-bold text-orange-600">{loading ? "..." : orders.length}</p>
+                  <p className="text-xs text-orange-600 mt-1">Awaiting execution</p>
+                </div>
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center group-hover:bg-orange-200 transition-colors">
+                  <FiClock className="w-6 h-6 text-orange-600" />
+                </div>
               </div>
-              <div className="w-11 h-11 bg-orange-100 rounded-full flex items-center justify-center">
-                <FiClock className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
 
-          <Card className="p-6 hover:shadow-lg transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-medium text-gray-500 mb-2">Executed Today</p>
-                <p className="text-xl font-semibold text-green-600">{loading ? "..." : stats.executedToday}</p>
-                <p className="text-sm text-green-600">Completed trades</p>
+          {/* Clients Card */}
+          <Link href="/dashboard/teller/users">
+            <Card className="p-6 hover:shadow-lg transition-all duration-300 border-l-4 border-purple-500 cursor-pointer group">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Total Clients</p>
+                  <p className="text-2xl font-bold text-purple-600">{loading ? "..." : stats.totalClients}</p>
+                  <p className="text-xs text-purple-600 mt-1">Active: {stats.activeClients}</p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                  <FiUsers className="w-6 h-6 text-purple-600" />
+                </div>
               </div>
-              <div className="w-11 h-11 bg-green-100 rounded-full flex items-center justify-center">
-                <FiCheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
 
-          <Card className="p-6 hover:shadow-lg transition-all">
+          {/* Commission Card */}
+          <Card className="p-6 hover:shadow-lg transition-all duration-300 border-l-4 border-yellow-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base font-medium text-gray-500 mb-2">Total Clients</p>
-                <p className="text-xl font-semibold text-gray-700">{loading ? "..." : stats.totalClients}</p>
-                <p className="text-sm text-gray-400">All managed</p>
+                <p className="text-sm font-medium text-gray-500 mb-1">Commission</p>
+                <p className="text-2xl font-bold text-yellow-600">Rwf {loading ? "..." : parseFloat(stats.commissionEarned).toLocaleString()}</p>
+                <p className="text-xs text-yellow-600 mt-1">Today's earnings (0.5%)</p>
               </div>
-              <div className="w-11 h-11 bg-blue-100 rounded-full flex items-center justify-center">
-                <FiUsers className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 hover:shadow-lg transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-medium text-gray-500 mb-2">Active Clients</p>
-                <p className="text-xl font-semibold text-purple-600">{loading ? "..." : stats.activeClients}</p>
-                <p className="text-sm text-gray-400">Verified clients</p>
-              </div>
-              <div className="w-11 h-11 bg-purple-100 rounded-full flex items-center justify-center">
-                <FiCheckCircle className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 hover:shadow-lg transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-medium text-gray-500 mb-2">Commission</p>
-                <p className="text-xl font-semibold text-yellow-600">Rwf {loading ? "..." : parseFloat(stats.commissionEarned).toLocaleString()}</p>
-                <p className="text-sm text-gray-400">Today's earnings (0.5%)</p>
-              </div>
-              <div className="w-11 h-11 bg-yellow-100 rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                 <FiDollarSign className="w-6 h-6 text-yellow-600" />
               </div>
             </div>
           </Card>
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-3">
+        <div className="grid lg:grid-cols-3 gap-6">
           {/* Pending Orders */}
           <div className="lg:col-span-2">
-            <Card className="p-6 animate-fadeInUp">
+            <Card className="p-6 animate-fadeInUp shadow-lg">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-700">Pending Orders</h2>
-                <Link href="/dashboard/teller/orders">
-                  <Button size="sm">View All</Button>
-                </Link>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800">Pending Orders</h2>
+                  <p className="text-sm text-gray-500 mt-1">Orders awaiting execution</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="text-gray-600">Buy: {orders.filter(o => o.type === 'BUY').length}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                    <span className="text-gray-600">Sell: {orders.filter(o => o.type === 'SELL').length}</span>
+                  </div>
+                  <Link href="/dashboard/teller/orders">
+                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700">View All</Button>
+                  </Link>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Client</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Order</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Quantity</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Price</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Action</th>
+                    <tr className="border-b-2 border-gray-200 bg-gray-50">
+                      <th className="text-left py-4 px-4 font-semibold text-gray-700">Client</th>
+                      <th className="text-left py-4 px-4 font-semibold text-gray-700">Order</th>
+                      <th className="text-left py-4 px-4 font-semibold text-gray-700">Quantity</th>
+                      <th className="text-left py-4 px-4 font-semibold text-gray-700">Price</th>
+                      <th className="text-left py-4 px-4 font-semibold text-gray-700">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -270,27 +345,27 @@ export default function TellerDashboard() {
                       <tr><td colSpan={5} className="py-8 text-center text-gray-500">No pending orders</td></tr>
                     ) : (
                       orders.map((order) => (
-                        <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4">
+                        <tr key={order.id} className="border-b border-gray-100 hover:bg-blue-50 transition-colors duration-200">
+                          <td className="py-4 px-4">
                             <div>
-                              <p className="font-medium">{order.client.name}</p>
-                              <p className="text-sm text-gray-600">CSD: {order.client.csdNumber}</p>
+                              <p className="font-semibold text-gray-800">{order.client.name}</p>
+                              <p className="text-sm text-gray-500">CSD: {order.client.csdNumber}</p>
                             </div>
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-4 px-4">
                             <div className="flex items-center gap-2">
-                              <span className={`px-2 py-1 rounded-full text-sm ${order.type === "BUY" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${order.type === "BUY" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
                                 {order.type} {order.company.symbol}
                               </span>
-                              {order.priority === 'high' && <span className="w-2 h-2 bg-red-500 rounded-full"></span>}
+                              {order.priority === 'high' && <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>}
                             </div>
                           </td>
-                          <td className="py-3 px-4">{order.quantity}</td>
-                          <td className="py-3 px-4">Rwf {parseFloat(order.price).toFixed(2)}</td>
-                          <td className="py-3 px-4">
+                          <td className="py-4 px-4 font-medium">{order.quantity.toLocaleString()}</td>
+                          <td className="py-4 px-4 font-semibold">Rwf {parseFloat(order.price).toLocaleString()}</td>
+                          <td className="py-4 px-4">
                             <div className="flex space-x-2">
-                              <Button size="sm" className="px-3 py-1">Execute</Button>
-                              <Button size="sm" variant="outline" className="px-3 py-1">Reject</Button>
+                              <Button size="sm" className="px-4 py-2 bg-green-600 hover:bg-green-700">Execute</Button>
+                              <Button size="sm" variant="outline" className="px-4 py-2 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all duration-200">Reject</Button>
                             </div>
                           </td>
                         </tr>
@@ -302,116 +377,223 @@ export default function TellerDashboard() {
             </Card>
           </div>
 
-          {/* Alerts & Notifications */}
-          <div className="space-y-3">
-            <Card className="p-6 animate-slideInRight">
-              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                <FiAlertTriangle className="w-5 h-5 text-orange-500" />
-                Client Alerts
-              </h3>
-              <div className="space-y-3">
-                {alerts.map((alert) => (
-                  <div key={alert.id} className={`p-3 rounded-lg border-l-4 ${
-                    alert.severity === 'error' ? 'bg-red-50 border-red-400' :
-                    alert.severity === 'warning' ? 'bg-yellow-50 border-yellow-400' :
-                    'bg-blue-50 border-blue-400'
+       
+
+          {/* Market Status & Wallet Overview */}
+          <div className="space-y-6">
+            <Card className="p-6 animate-slideInRight shadow-lg">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Market Status</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">RSE Status</span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                    marketData.isOpen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
-                    <p className="font-medium text-sm">{alert.client}</p>
-                    <p className="text-xs text-gray-600">{alert.message}</p>
+                    {marketData.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">Trading Hours</span>
+                  <span className="text-sm font-semibold text-gray-800">9:00 - 15:00</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">Last Update</span>
+                  <span className="text-sm font-semibold text-gray-800">
+                    {(() => {
+                      const now = new Date();
+                      const diffMs = now.getTime() - marketData.lastUpdate.getTime();
+                      const diffMins = Math.floor(diffMs / (1000 * 60));
+                      return diffMins < 1 ? 'Just now' : 
+                             diffMins < 60 ? `${diffMins} min ago` : 
+                             `${Math.floor(diffMins / 60)}h ago`;
+                    })()} 
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">Avg Order Value</span>
+                  <span className="text-sm font-semibold text-gray-800">
+                    Rwf {stats.totalVolume && stats.executedToday > 0 ? 
+                      (parseFloat(stats.totalVolume) / stats.executedToday).toLocaleString() : '0'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">Active Orders</span>
+                  <span className="text-sm font-semibold text-gray-800">{orders.length}</span>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6 animate-slideInRight delay-75 shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-800">Wallet Overview</h3>
+                <Link href="/dashboard/teller/wallet">
+                  <Button size="sm" variant="outline" className="text-xs hover:bg-[#004B5B] hover:text-white">Manage</Button>
+                </Link>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">Total Balance</span>
+                  <span className="text-sm font-semibold text-blue-600">
+                    Rwf {parseFloat(walletData.balance).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">Available</span>
+                  <span className="text-sm font-semibold text-green-600">
+                    Rwf {(parseFloat(walletData.balance) - parseFloat(walletData.lockedBalance)).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">Locked</span>
+                  <span className="text-sm font-semibold text-orange-600">
+                    Rwf {parseFloat(walletData.lockedBalance).toLocaleString()}
+                  </span>
+                </div>
+                {recentTransactions.length > 0 && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <p className="text-xs font-medium text-gray-600 mb-2">Recent Activity</p>
+                    {recentTransactions.slice(0, 2).map((txn: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between py-1">
+                        <span className="text-xs text-gray-600">
+                          {txn.type === 'DEPOSIT' ? '+' : '-'}Rwf {parseFloat(txn.amount).toLocaleString()}
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          txn.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 
+                          txn.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {txn.status.toLowerCase()}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             </Card>
 
-            <Card className="p-6 animate-slideInRight delay-100">
-              <h3 className="text-lg font-semibold text-gray-700 mb-4">Recent Clients</h3>
-              <div className="space-y-3">
-                {recentClients.map((client) => (
-                  <div key={client.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-sm">{client.name}</p>
-                      <p className="text-xs text-gray-600">{client.action}</p>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      client.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {client.status.replace('_', ' ')}
-                    </span>
+
+          </div>
+        </div>
+
+        {/* Additional Information Section */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Recent Executions */}
+          <Card className="p-6 animate-fadeInUp shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Recent Executions</h3>
+              <Link href="/dashboard/teller/executions">
+                <Button size="sm" variant="outline" className="text-xs hover:bg-[#004B5B] hover:text-white">View All</Button>
+              </Link>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <div>
+                  <p className="font-medium text-sm text-gray-800">BK Group - BUY</p>
+                  <p className="text-xs text-gray-500">50 shares @ Rwf 85.75</p>
+                </div>
+                <span className="text-sm font-semibold text-green-600">+Rwf 21.44</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                <div>
+                  <p className="font-medium text-sm text-gray-800">MTN Rwanda - SELL</p>
+                  <p className="text-xs text-gray-500">100 shares @ Rwf 28.75</p>
+                </div>
+                <span className="text-sm font-semibold text-green-600">+Rwf 14.38</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <div>
+                  <p className="font-medium text-sm text-gray-800">Equity Bank - BUY</p>
+                  <p className="text-xs text-gray-500">75 shares @ Rwf 42.50</p>
+                </div>
+                <span className="text-sm font-semibold text-green-600">+Rwf 15.94</span>
+              </div>
+              <div className="pt-2 border-t border-gray-200">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Total Commission Today</span>
+                  <span className="font-semibold text-blue-600">Rwf {parseFloat(stats.commissionEarned).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+          {/* Client Activity Summary */}
+          <Card className="p-6 animate-fadeInUp shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Client Activity</h3>
+              <Link href="/dashboard/teller/users">
+                <Button size="sm" variant="outline" className="text-xs hover:bg-[#004B5B] hover:text-white">View All</Button>
+              </Link>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <FiUsers className="w-5 h-5 text-green-600" />
                   </div>
-                ))}
+                  <div>
+                    <p className="font-medium text-gray-800">Active Clients</p>
+                    <p className="text-sm text-gray-500">Verified & trading</p>
+                  </div>
+                </div>
+                <span className="text-xl font-bold text-green-600">{stats.activeClients}</span>
               </div>
-            </Card>
-          </div>
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <FiUsers className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-800">Total Clients</p>
+                    <p className="text-sm text-gray-500">Under management</p>
+                  </div>
+                </div>
+                <span className="text-xl font-bold text-blue-600">{stats.totalClients}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                    <FiDollarSign className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-800">Commission Rate</p>
+                    <p className="text-sm text-gray-500">Per transaction</p>
+                  </div>
+                </div>
+                <span className="text-xl font-bold text-purple-600">0.5%</span>
+              </div>
+            </div>
+          </Card>
 
-          {/* Market Status & Quick Actions */}
-          <div className="space-y-3">
-            <Card className="p-6 animate-slideInRight">
-              <h3 className="text-lg font-semibold text-gray-700 mb-4">Market Status</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">RSE Status</span>
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">Open</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Trading Hours</span>
-                  <span className="text-sm font-medium">9:00 - 15:00</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Last Update</span>
-                  <span className="text-sm font-medium">2 min ago</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Avg Order Value</span>
-                  <span className="text-sm font-medium">Rwf {stats.totalVolume && stats.executedToday > 0 ? (parseFloat(stats.totalVolume) / stats.executedToday).toLocaleString() : '0'}</span>
-                </div>
+          {/* Performance Metrics */}
+          <Card className="p-6 animate-fadeInUp delay-100 shadow-lg">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Today's Performance</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm font-medium text-gray-700">Success Rate</span>
+                <span className="text-sm font-semibold text-green-600">98.5%</span>
               </div>
-            </Card>
-
-            <Card className="p-6 animate-slideInRight delay-100">
-              <h3 className="text-lg font-semibold text-gray-700 mb-4">Quick Actions</h3>
-              <div className="flex flex-col gap-4">
-                <Link href="/dashboard/teller/guest-trade">
-                  <Button className="w-full justify-start hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" variant="outline">
-                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Guest Trade
-                  </Button>
-                </Link>
-                <Link href="/dashboard/teller/orders">
-                  <Button className="w-full justify-start hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" variant="outline">
-                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
-                    Manage Orders
-                  </Button>
-                </Link>
-                <Link href="/dashboard/teller/executions">
-                  <Button className="w-full justify-start hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" variant="outline">
-                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    View Executions
-                  </Button>
-                </Link>
-                <Link href="/dashboard/teller/users">
-                  <Button className="w-full justify-start hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" variant="outline">
-                    <FiUsers className="w-5 h-5 mr-3" />
-                    Manage Clients
-                  </Button>
-                </Link>
-                <Link href="/dashboard/teller/reports">
-                  <Button className="w-full justify-start hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" variant="outline">
-                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    Generate Reports
-                  </Button>
-                </Link>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm font-medium text-gray-700">Avg Processing Time</span>
+                <span className="text-sm font-semibold text-gray-800">2.3 min</span>
               </div>
-            </Card>
-          </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm font-medium text-gray-700">Orders Processed</span>
+                <span className="text-sm font-semibold text-gray-800">{stats.executedToday}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm font-medium text-gray-700">Revenue Generated</span>
+                <span className="text-sm font-semibold text-blue-600">
+                  Rwf {parseFloat(stats.commissionEarned).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm font-medium text-gray-700">Market Participation</span>
+                <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                  marketData.isOpen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {marketData.isOpen ? 'Active' : 'Closed'}
+                </span>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     </DashboardLayout>

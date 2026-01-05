@@ -178,15 +178,6 @@ export default function CompanyDashboard() {
             <h1 className="text-xl md:text-2xl font-bold text-slate-900">{companyLoading ? 'Loading...' : (companyData?.name || 'Company Dashboard')}</h1>
             <p className="text-sm md:text-base text-slate-600 mt-1">Monitor your stock performance and trading activity</p>
           </div>
-          {marketLoading ? (
-            <div className="animate-pulse bg-gray-200 h-8 w-32 rounded-full"></div>
-          ) : (
-            marketStatus && (
-              <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${marketStatus.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                {marketStatus.isOpen ? '● Market Open' : '● Market Closed'}
-              </span>
-            )
-          )}
         </div>
 
         {/* Stats Cards */}

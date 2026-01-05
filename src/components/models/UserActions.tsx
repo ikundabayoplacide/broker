@@ -67,7 +67,7 @@ export default function UserActions({
         {showView && (
           <Button
             variant="outline"
-            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800"
+            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
             onClick={() => router.push(`/dashboard/commonPage/users/${user.id}`)}
           >
             <Eye className="h-4 w-4 flex justify-center" />
@@ -77,7 +77,7 @@ export default function UserActions({
         {showEdit && (
           <Button
             variant="outline"
-            className="h-8 w-8 p-0 text-green-600 text-center hover:text-green-800"
+            className="h-8 w-8 p-0 text-green-600 text-center hover:text-green-900 hover:bg-green-900 hover:text-white hover:border-green-900 transition-all duration-200"
             onClick={() => setEditModalOpen(true)}
           >
             <Pencil className="h-4 w-4 mb-1" />
@@ -87,7 +87,7 @@ export default function UserActions({
         {showDelete && (
           <Button
             variant="outline"
-            className="h-8 w-8 p-0 text-red-600 items-center hover:text-red-800"
+            className="h-8 w-8 p-0 text-red-600 items-center hover:text-red-800 hover:bg-red-900 hover:text-red-900 hover:border-red-800 transition-all duration-200"
             onClick={() => setDeleteModalOpen(true)}
           >
             <Trash2 className="h-4 w-4 mb-1" />

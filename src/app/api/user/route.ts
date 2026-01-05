@@ -147,46 +147,84 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role");
     const branchId = searchParams.get("branchId");
+    const forTrade = searchParams.get("forTrade");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const search = searchParams.get("search");
 
     let whereClause: any = {};
     if (role) whereClause.role = role;
     if (branchId) whereClause.branchId = branchId;
 
-    // Role-based access control
-    if (requestingUser.role === "TELLER") {
-      whereClause.role = "CLIENT";
-      whereClause.createdById = requestingUser.id;
-    } else if (requestingUser.role === "MANAGER" && requestingUser.branchId) {
-      whereClause.branchId = requestingUser.branchId;
+    // Add search functionality
+    if (search) {
+      whereClause.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { csdNumber: { contains: search, mode: 'insensitive' } }
+      ];
     }
 
-    const users = await prisma.user.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneCountryCode: true,
-        phone: true,
-        csdNumber: true,
-        role: true,
-        branchId: true,
-        isVerified: true,
-        country: true,
-        city: true,
-        idDocument: true,
-        passportPhoto: true,
-        idNumber: true,
-        dateOfBirth: true,
-        gender: true,
-        occupation: true,
-        investmentExperience: true,
-        createdAt: true,
-      },
-      orderBy: { fullName: "asc" }
-    });
+    // Role-based access control
+    if (requestingUser.role === "TELLER") {
+      if (forTrade === "true") {
+        // For trade functionality, tellers can only see clients
+        whereClause.role = "CLIENT";
+      } else {
+        whereClause.role = "CLIENT";
+        whereClause.createdById = requestingUser.id;
+      }
+    } else if (requestingUser.role === "MANAGER") {
+      if (forTrade === "true") {
+        // For trade functionality, managers can see clients and tellers
+        whereClause.role = { in: ["CLIENT", "TELLER"] };
+      } else if (requestingUser.branchId) {
+        whereClause.branchId = requestingUser.branchId;
+      }
+    }
 
-    return NextResponse.json({ data: users, success: true, users });
+    const skip = (page - 1) * limit;
+    
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phoneCountryCode: true,
+          phone: true,
+          csdNumber: true,
+          role: true,
+          branchId: true,
+          isVerified: true,
+          country: true,
+          city: true,
+          idDocument: true,
+          passportPhoto: true,
+          idNumber: true,
+          dateOfBirth: true,
+          gender: true,
+          occupation: true,
+          investmentExperience: true,
+          createdAt: true,
+        },
+        orderBy: { fullName: "asc" },
+        skip,
+        take: limit
+      }),
+      prisma.user.count({ where: whereClause })
+    ]);
+
+    return NextResponse.json({ 
+      data: users, 
+      success: true, 
+      users,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (error) {
     console.error("Error fetching users:", error);
     return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });

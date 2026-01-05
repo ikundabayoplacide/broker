@@ -69,17 +69,17 @@ export async function POST(request: NextRequest) {
         select: { id: true, role: true, branchId: true, fullName: true }
       });
 
-      if (!client || client.role !== "CLIENT") {
+      if (!client || (client.role !== "CLIENT" && client.role !== "TELLER")) {
         return NextResponse.json(
           { error: "Invalid client selected" },
           { status: 400 }
         );
       }
 
-      // For tellers, ensure client is from the same branch
-      if (executor.role === "TELLER" && client.branchId !== executor.branchId) {
+      // For tellers, ensure client is CLIENT role only
+      if (executor.role === "TELLER" && client.role !== "CLIENT") {
         return NextResponse.json(
-          { error: "You can only trade for clients in your branch" },
+          { error: "Tellers can only trade for clients" },
           { status: 403 }
         );
       }

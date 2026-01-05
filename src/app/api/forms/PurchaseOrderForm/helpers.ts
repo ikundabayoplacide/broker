@@ -86,9 +86,11 @@ export function normalizePurchaseItems(items: Array<z.infer<typeof purchaseOrder
 }
 
 export function buildPurchaseOrderData(
-	payload: PurchaseOrderCreateInput | PurchaseOrderUpdateInput
+	payload: PurchaseOrderCreateInput | PurchaseOrderUpdateInput,
+	userId?: string
 ) {
 	return {
+		...(userId && { userId }),
 		clientName: payload.clientName ? payload.clientName.trim() : undefined,
 		csdNumber: payload.csdNumber !== undefined ? toNullableString(payload.csdNumber) : undefined,
 		phone: payload.phone ? payload.phone.trim() : undefined,
