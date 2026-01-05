@@ -15,12 +15,15 @@ interface Notification {
 }
 
 export default function NotificationBell() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const isCompany = user?.role?.toLowerCase() === 'company';
+  const apiEndpoint = isCompany ? '/api/company/notifications' : '/api/notifications';
 
   useEffect(() => {
     if (token) {
@@ -28,7 +31,7 @@ export default function NotificationBell() {
       const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
-  }, [token]);
+  }, [token, apiEndpoint]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -46,7 +49,7 @@ export default function NotificationBell() {
   const fetchNotifications = async () => {
     if (!token) return;
     try {
-      const response = await fetch('/api/notifications', {
+      const response = await fetch(apiEndpoint, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -61,7 +64,7 @@ export default function NotificationBell() {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await fetch('/api/notifications', {
+      await fetch(apiEndpoint, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

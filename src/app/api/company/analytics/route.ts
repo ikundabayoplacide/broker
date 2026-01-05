@@ -10,15 +10,15 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get("period") || "month"; // month or year
+    const period = searchParams.get("period") || "month";
 
     const now = new Date();
     const startDate = period === "year" 
       ? new Date(now.getFullYear(), 0, 1) 
       : new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Fetch trades for the company within the period
-    const trades = await prisma.trade.findMany({
+    // Fetch company trades for the company within the period
+    const trades = await prisma.companyTrade.findMany({
       where: {
         companyId: auth.companyId,
         status: "EXECUTED",
@@ -93,14 +93,16 @@ export async function GET(request: NextRequest) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
+    const summary = {
+      totalTrades: trades.length,
+      totalVolume: trades.reduce((sum, t) => sum + t.quantity, 0),
+      totalValue: trades.reduce((sum, t) => sum + Number(t.totalAmount), 0),
+    };
+    
     return NextResponse.json({
       period,
       data: result,
-      summary: {
-        totalTrades: trades.length,
-        totalVolume: trades.reduce((sum, t) => sum + t.quantity, 0),
-        totalValue: trades.reduce((sum, t) => sum + Number(t.totalAmount), 0),
-      },
+      summary,
     });
   } catch (error) {
     console.error("Error fetching trading analytics:", error);

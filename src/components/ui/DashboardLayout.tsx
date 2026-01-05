@@ -214,8 +214,8 @@ export default function DashboardLayout({
           { name: "Wallet", icon: FiCreditCard, href: "/dashboard/company/wallet" },
           { name: "History", icon: FiClipboard, href: "/dashboard/company/history" },
           { name: "Share Movement", icon: FiZap, href: "/dashboard/company/share-movement" },
-          { name: "Shareholders", icon: FiUsers, href: "/dashboard/company/shareholders" },
-          { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
+          // { name: "Shareholders", icon: FiUsers, href: "/dashboard/company/shareholders" },
+          { name: "Notifications", icon: FiBell, href: "/dashboard/company/notification" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/company/settings" },
         ];
       default:

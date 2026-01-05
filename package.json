@@ -16,7 +16,7 @@
     "@ckeditor/ckeditor5-build-classic": "^41.4.2",
     "@ckeditor/ckeditor5-react": "^11.0.0",
     "@headlessui/react": "^2.2.9",
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "^6.19.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/cheerio": "^0.22.35",
     "bcryptjs": "^3.0.3",

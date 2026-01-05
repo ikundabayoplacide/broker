@@ -24,11 +24,21 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { FileText } from "lucide-react";
+import TransactionModal, { TransactionConfig } from "@/components/models/TransactionModal";
+import { generateTransactionStatement } from "@/utils/printing/transactionStatement";
+import { executePrint } from "@/utils/printing/printUtils";
 
 export default function CompanyDashboard() {
   const { user } = useAuth();
   useMarketSync();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [companyLoading, setCompanyLoading] = useState(true);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const [portfolioLoading, setPortfolioLoading] = useState(true);
+  const [tradesLoading, setTradesLoading] = useState(true);
+  const [marketLoading, setMarketLoading] = useState(true);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [companyData, setCompanyData] = useState<any>(null);
   const [walletData, setWalletData] = useState({ balance: 0, lockedBalance: 0 });
   const [portfolioData, setPortfolioData] = useState({ totalValue: 0, totalInvested: 0, holdings: 0 });
@@ -36,6 +46,7 @@ export default function CompanyDashboard() {
   const [marketStatus, setMarketStatus] = useState<{ label: string; isOpen: boolean } | null>(null);
   const [tradingData, setTradingData] = useState<any[]>([]);
   const [yearlyTradingData, setYearlyTradingData] = useState<any[]>([]);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
 
   const { displayName, email, dashboardRole } = useMemo((): {
     displayName: string;
@@ -56,14 +67,13 @@ export default function CompanyDashboard() {
     const fetchDashboardData = async () => {
       if (!user?.id) return;
       try {
-        setLoading(true);
-
         // Fetch company details
         const companyRes = await fetch(`/api/company/details`);
         if (companyRes.ok) {
           const data = await companyRes.json();
           setCompanyData(data.company);
         }
+        setCompanyLoading(false);
 
         // Fetch wallet data
         const walletRes = await fetch(`/api/company/wallet`);
@@ -74,6 +84,7 @@ export default function CompanyDashboard() {
             lockedBalance: parseFloat(data.wallet?.lockedBalance || "0"),
           });
         }
+        setWalletLoading(false);
 
         // Fetch portfolio data
         const portfolioRes = await fetch(`/api/company/portfolio`);
@@ -85,6 +96,7 @@ export default function CompanyDashboard() {
             holdings: data.summary?.totalHoldings || 0,
           });
         }
+        setPortfolioLoading(false);
 
         // Fetch recent trades
         const tradesRes = await fetch(`/api/company/trade/history?limit=5`);
@@ -92,6 +104,7 @@ export default function CompanyDashboard() {
           const data = await tradesRes.json();
           setRecentTrades(data.trades || []);
         }
+        setTradesLoading(false);
 
         // Fetch market status
         const marketRes = await fetch("/api/market-summary");
@@ -104,6 +117,7 @@ export default function CompanyDashboard() {
             });
           }
         }
+        setMarketLoading(false);
 
         // Fetch trading analytics for both periods
         const monthlyRes = await fetch(`/api/company/analytics?period=month`);
@@ -117,10 +131,15 @@ export default function CompanyDashboard() {
           const data = await yearlyRes.json();
           setYearlyTradingData(data.data || []);
         }
+        setAnalyticsLoading(false);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
-      } finally {
-        setLoading(false);
+        setCompanyLoading(false);
+        setWalletLoading(false);
+        setPortfolioLoading(false);
+        setTradesLoading(false);
+        setMarketLoading(false);
+        setAnalyticsLoading(false);
       }
     };
 
@@ -140,7 +159,7 @@ export default function CompanyDashboard() {
 
 
 
-  if (loading) {
+  if (!user?.id) {
     return (
       <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
         <div className="flex items-center justify-center h-64">
@@ -156,27 +175,52 @@ export default function CompanyDashboard() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900">{companyData?.name || 'Company Dashboard'}</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900">{companyLoading ? 'Loading...' : (companyData?.name || 'Company Dashboard')}</h1>
             <p className="text-sm md:text-base text-slate-600 mt-1">Monitor your stock performance and trading activity</p>
           </div>
-          {marketStatus && (
-            <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${marketStatus.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-              {marketStatus.isOpen ? '● Market Open' : '● Market Closed'}
-            </span>
+          {marketLoading ? (
+            <div className="animate-pulse bg-gray-200 h-8 w-32 rounded-full"></div>
+          ) : (
+            marketStatus && (
+              <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${marketStatus.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                {marketStatus.isOpen ? '● Market Open' : '● Market Closed'}
+              </span>
+            )
           )}
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-             <Card className="p-4 md:p-6" hover={false}>
+          <Card className="p-4 md:p-6" hover={false}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Company Wallet</p>
-                <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">Rwf {walletData.balance.toLocaleString()}</p>
-                <p className="text-sm text-slate-500 mt-2">Available funds</p>
+                <p className="text-sm font-medium text-slate-600">Total Company Wallet</p>
+                {walletLoading ? (
+                  <div className="animate-pulse bg-gray-200 h-8 w-32 rounded mt-1"></div>
+                ) : (
+                  <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">Rwf {(walletData.balance + walletData.lockedBalance).toLocaleString()}</p>
+                )}
+                <p className="text-sm text-slate-500 mt-2">All funds</p>
               </div>
               <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-emerald-100 flex items-center justify-center">
                 <Wallet className="h-5 w-5 md:h-6 md:w-6 text-emerald-600" />
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4 md:p-6" hover={false}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Available Balance</p>
+                {walletLoading ? (
+                  <div className="animate-pulse bg-gray-200 h-8 w-32 rounded mt-1"></div>
+                ) : (
+                  <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">Rwf {walletData.balance.toLocaleString()}</p>
+                )}
+                <p className="text-sm text-slate-500 mt-2">Available funds</p>
+              </div>
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <Wallet className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
               </div>
             </div>
           </Card>
@@ -184,16 +228,26 @@ export default function CompanyDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Share Price</p>
-                <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">Rwf {sharePrice.toFixed(2)}</p>
+                {companyLoading ? (
+                  <div className="animate-pulse bg-gray-200 h-8 w-32 rounded mt-1"></div>
+                ) : (
+                  <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">Rwf {sharePrice.toFixed(2)}</p>
+                )}
                 <div className="flex items-center gap-1 mt-2">
-                  {priceChange >= 0 ? (
-                    <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                  {companyLoading ? (
+                    <div className="animate-pulse bg-gray-200 h-4 w-16 rounded"></div>
                   ) : (
-                    <ArrowDownRight className="h-4 w-4 text-rose-500" />
+                    <>
+                      {priceChange >= 0 ? (
+                        <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                      ) : (
+                        <ArrowDownRight className="h-4 w-4 text-rose-500" />
+                      )}
+                      <span className={`text-sm font-semibold ${priceChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
+                      </span>
+                    </>
                   )}
-                  <span className={`text-sm font-semibold ${priceChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
-                  </span>
                 </div>
               </div>
               <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-blue-100 flex items-center justify-center">
@@ -249,7 +303,7 @@ export default function CompanyDashboard() {
             <Card className="p-4 md:p-6" hover={false}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Trading Volume</p>
+                <p className="text-sm font-medium text-slate-600">Today Trading Volume</p>
                 <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">{tradedVolume.toLocaleString()}</p>
                 <p className="text-sm text-slate-500 mt-2">Shares traded today</p>
               </div>
@@ -262,25 +316,12 @@ export default function CompanyDashboard() {
           <Card className="p-4 md:p-6" hover={false}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Traded Value</p>
-                <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">Rwf {(tradedValue / 1000000).toFixed(1)}</p>
+                <p className="text-sm font-medium text-slate-600">Today Traded Value</p>
+                <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">Rwf {tradedValue.toLocaleString()}</p>
                 <p className="text-sm text-slate-500 mt-2">Total value traded</p>
               </div>
               <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-violet-100 flex items-center justify-center">
                 <DollarSign className="h-5 w-5 md:h-6 md:w-6 text-violet-600" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4 md:p-6" hover={false}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">P/E Ratio</p>
-                <p className="text-xl md:text-2xl font-bold text-slate-900 mt-1">{peRatio.toFixed(2)}</p>
-                <p className="text-sm text-slate-500 mt-2">Price to earnings</p>
-              </div>
-              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-teal-100 flex items-center justify-center">
-                <Calculator className="h-5 w-5 md:h-6 md:w-6 text-teal-600" />
               </div>
             </div>
           </Card>
@@ -295,28 +336,34 @@ export default function CompanyDashboard() {
               <p className="text-sm md:text-base text-slate-600 mt-1">This month</p>
             </div>
             <div className="h-64 md:h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={tradingData}>
-                  <defs>
-                    <linearGradient id="colorVolumeMonth" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#004B5B" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#004B5B" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="displayDate" stroke="#64748b" fontSize={12} tickLine={false} />
-                  <YAxis stroke="#64748b" fontSize={12} tickLine={false} tickFormatter={(value) => `${value}`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value: number | undefined, name?: string) => {
-                      if (name === 'totalVolume') return [`${value || 0} shares`, 'Trading Volume'];
-                      if (name === 'totalValue') return [`Rwf ${(value || 0).toLocaleString()}`, 'Trading Value'];
-                      return [value, name || ''];
-                    }}
-                  />
-                  <Area type="monotone" dataKey="totalVolume" stroke="#004B5B" strokeWidth={2} fillOpacity={1} fill="url(#colorVolumeMonth)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              {analyticsLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#004B5B]"></div>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={tradingData}>
+                    <defs>
+                      <linearGradient id="colorVolumeMonth" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#004B5B" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#004B5B" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="displayDate" stroke="#64748b" fontSize={12} tickLine={false} />
+                    <YAxis stroke="#64748b" fontSize={12} tickLine={false} tickFormatter={(value) => `${value}`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value: number | undefined, name?: string) => {
+                        if (name === 'totalVolume') return [`${value || 0} shares`, 'Trading Volume'];
+                        if (name === 'totalValue') return [`Rwf ${(value || 0).toLocaleString()}`, 'Trading Value'];
+                        return [value, name || ''];
+                      }}
+                    />
+                    <Area type="monotone" dataKey="totalVolume" stroke="#004B5B" strokeWidth={2} fillOpacity={1} fill="url(#colorVolumeMonth)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </Card>
 
@@ -327,28 +374,34 @@ export default function CompanyDashboard() {
               <p className="text-sm md:text-base text-slate-600 mt-1">This year</p>
             </div>
             <div className="h-64 md:h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={yearlyTradingData}>
-                  <defs>
-                    <linearGradient id="colorVolumeYear" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#059669" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="displayDate" stroke="#64748b" fontSize={12} tickLine={false} />
-                  <YAxis stroke="#64748b" fontSize={12} tickLine={false} tickFormatter={(value) => `${value}`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value: number | undefined, name?: string) => {
-                      if (name === 'totalVolume') return [`${value || 0} shares`, 'Trading Volume'];
-                      if (name === 'totalValue') return [`Rwf ${(value || 0).toLocaleString()}`, 'Trading Value'];
-                      return [value, name || ''];
-                    }}
-                  />
-                  <Area type="monotone" dataKey="totalVolume" stroke="#059669" strokeWidth={2} fillOpacity={1} fill="url(#colorVolumeYear)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              {analyticsLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#059669]"></div>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={yearlyTradingData}>
+                    <defs>
+                      <linearGradient id="colorVolumeYear" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#059669" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="displayDate" stroke="#64748b" fontSize={12} tickLine={false} />
+                    <YAxis stroke="#64748b" fontSize={12} tickLine={false} tickFormatter={(value) => `${value}`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value: number | undefined, name?: string) => {
+                        if (name === 'totalVolume') return [`${value || 0} shares`, 'Trading Volume'];
+                        if (name === 'totalValue') return [`Rwf ${(value || 0).toLocaleString()}`, 'Trading Value'];
+                        return [value, name || ''];
+                      }}
+                    />
+                    <Area type="monotone" dataKey="totalVolume" stroke="#059669" strokeWidth={2} fillOpacity={1} fill="url(#colorVolumeYear)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </Card>
         </div>
@@ -357,11 +410,27 @@ export default function CompanyDashboard() {
         <Card className="p-4 md:p-6" hover={false}>
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <h2 className="text-lg md:text-xl font-semibold text-slate-900">Recent Trades</h2>
-            <Link href="/dashboard/company/history">
-              <Button size="sm" variant="outline">View All</Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowTransactionModal(true)}
+                disabled={recentTrades.length === 0}
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
+              >
+                <FileText className="h-4 w-4" />
+                Statement
+              </Button>
+              <Link href="/dashboard/company/history">
+                <Button size="sm" variant="outline" className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">View All</Button>
+              </Link>
+            </div>
           </div>
-          {recentTrades.length === 0 ? (
+          {tradesLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#004B5B]"></div>
+            </div>
+          ) : recentTrades.length === 0 ? (
             <p className="text-center text-slate-500 py-8">No trades yet</p>
           ) : (
             <div className="overflow-x-auto">
@@ -377,7 +446,7 @@ export default function CompanyDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentTrades.map((trade) => (
+                  {recentTrades.slice(0, 5).map((trade) => (
                     <tr key={trade.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="py-2 px-3">
                         <span className={`px-2 py-0.5 rounded text-xs font-semibold ${trade.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
@@ -459,7 +528,48 @@ export default function CompanyDashboard() {
             </Card>
           </Link>
         </div>
+
+        {/* Transaction Statement Modal */}
+        <TransactionModal
+          isOpen={showTransactionModal}
+          onClose={() => setShowTransactionModal(false)}
+          onGenerate={handleGenerateStatement}
+        />
       </div>
     </DashboardLayout>
   );
+
+  function handleGenerateStatement(config: TransactionConfig) {
+    const currentUser = { name: displayName, email: user?.email || "" };
+    
+    // Transform company trades to match expected format
+    const transformedTrades = recentTrades.map(trade => ({
+      ...trade,
+      company: {
+        name: trade.company?.name || 'N/A',
+        symbol: trade.company?.symbol || 'N/A'
+      }
+    }));
+    
+    const statementContent = generateTransactionStatement(
+      transformedTrades,
+      config,
+      currentUser
+    );
+    
+    if (config.format === 'pdf') {
+      executePrint(statementContent);
+    } else {
+      // For Word format, create downloadable file
+      const blob = new Blob([statementContent], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transaction-statement-${config.startDate}-to-${config.endDate}.doc`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }
 }

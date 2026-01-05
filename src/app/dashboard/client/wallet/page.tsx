@@ -137,6 +137,7 @@ export default function WalletPage() {
   }, [transactions, token]);
 
   const fetchWalletData = async (page = 1) => {
+    setLoading(true);
     try {
       const offset = (page - 1) * transactionsPerPage;
       const data = (await axios.get(`${apiPrefix}/wallet?limit=${transactionsPerPage}&offset=${offset}`, {
@@ -149,6 +150,8 @@ export default function WalletPage() {
     } catch (error) {
       console.error("Error fetching wallet:", error);
       setTransactions([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -352,6 +355,7 @@ export default function WalletPage() {
       case "pending":
         return "bg-amber-100 text-amber-700";
       case "failed":
+      case "cancelled":
         return "bg-rose-100 text-rose-700";
       default:
         return "bg-slate-100 text-slate-700";
@@ -431,8 +435,6 @@ export default function WalletPage() {
 
         {/* Balance Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
-         
-
           <Card className="p-3 md:p-6" hover={false}>
             <div className="flex items-center gap-2 md:gap-4">
               <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
@@ -440,9 +442,13 @@ export default function WalletPage() {
               </div>
               <div>
                 <p className="text-xs md:text-sm font-medium text-slate-600">Total Balance</p>
-                <p className="text-lg md:text-2xl font-bold text-slate-900">
-                  Rwf {walletData ? parseFloat(walletData.balance).toLocaleString() : "0"}
-                </p>
+                {loading && !walletData ? (
+                  <div className="animate-pulse bg-gray-200 h-6 md:h-8 w-20 md:w-24 rounded mt-1"></div>
+                ) : (
+                  <p className="text-lg md:text-2xl font-bold text-slate-900">
+                    Rwf {walletData ? (parseFloat(walletData.balance) + parseFloat(walletData.lockedBalance)).toLocaleString() : "0"}
+                  </p>
+                )}
               </div>
             </div>
           </Card>
@@ -454,9 +460,13 @@ export default function WalletPage() {
               </div>
               <div>
                 <p className="text-xs md:text-sm font-medium text-slate-600">Available Balance</p>
-                <p className="text-lg md:text-2xl font-bold text-slate-900">
-                  Rwf {walletData ? (parseFloat(walletData.balance) - parseFloat(walletData.lockedBalance)).toLocaleString() : "0"}
-                </p>
+                {loading && !walletData ? (
+                  <div className="animate-pulse bg-gray-200 h-6 md:h-8 w-20 md:w-24 rounded mt-1"></div>
+                ) : (
+                  <p className="text-lg md:text-2xl font-bold text-slate-900">
+                    Rwf {walletData ? parseFloat(walletData.balance).toLocaleString() : "0"}
+                  </p>
+                )}
               </div>
             </div>
           </Card>
@@ -468,9 +478,13 @@ export default function WalletPage() {
               </div>
               <div>
                 <p className="text-xs md:text-sm font-medium text-slate-600">Locked Balance</p>
-                <p className="text-lg md:text-2xl font-bold text-slate-900">
-                  Rwf {walletData ? parseFloat(walletData.lockedBalance).toLocaleString() : "0"}
-                </p>
+                {loading && !walletData ? (
+                  <div className="animate-pulse bg-gray-200 h-6 md:h-8 w-20 md:w-24 rounded mt-1"></div>
+                ) : (
+                  <p className="text-lg md:text-2xl font-bold text-slate-900">
+                    Rwf {walletData ? parseFloat(walletData.lockedBalance).toLocaleString() : "0"}
+                  </p>
+                )}
               </div>
             </div>
           </Card>
@@ -729,71 +743,83 @@ export default function WalletPage() {
           <div className="overflow-x-auto -mx-3 md:mx-0">
             <div className="inline-block min-w-full align-middle px-3 md:px-0">
               <div className="overflow-hidden">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="text-left py-3 px-2 text-xs md:text-sm font-semibold text-slate-700">Transaction ID</th>
-                      <th className="text-left py-3 px-2 text-xs md:text-sm font-semibold text-slate-700">Type</th>
-                      <th className="text-left py-3 px-2 text-xs md:text-sm font-semibold text-slate-700 hidden sm:table-cell">Method</th>
-                      <th className="text-right py-3 px-2 text-xs md:text-sm font-semibold text-slate-700">Amount</th>
-                      <th className="text-left py-3 px-2 text-xs md:text-sm font-semibold text-slate-700">Status</th>
-                      <th className="text-left py-3 px-2 text-xs md:text-sm font-semibold text-slate-700 hidden md:table-cell">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions?.map((txn, index) => (
-                      <tr key={txn.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="py-3 md:py-4 px-2 text-xs md:text-sm font-medium text-slate-900">{index + 1}</td>
-                        <td className="py-3 md:py-4 px-2">
-                          <div className="flex items-center gap-1 md:gap-2">
-                            {txn.type === "DEPOSIT" ? (
-                              <>
-                                <ArrowDownToLine className="h-3 w-3 md:h-4 md:w-4 text-emerald-600" />
-                                <span className="text-xs md:text-sm text-slate-900">Deposit</span>
-                              </>
-                            ) : (
-                              <>
-                                <ArrowUpFromLine className="h-3 w-3 md:h-4 md:w-4 text-blue-600" />
-                                <span className="text-xs md:text-sm text-slate-900">Withdraw</span>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 md:py-4 px-2 text-xs md:text-sm text-slate-600 hidden sm:table-cell">{txn.paymentMethod || "N/A"}</td>
-                        <td className={`text-right py-3 md:py-4 px-2 text-xs md:text-sm font-semibold whitespace-nowrap ${
-                          txn.type === "DEPOSIT" ? "text-emerald-600" : "text-blue-600"
-                        }`}>
-                          {txn.type === "DEPOSIT" ? "+" : "-"}Rwf {parseFloat(txn.amount).toLocaleString()}
-                        </td>
-                        <td className="py-3 md:py-4 px-2">
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-block px-2 md:px-3 py-1 rounded-full text-xs font-semibold capitalize ${getStatusColor(txn.status)}`}>
-                              {txn.status.toLowerCase()}
-                            </span>
-                            {txn.status === "PENDING" && (
-                              <button
-                                onClick={() => checkPaymentStatus(txn.id)}
-                                className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                              >
-                                Check
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 md:py-4 px-2 text-xs md:text-sm text-slate-600 whitespace-nowrap hidden md:table-cell">
-                          {new Date(txn.createdAt).toLocaleString()}
-                        </td>
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#004B5B] mb-4"></div>
+                    <p className="text-slate-600 font-medium">Loading transactions...</p>
+                  </div>
+                ) : (
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-3 px-2 text-xs md:text-sm font-semibold text-slate-700">Transaction ID</th>
+                        <th className="text-left py-3 px-2 text-xs md:text-sm font-semibold text-slate-700">Type</th>
+                        <th className="text-left py-3 px-2 text-xs md:text-sm font-semibold text-slate-700 hidden sm:table-cell">Method</th>
+                        <th className="text-right py-3 px-2 text-xs md:text-sm font-semibold text-slate-700">Amount</th>
+                        <th className="text-left py-3 px-2 text-xs md:text-sm font-semibold text-slate-700">Status</th>
+                        <th className="text-left py-3 px-2 text-xs md:text-sm font-semibold text-slate-700 hidden md:table-cell">Date</th>
                       </tr>
-                    ))}
-                    {(!transactions || transactions.length === 0) && (
-                      <tr>
-                        <td colSpan={6} className="py-8 text-center text-sm text-slate-500">
-                          No transactions yet
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {transactions?.map((txn, index) => (
+                        <tr key={txn.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                          <td className="py-3 md:py-4 px-2 text-xs md:text-sm font-medium text-slate-900">{index + 1}</td>
+                          <td className="py-3 md:py-4 px-2">
+                            <div className="flex items-center gap-1 md:gap-2">
+                              {txn.type === "DEPOSIT" ? (
+                                <>
+                                  <ArrowDownToLine className="h-3 w-3 md:h-4 md:w-4 text-emerald-600" />
+                                  <span className="text-xs md:text-sm text-slate-900">Deposit</span>
+                                </>
+                              ) : txn.type === "WITHDRAW" ? (
+                                <>
+                                  <ArrowUpFromLine className="h-3 w-3 md:h-4 md:w-4 text-blue-600" />
+                                  <span className="text-xs md:text-sm text-slate-900">Withdraw</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ArrowUpFromLine className="h-3 w-3 md:h-4 md:w-4 text-purple-600" />
+                                  <span className="text-xs md:text-sm text-slate-900">{txn.type.replace('_', ' ')}</span>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 md:py-4 px-2 text-xs md:text-sm text-slate-600 hidden sm:table-cell">{txn.paymentMethod || "N/A"}</td>
+                          <td className={`text-right py-3 md:py-4 px-2 text-xs md:text-sm font-semibold whitespace-nowrap ${
+                            txn.type === "DEPOSIT" ? "text-emerald-600" : "text-blue-600"
+                          }`}>
+                            {txn.type === "DEPOSIT" ? "+" : "-"}Rwf {parseFloat(txn.amount).toLocaleString()}
+                          </td>
+                          <td className="py-3 md:py-4 px-2">
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-block px-2 md:px-3 py-1 rounded-full text-xs font-semibold capitalize ${getStatusColor(txn.status)}`}>
+                                {txn.status.toLowerCase()}
+                              </span>
+                              {txn.status === "PENDING" && (
+                                <button
+                                  onClick={() => checkPaymentStatus(txn.id)}
+                                  className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                                >
+                                  Check
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 md:py-4 px-2 text-xs md:text-sm text-slate-600 whitespace-nowrap hidden md:table-cell">
+                            {new Date(txn.createdAt).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                      {(!transactions || transactions.length === 0) && !loading && (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-sm text-slate-500">
+                            No transactions yet
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           </div>

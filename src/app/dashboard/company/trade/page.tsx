@@ -5,8 +5,11 @@ import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
-import { FiSearch, FiTrendingUp, FiTrendingDown, FiDollarSign, FiShoppingCart, FiRefreshCw } from "react-icons/fi";
+import { FiSearch, FiTrendingUp, FiTrendingDown, FiDollarSign, FiShoppingCart, FiRefreshCw, FiFileText } from "react-icons/fi";
 import toast from "react-hot-toast";
+import TransactionModal, { TransactionConfig } from "@/components/models/TransactionModal";
+import { generateTransactionStatement } from "@/utils/printing/transactionStatement";
+import { executePrint } from "@/utils/printing/printUtils";
 
 interface Company {
   id: string;
@@ -60,6 +63,7 @@ export default function CompanyTradePage() {
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [companiesLoading, setCompaniesLoading] = useState(false);
   const [tradesLoading, setTradesLoading] = useState(false);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
 
   const { displayName, dashboardRole } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
@@ -630,15 +634,27 @@ export default function CompanyTradePage() {
               <h2 className="text-xl font-semibold text-gray-900">Recent Trades</h2>
               <p className="text-sm text-gray-600 mt-1">Your company's recent trading activity</p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchRecentTrades()}
-              className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
-            >
-              <FiRefreshCw className="h-4 w-4" />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTransactionModal(true)}
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
+                disabled={recentTrades.length === 0}
+              >
+                <FiFileText className="h-4 w-4" />
+                Statement
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchRecentTrades()}
+                className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
+              >
+                <FiRefreshCw className="h-4 w-4" />
+                Refresh
+              </Button>
+            </div>
           </div>
           
           {tradesLoading ? (
@@ -714,7 +730,47 @@ export default function CompanyTradePage() {
             </div>
           )}
         </Card>
+        {/* Transaction Statement Modal */}
+        <TransactionModal
+          isOpen={showTransactionModal}
+          onClose={() => setShowTransactionModal(false)}
+          onGenerate={handleGenerateStatement}
+        />
       </div>
     </DashboardLayout>
   );
+
+  function handleGenerateStatement(config: TransactionConfig) {
+    const currentUser = { name: displayName, email: user?.email || "" };
+    
+    // Transform company trades to match expected format
+    const transformedTrades = recentTrades.map(trade => ({
+      ...trade,
+      company: {
+        name: trade.Company_CompanyTrade_targetCompanyIdToCompany.name,
+        symbol: trade.Company_CompanyTrade_targetCompanyIdToCompany.symbol
+      }
+    }));
+    
+    const statementContent = generateTransactionStatement(
+      transformedTrades,
+      config,
+      currentUser
+    );
+    
+    if (config.format === 'pdf') {
+      executePrint(statementContent);
+    } else {
+      // For Word format, create downloadable file
+      const blob = new Blob([statementContent], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transaction-statement-${config.startDate}-to-${config.endDate}.doc`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }
 }

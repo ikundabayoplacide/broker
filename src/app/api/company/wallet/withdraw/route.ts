@@ -125,6 +125,19 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Create notification for successful withdrawal
+      await tx.companyNotification.create({
+        data: {
+          id: crypto.randomUUID(),
+          companyId,
+          title: "Withdrawal Completed",
+          message: `Withdrawal of Rwf ${numericAmount.toLocaleString()} has been completed successfully.`,
+          type: "WITHDRAWAL_SUCCESS",
+          metadata: { transactionId: transaction.id, amount: numericAmount, reference },
+          updatedAt: new Date(),
+        },
+      });
+
       return { wallet: updatedWallet, transaction };
     });
 

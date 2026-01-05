@@ -120,6 +120,19 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Create notification for deposit initiation
+    await prisma.companyNotification.create({
+      data: {
+        id: crypto.randomUUID(),
+        companyId: auth.companyId,
+        title: "Deposit Initiated",
+        message: `Deposit of Rwf ${numericAmount.toLocaleString()} has been initiated. Please complete payment on your phone.`,
+        type: "DEPOSIT_PENDING",
+        metadata: { transactionId: transaction.id, amount: numericAmount, reference },
+        updatedAt: new Date(),
+      },
+    });
+
     return NextResponse.json({
       message: "Payment initiated. Please complete payment on your phone.",
       transaction,

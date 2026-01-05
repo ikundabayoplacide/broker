@@ -18,7 +18,8 @@ import {
   Calendar,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
+  RefreshCw
 } from "lucide-react";
 
 type HistoryFilter = "all" | "trades" | "deposits" | "withdrawals";
@@ -216,6 +217,53 @@ export default function HistoryPage() {
     }
   };
 
+  const refreshHistory = async () => {
+    setLoading(true);
+    if (!user?.id || !token) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const [walletData, tradesData] = await Promise.all([
+        axios.get('/wallet?limit=100', { headers: { Authorization: `Bearer ${token}` } }) as Promise<{ transactions: Array<{ id: string; type: string; amount: string; status: string; description: string; createdAt: string }> }>,
+        axios.get('/trade/history?limit=100', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ trades: [] })) as Promise<{ trades: Array<{ id: string; type: string; status: string; quantity: number; executedPrice?: number; totalAmount: string; createdAt: string; company?: { name: string; symbol?: string } }> }>,
+      ]);
+
+      const walletTransactions = (walletData.transactions || []).map(t => ({
+        id: t.id,
+        type: t.type.toLowerCase(),
+        category: t.type === 'DEPOSIT' ? 'deposit' : 'withdrawal',
+        description: t.description || `${t.type} transaction`,
+        amount: parseFloat(t.amount),
+        status: t.status.toLowerCase(),
+        date: new Date(t.createdAt).toLocaleString(),
+      }));
+
+      const tradeTransactions = (tradesData.trades || []).map(t => ({
+        id: t.id,
+        type: t.type.toLowerCase(),
+        category: 'trade',
+        security: t.company?.symbol || t.company?.name || 'N/A',
+        description: `${t.type === 'BUY' ? 'Bought' : 'Sold'} ${t.quantity} shares${t.company?.name ? ` of ${t.company.name}` : ''}`,
+        amount: parseFloat(t.totalAmount),
+        quantity: t.quantity,
+        price: t.executedPrice,
+        status: t.status === 'EXECUTED' ? 'completed' : t.status.toLowerCase(),
+        date: new Date(t.createdAt).toLocaleString(),
+      }));
+
+      const combined = [...walletTransactions, ...tradeTransactions].sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+
+      setAllHistory(combined);
+    } catch (err) {
+      console.error('Error fetching history:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const exportHistory = () => {
     console.log("Exporting history...");
     // Implementation for CSV/PDF export
@@ -227,13 +275,24 @@ export default function HistoryPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900">Transaction History</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900">Transaction and Trade History</h1>
             <p className="text-sm md:text-base text-slate-600 mt-1">View and manage all your account activity</p>
           </div>
-          <Button onClick={exportHistory} variant="outline" className="flex items-center gap-2 text-xs md:text-sm shrink-0">
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={refreshHistory} 
+              variant="outline" 
+              className="flex items-center gap-2 text-xs md:text-sm shrink-0"
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button onClick={exportHistory} variant="outline" className="flex items-center gap-2 text-xs md:text-sm shrink-0">
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+          </div>
         </div>
 
         {/* Summary Stats */}

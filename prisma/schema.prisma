@@ -72,6 +72,7 @@ model Company {
   CompanyTrade_CompanyTrade_targetCompanyIdToCompany         CompanyTrade[]         @relation("CompanyTrade_targetCompanyIdToCompany")
   CompanyTransaction                                         CompanyTransaction[]
   CompanyWallet                                              CompanyWallet?
+  CompanyNotification                                        CompanyNotification[]
   Portfolio                                                  Portfolio[]
   Trade                                                      Trade[]
 }
@@ -190,6 +191,23 @@ model MarketSnapshot {
   @@index([snapshotDate])
   @@index([symbol])
   @@index([syncedAt])
+}
+
+model CompanyNotification {
+  id        String   @id
+  companyId String
+  title     String
+  message   String   @db.Text
+  type      String   @default("INFO")
+  metadata  Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([createdAt])
+  @@index([isRead])
 }
 
 model Notification {
