@@ -20,6 +20,12 @@ const ensureConfigured = () => {
     api_key: apiKey,
     api_secret: apiSecret,
     secure: true,
+    // Add timeout and retry for cPanel
+    timeout: 60000,
+    ...(process.env.NODE_ENV === 'production' && {
+      // Use different upload endpoint for cPanel
+      upload_prefix: 'https://api.cloudinary.com',
+    }),
   });
 
   isConfigured = true;

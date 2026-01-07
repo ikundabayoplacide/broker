@@ -36,26 +36,42 @@ export const FileUploadField: FC<FileUploadFieldProps> = ({
   const [localError, setLocalError] = useState<string | null>(null);
 
   const uploadFile = async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("field", name);
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const response = await fetch("/api/uploads/cloudinary", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              image: reader.result,
+              field: name,
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size,
+            }),
+          });
 
-    const response = await fetch("/api/uploads/cloudinary", {
-      method: "POST",
-      body: formData,
+          const payload = await response.json();
+
+          if (!response.ok) {
+            throw new Error(payload?.error ?? "Failed to upload file");
+          }
+
+          if (!payload?.url || typeof payload.url !== "string") {
+            throw new Error("Upload succeeded but no URL was returned");
+          }
+
+          resolve(payload.url);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(file);
     });
-
-    const payload = await response.json();
-
-    if (!response.ok) {
-      throw new Error(payload?.error ?? "Failed to upload file");
-    }
-
-    if (!payload?.url || typeof payload.url !== "string") {
-      throw new Error("Upload succeeded but no URL was returned");
-    }
-
-    return payload.url as string;
   };
 
   const handleChange = async (event: ChangeEvent<HTMLInputElement>) => {

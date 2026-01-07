@@ -4,6 +4,8 @@ import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfileReminder } from "@/hooks/useProfileReminder";
+import ProfileReminderCard from "@/components/common/ProfileReminderCard";
 import { useMemo, useState, useEffect } from "react";
 import axios from "@/lib/axios";
 import {
@@ -27,6 +29,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 export default function AdminDashboard() {
   const { user, token } = useAuth();
+  const { fullUserData } = useProfileReminder();
   const [dashboardData, setDashboardData] = useState({
     totalClients: 0,
     activeClients: 0,
@@ -103,6 +106,7 @@ export default function AdminDashboard() {
   return (
         <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
           <div className="space-y-6">
+            <ProfileReminderCard userData={fullUserData} />
             <div className="flex justify-between items-start animate-fadeInUp">
               <div>
                 <h1 className="text-2xl font-bold text-gray-500">Manager's Dashboard</h1>

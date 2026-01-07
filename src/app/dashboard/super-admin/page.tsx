@@ -7,6 +7,8 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import "./globals.css";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfileReminder } from "@/hooks/useProfileReminder";
+import ProfileReminderCard from "@/components/common/ProfileReminderCard";
 import { useUserStats } from "@/hooks/useUserStats";
 import { CompanyCreateForm, type CompanySummary } from "@/components/company/CompanyCreateForm";
 import {
@@ -42,6 +44,7 @@ ChartJS.register(ArcElement, ChartTooltip, Legend, ChartDataLabels);
 export default function SuperAdminDashboard() {
   const router = useRouter();
   const { user, token } = useAuth();
+  const { fullUserData } = useProfileReminder();
   const { stats: userStats } = useUserStats();
 
   const [companies, setCompanies] = useState<CompanySummary[]>([]);
@@ -339,6 +342,7 @@ export default function SuperAdminDashboard() {
   return (
     <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
       <div className="space-y-6 print:space-y-4">
+        <ProfileReminderCard userData={fullUserData} />
         <div className="hidden print:block print:mb-4 text-right">
           <p className="text-sm text-gray-600">{new Date().toLocaleDateString()}</p>
         </div>

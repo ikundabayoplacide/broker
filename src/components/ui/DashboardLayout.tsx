@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
@@ -27,6 +29,7 @@ import NotificationBell from '@/components/ui/NotificationBell';
 import { LanguageSelector } from '@/components/translation/LanguageSelector';
 import Button from "@/components/ui/Button";
 import { MarketStatus } from '@/components/market/MarketStatus';
+import { FaTradeFederation } from "react-icons/fa";
 
 
 type DashboardRole = "client" | "teller" | "manager" | "admin" | "super-admin" | "company";
@@ -67,6 +70,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [managerUsersOpen, setManagerUsersOpen] = useState(false);
+  const [liveSecuritiesOpen, setLiveSecuritiesOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading, isAuthenticated } = useAuth();
@@ -105,6 +109,9 @@ export default function DashboardLayout({
       } else if (derivedRole === 'manager') {
         setManagerUsersOpen(true);
       }
+    }
+    if (pathname?.startsWith('/dashboard/commonPage/market')) {
+      setLiveSecuritiesOpen(true);
     }
   }, [pathname, derivedRole]);
 
@@ -145,9 +152,19 @@ export default function DashboardLayout({
       case "client":
         return [
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/client" },
-          { name: "Investments", icon: FiBriefcase, href: "/dashboard/client/investments" },
+          { name: "Company", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
+          {name: "Live Securities",
+            icon: FiDollarSign,
+             hasChildren: true,
+            children: [
+              {name:"All Orders", href:"/dashboard/commonPage/market", icon:FiTrendingUp},
+              {name:"Purchase Orders", href:"/dashboard/commonPage/market/purchaseOrders", icon:FiTrendingUp},
+              {name:"Sell Orders", href:"/dashboard/commonPage/market/sellOrders", icon:FiTrendingUp},
+            ]
+          },
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
           { name: "Wallet", icon: FiCreditCard, href: "/dashboard/client/wallet" },
+          { name: "Investments", icon: FiBriefcase, href: "/dashboard/client/investments" },
           { name: "History", icon: FiClipboard, href: "/dashboard/client/history" },
           { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
@@ -157,9 +174,17 @@ export default function DashboardLayout({
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/teller" },
           { name: "Users", icon: FiUsers, href: "/dashboard/teller/users" },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
-          { name: "Wallets", icon: FiCreditCard, href: "/dashboard/teller/wallet" },
+          {name: "Live Securities",
+            icon: FiDollarSign,
+             hasChildren: true,
+            children: [
+              {name:"All Orders", href:"/dashboard/commonPage/market", icon:FiTrendingUp},
+              {name:"Purchase Orders", href:"/dashboard/commonPage/market/purchaseOrders", icon:FiTrendingUp},
+              {name:"Sell Orders", href:"/dashboard/commonPage/market/sellOrders", icon:FiTrendingUp},
+            ]
+          },
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/commonPage/trade" },
-          { name: "Orders", icon: FiClipboard, href: "/dashboard/teller/orders" },
+          { name: "Wallets", icon: FiCreditCard, href: "/dashboard/teller/wallet" },       
           { name: "Executions", icon: FiZap, href: "/dashboard/teller/executions" },
           { name: "Reports", icon: FiTrendingUp, href: "/dashboard/teller/reports" },
           { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
@@ -179,10 +204,17 @@ export default function DashboardLayout({
             ]
           },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
-          // { name: "Trade", icon: FiTrendingUp, href: "/dashboard/manager/trade"},
-          { name: "Trade", icon: FiDollarSign, href: "/dashboard/commonPage/trade" },
+            {name: "Live Securities",
+            icon: FiDollarSign,
+             hasChildren: true,
+            children: [
+              {name:"All Orders", href:"/dashboard/commonPage/market", icon:FiTrendingUp},
+              {name:"Purchase Orders", href:"/dashboard/commonPage/market/purchaseOrders", icon:FiTrendingUp},
+              {name:"Sell Orders", href:"/dashboard/commonPage/market/sellOrders", icon:FiTrendingUp},
+            ]
+          },
+          { name: "Trade", icon: FaTradeFederation, href: "/dashboard/commonPage/trade" },
           {name:"Wallets",icon:FiCreditCard,href:"/dashboard/manager/wallet"},
-          // { name: "Reports", icon: FiTrendingUp, href: "/dashboard/manager/reports" },
           { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
         ];
@@ -202,7 +234,17 @@ export default function DashboardLayout({
             ]
           },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
-          { name: "Trade", icon: FiTrendingUp, href: "/dashboard/super-admin/trade" },
+            {name: "Live Securities",
+            icon: FiDollarSign,
+             hasChildren: true,
+            children: [
+              {name:"All Orders", href:"/dashboard/commonPage/market", icon:FiTrendingUp},
+              {name:"Purchase Orders", href:"/dashboard/commonPage/market/purchaseOrders", icon:FiTrendingUp},
+              {name:"Sell Orders", href:"/dashboard/commonPage/market/sellOrders", icon:FiTrendingUp},
+            ]
+          },
+          { name: "Trade", icon: FaTradeFederation, href: "/dashboard/super-admin/trade" },
+          {name:"Wallets",icon:FiCreditCard,href:"/dashboard/super-admin/wallet"},
           {name:"Branches",icon:FiMenu,href:"/dashboard/super-admin/branches"},
           { name: "Notifications", icon: FiBell, href: "/dashboard/commonPage/notification" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/commonPage/settings" },
@@ -212,10 +254,18 @@ export default function DashboardLayout({
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/company" },
           { name: "Investments", icon: FiBriefcase, href: "/dashboard/company/investments" },
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/company/trade" },
+            {name: "Live Securities",
+            icon: FiDollarSign,
+             hasChildren: true,
+            children: [
+              {name:"All Orders", href:"/dashboard/commonPage/market", icon:FiTrendingUp},
+              {name:"Purchase Orders", href:"/dashboard/commonPage/market/purchaseOrders", icon:FiTrendingUp},
+              {name:"Sell Orders", href:"/dashboard/commonPage/market/sellOrders", icon:FiTrendingUp},
+            ]
+          },
           { name: "Wallet", icon: FiCreditCard, href: "/dashboard/company/wallet" },
           { name: "History", icon: FiClipboard, href: "/dashboard/company/history" },
           { name: "Share Movement", icon: FiZap, href: "/dashboard/company/share-movement" },
-          // { name: "Shareholders", icon: FiUsers, href: "/dashboard/company/shareholders" },
           { name: "Notifications", icon: FiBell, href: "/dashboard/company/notification" },
           { name: "Settings", icon: FiSettings, href: "/dashboard/company/settings" },
         ];
@@ -259,10 +309,11 @@ export default function DashboardLayout({
             if (hasChildren) {
               const isUserManagement = item.name === "User Management";
               const isManagerUsers = item.name === "Users" && derivedRole === "manager";
-              const isOpen = isUserManagement ? userManagementOpen : (isManagerUsers ? managerUsersOpen : false);
+              const isLiveSecurities = item.name === "Live Securities";
+              const isOpen = isUserManagement ? userManagementOpen : (isManagerUsers ? managerUsersOpen : (isLiveSecurities ? liveSecuritiesOpen : false));
               const toggleOpen = isUserManagement 
                 ? () => setUserManagementOpen(!userManagementOpen)
-                : (isManagerUsers ? () => setManagerUsersOpen(!managerUsersOpen) : () => {});
+                : (isManagerUsers ? () => setManagerUsersOpen(!managerUsersOpen) : (isLiveSecurities ? () => setLiveSecuritiesOpen(!liveSecuritiesOpen) : () => {}));
 
               return (
                 <div key={item.name} className="mb-2">
@@ -289,10 +340,7 @@ export default function DashboardLayout({
                             key={child.name}
                             href={child.href}
                             className="relative flex items-center px-4 py-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200 text-sm group"
-                            onClick={() => {
-                              // Keep dropdown open when navigating to child pages
-                              setSidebarOpen(false);
-                            }}
+                            onClick={() => setSidebarOpen(false)}
                           >
                             <div className="absolute left-2 w-4 font-bold h-px bg-white group-hover:bg-white/40"></div>
                             <div className="flex items-center space-x-3 ml-4">

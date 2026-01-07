@@ -108,14 +108,10 @@ export async function POST(req: NextRequest) {
       return user;
     });
 
-    // Send OTP email for verification
-    console.log('📧 Attempting to send OTP email to:', email);
     try {
       await sendOTPEmail(email, otp);
-      console.log('✅ OTP email sent successfully for user creation');
     } catch (emailErr) {
       console.error("❌ Error sending OTP email for user creation:", emailErr);
-      // Don't fail user creation if email fails, just log the error
     }
 
     return NextResponse.json({
@@ -230,3 +226,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
   }
 }
+

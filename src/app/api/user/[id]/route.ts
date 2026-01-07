@@ -215,7 +215,11 @@ export async function GET(request: Request, context: { params: RouteParams }) {
 
 export async function PATCH(request: Request, context: { params: RouteParams }) {
 	try {
-		const auth = await requireUserManagementRole(request);
+		const auth = await getAuthenticatedUser(request as any);
+		if (!auth) {
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+
 		const { id } = await context.params;
 
 		const existing = await prisma.user.findUnique({
@@ -227,22 +231,30 @@ export async function PATCH(request: Request, context: { params: RouteParams }) 
 			return NextResponse.json({ error: "User not found" }, { status: 404 });
 		}
 
-		// Allow users to modify their own profile, or apply access control for tellers modifying others
-		if (auth.role === Role.TELLER && id !== auth.id) {
-			if (existing.role !== Role.CLIENT) {
-				throw new ForbiddenError("Tellers can only modify their own clients");
-			}
+		// Allow users to modify their own profile
+		const isOwnProfile = id === (auth.userId || auth.id);
+		
+		// If not own profile, check user management permissions
+		if (!isOwnProfile) {
+			const userMgmtAuth = await requireUserManagementRole(request);
+			
+			// Apply access control for tellers modifying others
+			if (userMgmtAuth.role === Role.TELLER) {
+				if (existing.role !== Role.CLIENT) {
+					throw new ForbiddenError("Tellers can only modify their own clients");
+				}
 
-			const ownsClient = await prisma.user.count({
-				where: {
-					id,
-					role: Role.CLIENT,
-					createdById: auth.id,
-				} as unknown as Prisma.UserWhereInput,
-			});
+				const ownsClient = await prisma.user.count({
+					where: {
+						id,
+						role: Role.CLIENT,
+						createdById: userMgmtAuth.id,
+					} as unknown as Prisma.UserWhereInput,
+				});
 
-			if (!ownsClient) {
-				throw new ForbiddenError("Tellers can only modify their own clients");
+				if (!ownsClient) {
+					throw new ForbiddenError("Tellers can only modify their own clients");
+				}
 			}
 		}
 
@@ -251,11 +263,11 @@ export async function PATCH(request: Request, context: { params: RouteParams }) 
 		const { confirmPassword: _confirmPassword, ...rest } = parsed;
 		void _confirmPassword;
 
-		if (auth.role === Role.TELLER && rest.role && rest.role !== Role.CLIENT) {
+		if (!isOwnProfile && auth.role === Role.TELLER && rest.role && rest.role !== Role.CLIENT) {
 			throw new ForbiddenError("Tellers cannot change client roles");
 		}
 
-		if (auth.role === Role.ADMIN) {
+		if (!isOwnProfile && auth.role === Role.ADMIN) {
 			if (existing.role === Role.SUPER_ADMIN && rest.role !== undefined && rest.role !== existing.role) {
 				throw new ForbiddenError("Admins cannot change the role of a super admin");
 			}
@@ -286,7 +298,16 @@ export async function PATCH(request: Request, context: { params: RouteParams }) 
 		if (rest.idNumber !== undefined) data.idNumber = rest.idNumber.trim();
 		if (rest.passportPhoto !== undefined) data.passportPhoto = rest.passportPhoto.trim();
 		if (rest.idDocument !== undefined) data.idDocument = rest.idDocument.trim();
-		if (rest.dateOfBirth !== undefined) data.dateOfBirth = new Date(rest.dateOfBirth);
+		if (rest.dateOfBirth !== undefined) {
+			if (rest.dateOfBirth && rest.dateOfBirth.trim()) {
+				const parsedDate = new Date(rest.dateOfBirth);
+				if (!isNaN(parsedDate.getTime())) {
+					data.dateOfBirth = parsedDate;
+				}
+			} else {
+				data.dateOfBirth = null;
+			}
+		}
 		if (rest.country !== undefined) data.country = rest.country.trim();
 		if (rest.city !== undefined) data.city = rest.city.trim();
 		if (rest.gender !== undefined) data.gender = rest.gender.trim().toLowerCase();
@@ -345,6 +366,8 @@ export async function PATCH(request: Request, context: { params: RouteParams }) 
 			}
 
 			return result;
+		}, {
+			timeout: 15000, // 15 seconds timeout
 		})) as unknown as UserResponse;
 
 		if (emailChanged && emailTarget && generatedOtp) {

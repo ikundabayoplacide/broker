@@ -5,6 +5,8 @@ import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfileReminder } from "@/hooks/useProfileReminder";
+import ProfileReminderCard from "@/components/common/ProfileReminderCard";
 import { useMemo, useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -33,6 +35,7 @@ interface Order {
 
 export default function TellerDashboard() {
   const { user, token } = useAuth();
+  const { fullUserData } = useProfileReminder();
   const [stats, setStats] = useState({ 
     totalVolume: "0", 
     executedToday: 0, 
@@ -211,6 +214,7 @@ export default function TellerDashboard() {
   return (
     <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
       <div className="space-y-6">
+        <ProfileReminderCard userData={fullUserData} />
         {/* Welcome Section */}
         <div className="animate-fadeInUp space-y-3">
           <div className="flex items-center justify-between">

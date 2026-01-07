@@ -13,40 +13,33 @@ const asError = (err: unknown): Error => {
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("file");
+    const { image, field, fileName, fileType, fileSize } = await request.json();
 
-    if (!file || !(file instanceof File)) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (!image || typeof image !== "string") {
+      return NextResponse.json({ error: "No image data provided" }, { status: 400 });
     }
 
-    if (file.size === 0) {
-      return NextResponse.json({ error: "File is empty" }, { status: 400 });
+    if (!image.startsWith("data:")) {
+      return NextResponse.json({ error: "Invalid image format" }, { status: 400 });
     }
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
+    if (fileSize && fileSize > MAX_FILE_SIZE_BYTES) {
       return NextResponse.json(
         { error: "File size exceeds the 10MB limit" },
         { status: 413 }
       );
     }
 
-    const field = formData.get("field");
     const folder = typeof field === "string" ? getFolderForField(field) : DEFAULT_FOLDER;
-
     const cloudinary = getCloudinary();
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64 = buffer.toString("base64");
-    const dataUri = `data:${file.type};base64,${base64}`;
-
-    const uploadResult = await cloudinary.uploader.upload(dataUri, {
+    const uploadResult = await cloudinary.uploader.upload(image, {
       folder,
       resource_type: "auto",
-      use_filename: true,
+      use_filename: fileName ? true : false,
       unique_filename: true,
       overwrite: false,
+      ...(fileName && { public_id: fileName.split('.')[0] }),
     });
 
     return NextResponse.json(
@@ -63,8 +56,17 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     const error = asError(err);
     console.error("Cloudinary upload failed", error);
+    
+    // Check for network connectivity issues
+    if (error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
+      return NextResponse.json(
+        { error: "Cannot connect to Cloudinary. Please check network connectivity." },
+        { status: 503 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to upload file" },
+      { error: error.message || "Failed to upload file" },
       { status: 500 }
     );
   }

@@ -5,22 +5,22 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   FiSearch,
-  FiFilter,
   FiDownload,
   FiCheckCircle,
   FiXCircle,
   FiClock,
   FiEye,
   FiRefreshCw,
+  FiPlus,
 } from "react-icons/fi";
 
 interface Order {
   id: string;
   clientName: string;
   phone: string;
-  type: string;
   company: string;
   quantity: number;
   price: number;
@@ -29,60 +29,40 @@ interface Order {
   status: string;
 }
 
-export default function TellerOrders() {
+export default function SellOrdersPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [filterType, setFilterType] = useState("all");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const { displayName, email, dashboardRole } = useMemo((): {
-    displayName: string;
-    email: string;
-    dashboardRole: "teller";
-  } => {
+  const { displayName, email, dashboardRole } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
-    const fallbackName = user?.email ? user.email.split("@")[0] : "Teller";
+    const fallbackName = user?.email ? user.email.split("@")[0] : "User";
 
     return {
       displayName: fullName || fallbackName,
       email: user?.email ?? "Not provided",
-      dashboardRole: "teller",
+      dashboardRole: (user?.role || "client") as "client" | "teller" | "admin" | "manager" | "super-admin" | "company",
     };
-  }, [user?.email, user?.fullName]);
+  }, [user?.email, user?.fullName, user?.role]);
 
   useEffect(() => {
-    fetchOrders();
+    fetchSellOrders();
   }, []);
 
-  const handleExcute = () => {
-    alert("Execute order functionality to be implemented. just wait!");
-  };
-
-  const handleReject = () => {
-    alert("Reject order functionality to be implemented. just wait!");
-  };
-  const fetchOrders = async () => {
+  const fetchSellOrders = async () => {
     try {
       setLoading(true);
+      const response = await fetch('/api/forms/SaleOrderForm');
+      const data = response.ok ? (await response.json()).data || [] : [];
       
-      const [sellOrdersResponse, purchaseOrdersResponse] = await Promise.all([
-        fetch('/api/forms/SaleOrderForm'),
-        fetch('/api/forms/PurchaseOrderForm')
-      ]);
-      
-      const sellOrdersData = sellOrdersResponse.ok ? (await sellOrdersResponse.json()).data || [] : [];
-      const purchaseOrdersData = purchaseOrdersResponse.ok ? (await purchaseOrdersResponse.json()).data || [] : [];
-      
-      const transformedSellOrders = sellOrdersData.flatMap((order: any) => 
+      const transformedOrders = data.flatMap((order: any) => 
         order.SaleOrderItem?.map((item: any, index: number) => ({
           id: `SO-${order.id}-${index + 1}`,
-          client: order.user?.fullName || order.user?.email || 'Unknown',
-          clientId: `#${order.userId}`,
           clientName: order.clientName || 'Unknown',
           phone: order.phone || 'N/A',
-          type: 'SELL',
           company: item.security || 'Unknown Security',
           quantity: item.quantity,
           price: Number(item.price || 0),
@@ -90,31 +70,11 @@ export default function TellerOrders() {
           date: order.createdAt,
           status: order.status
         } as Order)) || []
-      );
+      ).sort((a: Order, b: Order) => new Date(b.date).getTime() - new Date(a.date).getTime());
       
-      const transformedPurchaseOrders = purchaseOrdersData.flatMap((order: any) => 
-        order.PurchaseOrderItem?.map((item: any, index: number) => ({
-          id: `PO-${order.id}-${index + 1}`,
-          client: order.user?.fullName || order.user?.email || 'Unknown',
-          clientId: `#${order.userId}`,
-          clientName: order.clientName || 'Unknown',
-          phone: order.phone || 'N/A',
-          type: 'BUY',
-          company: item.security || 'Unknown Security',
-          quantity: item.quantity,
-          price: Number(item.price || 0),
-          total: Number(item.quantity || 0) * Number(item.price || 0),
-          date: order.createdAt,
-          status: order.status
-        } as Order)) || []
-      );
-      
-      const allOrders = [...transformedSellOrders, ...transformedPurchaseOrders]
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      setOrders(allOrders);
+      setOrders(transformedOrders);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('Error fetching sell orders:', error);
     } finally {
       setLoading(false);
     }
@@ -129,14 +89,14 @@ export default function TellerOrders() {
             Pending
           </span>
         );
-      case "completed":
+      case "COMPLETED":
         return (
           <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm flex items-center gap-1">
             <FiCheckCircle className="w-3 h-3" />
             Completed
           </span>
         );
-      case "rejected":
+      case "REJECTED":
         return (
           <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm flex items-center gap-1">
             <FiXCircle className="w-3 h-3" />
@@ -148,27 +108,14 @@ export default function TellerOrders() {
     }
   };
 
-  const getTypeBadge = (type: string) => {
-    return type === "BUY" ? (
-      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-        BUY
-      </span>
-    ) : (
-      <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-        SELL
-      </span>
-    );
-  };
-
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.id.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === "all" || order.status === filterStatus;
-    const matchesType = filterType === "all" || order.type.toLowerCase() === filterType;
 
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesSearch && matchesStatus;
   });
 
   const stats = {
@@ -176,69 +123,48 @@ export default function TellerOrders() {
     completed: orders.filter((o) => o.status === "COMPLETED").length,
     rejected: orders.filter((o) => o.status === "REJECTED").length,
     total: orders.length,
-    sellOrders: orders.filter((o) => o.type === "SELL").length,
-    purchaseOrders: orders.filter((o) => o.type === "BUY").length,
   };
 
   return (
-    <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
-      <div className="space-y-2">
-        {/* Header */}
+    <DashboardLayout>
+      <div className="space-y-6">
         <div className="animate-fadeInUp space-y-2 flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-bold text-gray-600">Orders Management</h1>
+            <h1 className="text-2xl font-bold text-gray-600">Sell Orders</h1>
             <p className="text-base text-gray-400">
-              View, manage, and execute client orders across all portfolios.
+              View and manage all sell orders in the market.
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={fetchOrders}
-            disabled={loading}
-            className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
-          >
-            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={fetchSellOrders}
+              disabled={loading}
+              className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200"
+            >
+              <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button
+              className="flex items-center gap-2 bg-[#004B5B] text-white hover:bg-[#006B85] transition-all duration-200"
+              onClick={() => router.push('/dashboard/forms/SaleOrderForm')}
+            >
+              <FiPlus className="w-4 h-4" />
+              Create Order
+            </Button>
+          </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 animate-slideInRight">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-slideInRight">
           <Card className="p-6 hover:shadow-lg transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-base font-medium text-gray-500 mb-2">Total Orders</p>
                 <p className="text-xl font-semibold text-gray-700">{stats.total}</p>
-                <p className="text-sm text-gray-400">All time</p>
-              </div>
-              <div className="w-11 h-11 gradient-primary rounded-full flex items-center justify-center">
-                <FiFilter className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 hover:shadow-lg transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-medium text-gray-500 mb-2">Sell Orders</p>
-                <p className="text-xl font-semibold text-red-600">{stats.sellOrders}</p>
-                <p className="text-sm text-gray-400">Total sell orders</p>
+                <p className="text-sm text-gray-400">All sell orders</p>
               </div>
               <div className="w-11 h-11 bg-red-100 rounded-full flex items-center justify-center">
                 <FiXCircle className="w-6 h-6 text-red-600" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 hover:shadow-lg transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-medium text-gray-500 mb-2">Purchase Orders</p>
-                <p className="text-xl font-semibold text-green-600">{stats.purchaseOrders}</p>
-                <p className="text-sm text-gray-400">Total purchase orders</p>
-              </div>
-              <div className="w-11 h-11 bg-green-100 rounded-full flex items-center justify-center">
-                <FiCheckCircle className="w-6 h-6 text-green-600" />
               </div>
             </div>
           </Card>
@@ -283,7 +209,6 @@ export default function TellerOrders() {
           </Card>
         </div>
 
-        {/* Filters and Search */}
         <Card className="p-6 animate-fadeInUp">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
@@ -302,18 +227,9 @@ export default function TellerOrders() {
               className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004B5B] focus:border-transparent"
             >
               <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004B5B] focus:border-transparent"
-            >
-              <option value="all">All Types</option>
-              <option value="buy">Buy Orders</option>
-              <option value="sell">Sell Orders</option>
+              <option value="PENDING">Pending</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="REJECTED">Rejected</option>
             </select>
             <Button variant="outline" className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
               <FiDownload className="w-4 h-4" />
@@ -322,7 +238,6 @@ export default function TellerOrders() {
           </div>
         </Card>
 
-        {/* Orders Table */}
         <Card className="p-6 animate-fadeInUp">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -330,7 +245,6 @@ export default function TellerOrders() {
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">No</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Client</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Type</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Company</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Quantity</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Price</th>
@@ -352,7 +266,6 @@ export default function TellerOrders() {
                         <p className="text-xs text-gray-600">{order.phone}</p>
                       </div>
                     </td>
-                    <td className="py-3 px-4">{getTypeBadge(order.type)}</td>
                     <td className="py-3 px-4">
                       <p className="font-medium text-sm">{order.company}</p>
                     </td>
@@ -379,16 +292,12 @@ export default function TellerOrders() {
                         <button className="p-2 hover:bg-gray-100 rounded-lg transition">
                           <FiEye className="w-4 h-4 text-gray-600" />
                         </button>
-                        {order.status === "PENDING" && (
-                          <>
-                            <Button size="sm" className="px-3 py-1" onClick={handleExcute}>
-                              Execute
-                            </Button>
-                            <Button size="sm" variant="outline" className="px-3 py-1 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200" onClick={handleReject}>
-                              Reject
-                            </Button>
-                          </>
-                        )}
+                        <Button variant="primary" className="text-sm  hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
+                          Execute
+                        </Button>
+                        <Button variant="primary" className="text-sm  hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
+                          Reject
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -399,13 +308,13 @@ export default function TellerOrders() {
 
           {loading && (
             <div className="text-center py-12">
-              <p className="text-gray-500">Loading orders...</p>
+              <p className="text-gray-500">Loading sell orders...</p>
             </div>
           )}
 
           {!loading && filteredOrders.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-gray-500">No orders found matching your criteria.</p>
+              <p className="text-gray-500">No sell orders found matching your criteria.</p>
             </div>
           )}
         </Card>

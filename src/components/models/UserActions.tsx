@@ -45,7 +45,7 @@ export default function UserActions({
   onUserUpdated, 
   showView = true, 
   showEdit = true, 
-  showDelete = true 
+  showDelete = true
 }: UserActionsProps) {
   const router = useRouter();
   const [editModalOpen, setEditModalOpen] = useState(false);

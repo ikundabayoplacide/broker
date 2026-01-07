@@ -23,8 +23,8 @@ import {
 } from "@/lib/validations/signupValidation";
 import api, { authApi } from "@/lib/axios";
 import { useAuth } from "@/hooks/useAuth";
+import RoleDropdown from "@/components/models/RoleDropdown";
 import ReportModal, { type ReportConfig } from "@/components/models/ReportModal";
-import { ReportGenerator } from "@/utils/reportGenerator";
 
 type ApiUserRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER" | "COMPANY" | "CLIENT";
 
@@ -147,7 +147,7 @@ const MODE_CONFIG: Record<ManagementMode, ModeConfig> = {
     subtitle: "Create accounts and assign roles across the platform.",
     addButtonLabel: "Add user",
     itemNoun: "user",
-     itemPlural: "users",
+    itemPlural: "users",
     allowedCreateRoles: ROLE_ORDER,
     allowedEditRoles: ROLE_ORDER,
     defaultCreateRole: "CLIENT",
@@ -173,7 +173,7 @@ const MODE_CONFIG: Record<ManagementMode, ModeConfig> = {
     subtitle: "Onboard clients and keep their profiles current.",
     addButtonLabel: "Add client",
     itemNoun: "client",
-  itemPlural: "clients",
+    itemPlural: "clients",
     allowedCreateRoles: ["CLIENT"],
     allowedEditRoles: ["CLIENT"],
     defaultCreateRole: "CLIENT",
@@ -688,7 +688,7 @@ export default function UserManagementPage() {
       const startDate = new Date(config.startDate);
       const endDate = new Date(config.endDate);
       endDate.setHours(23, 59, 59, 999); // Include full end date
-      
+
       const filteredData = users.filter(user => {
         const userDate = new Date(user.createdAt);
         return userDate >= startDate && userDate <= endDate;
@@ -751,14 +751,14 @@ export default function UserManagementPage() {
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-[#004B5B] border border-[#004B5B] hover:bg-[#004B5B]/10 text-sm font-medium rounded-lg transition-colors"
               onClick={() => void fetchUsers()}
             >
-              <RefreshCcw className="h-4 w-4" /> 
+              <RefreshCcw className="h-4 w-4" />
               <span>Refresh</span>
             </Button>
             <Button
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#004B5B] text-white hover:bg-[#006B85] rounded-lg text-sm font-medium transition-colors"
               onClick={openCreateModal}
             >
-              <UserPlus className="h-4 w-4" /> 
+              <UserPlus className="h-4 w-4" />
               <span>{config.addButtonLabel}</span>
             </Button>
           </div>
@@ -768,11 +768,10 @@ export default function UserManagementPage() {
 
         {flashMessage && (
           <div
-            className={`flex items-start justify-between gap-3 rounded-xl border p-4 text-sm ${
-              flashMessage.type === "success"
+            className={`flex items-start justify-between gap-3 rounded-xl border p-4 text-sm ${flashMessage.type === "success"
                 ? "bg-green-50 border-green-200 text-green-700"
                 : "bg-red-50 border-red-200 text-red-700"
-            }`}
+              }`}
           >
             <span>{flashMessage.message}</span>
             <Button
@@ -909,13 +908,12 @@ export default function UserManagementPage() {
                       <div className="font-medium text-sm text-gray-900 truncate">{user.name}</div>
                       <div className="text-xs text-gray-500 mt-1 truncate">{user.email}</div>
                       <div className="flex items-center gap-3 mt-2">
-                        <span className="text-xs font-medium text-gray-600">{user.role}</span>
+                        <RoleDropdown user={user.raw} onRoleChanged={fetchUsers} />
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            user.status === "Active"
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${user.status === "Active"
                               ? "bg-green-100 text-green-700"
                               : "bg-red-100 text-red-700"
-                          }`}
+                            }`}
                         >
                           {user.status}
                         </span>
@@ -949,7 +947,7 @@ export default function UserManagementPage() {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-[#004B5B]">
+                    <td colSpan={6} className="p-8 text-center text-[#004B5B]">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" />
                         Loading users...
@@ -960,7 +958,7 @@ export default function UserManagementPage() {
 
                 {!loading && paginatedUsers.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-gray-500">
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
                       {`No ${config.itemPlural} found. Adjust your filters or refresh the list.`}
                     </td>
                   </tr>
@@ -979,14 +977,15 @@ export default function UserManagementPage() {
                       <div className="font-medium text-sm text-gray-900">{user.name}</div>
                     </td>
                     <td className="p-4 text-sm text-gray-600">{user.email}</td>
-                    <td className="p-4 text-sm text-gray-600">{user.role}</td>
+                    <td className="p-4">
+                      <RoleDropdown user={user.raw} onRoleChanged={fetchUsers} />
+                    </td>
                     <td className="p-4">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          user.status === "Active"
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${user.status === "Active"
                             ? "bg-green-100 text-green-700"
                             : "bg-red-100 text-red-700"
-                        }`}
+                          }`}
                       >
                         {user.status}
                       </span>
@@ -1005,37 +1004,37 @@ export default function UserManagementPage() {
             </table>
           </div>
 
-             {/* Pagination */}
-                    <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-3">
-                      <div className="text-sm text-gray-500">
-                        {filteredUsers.length === 0 ? (
-                          "Showing 0 of 0"
-                        ) : (
-                          <>
-                            Showing {(currentPage - 1) * rowsPerPage + 1}–
-                            {Math.min(currentPage * rowsPerPage, filteredUsers.length)} of {filteredUsers.length}
-                          </>
-                        )}
-                      </div>
-          
-                      <div className="flex items-center gap-2">
-                        <Button
-                          onClick={currentPage === 1 ? undefined : handlePrevious}
-                          className={`px-3 py-1 rounded-full text-white ${currentPage === 1 ? "bg-gray-300 cursor-not-allowed" : "bg-[#004B5B]"}`}
-                        >
-                          Previous
-                        </Button>
-                        <span className="text-sm text-gray-700">
-                          Page {filteredUsers.length === 0 ? 0 : currentPage} of {filteredUsers.length === 0 ? 0 : totalPages}
-                        </span>
-                        <Button
-                          onClick={currentPage === totalPages ? undefined : handleNext}
-                          className={`px-3 py-1 rounded-full text-white ${currentPage === totalPages ? "bg-gray-300 cursor-not-allowed" : "bg-[#004B5B]"}`}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    </div>
+          {/* Pagination */}
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-3">
+            <div className="text-sm text-gray-500">
+              {filteredUsers.length === 0 ? (
+                "Showing 0 of 0"
+              ) : (
+                <>
+                  Showing {(currentPage - 1) * rowsPerPage + 1}–
+                  {Math.min(currentPage * rowsPerPage, filteredUsers.length)} of {filteredUsers.length}
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={currentPage === 1 ? undefined : handlePrevious}
+                className={`px-3 py-1 rounded-full text-white ${currentPage === 1 ? "bg-gray-300 cursor-not-allowed" : "bg-[#004B5B]"}`}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-gray-700">
+                Page {filteredUsers.length === 0 ? 0 : currentPage} of {filteredUsers.length === 0 ? 0 : totalPages}
+              </span>
+              <Button
+                onClick={currentPage === totalPages ? undefined : handleNext}
+                className={`px-3 py-1 rounded-full text-white ${currentPage === totalPages ? "bg-gray-300 cursor-not-allowed" : "bg-[#004B5B]"}`}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </Card>
 
         <AnimatePresence>
@@ -1089,254 +1088,252 @@ export default function UserManagementPage() {
                       void confirmEdit();
                     }}
                   >
-                  <InputField
-                    name="fullName"
-                    label="Full name"
-                    type="text"
-                    value={editForm.fullName}
-                    onChange={handleEditTextChange("fullName")}
-                    placeholder="Enter full name"
-                    disabled={savingEdit}
-                    error={editErrors.fullName}
-                  />
-
-                  <InputField
-                    name="email"
-                    label="Email"
-                    type="email"
-                    value={editForm.email}
-                    onChange={handleEditTextChange("email")}
-                    placeholder="Enter email"
-                    disabled={savingEdit}
-                    error={editErrors.email}
-                  />
-
-                  <InputField
-                    name="idNumber"
-                    label="ID number"
-                    type="text"
-                    value={editForm.idNumber ?? ""}
-                    onChange={handleEditTextChange("idNumber")}
-                    placeholder="Enter ID number"
-                    disabled={savingEdit}
-                    error={editErrors.idNumber}
-                  />
-
-                  <FileUploadField
-                    name="passportPhoto"
-                    label="Passport photo"
-                    value={editForm.passportPhoto ?? ""}
-                    onChange={handleEditFileUpload("passportPhoto")}
-                    accept="image/*"
-                    disabled={savingEdit}
-                    error={editErrors.passportPhoto}
-                    helperText="Upload a clear passport-style photo (image up to 10MB)"
-                  />
-
-                  <FileUploadField
-                    name="idDocument"
-                    label="Identification document"
-                    value={editForm.idDocument ?? ""}
-                    onChange={handleEditFileUpload("idDocument")}
-                    accept="image/*,application/pdf"
-                    disabled={savingEdit}
-                    error={editErrors.idDocument}
-                    helperText="Upload the ID document (image or PDF up to 10MB)"
-                  />
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-[#004B5B]" htmlFor="edit-phoneCountryCode">
-                      Phone country code
-                    </label>
-                    <select
-                      id="edit-phoneCountryCode"
-                      name="phoneCountryCode"
-                      value={editForm.phoneCountryCode}
-                      onChange={(event) => updateEditField("phoneCountryCode", event.target.value)}
+                    <InputField
+                      name="fullName"
+                      label="Full name"
+                      type="text"
+                      value={editForm.fullName}
+                      onChange={handleEditTextChange("fullName")}
+                      placeholder="Enter full name"
                       disabled={savingEdit}
-                      className="w-full rounded-md border border-[#004B5B]/50 bg-transparent px-4 py-2 text-sm text-[#004B5B] outline-none transition-all focus:border-[#004B5B]"
-                    >
-                      {COUNTRY_CODES.map((code) => (
-                        <option key={code.value} value={code.value}>
-                          {code.label}
-                        </option>
-                      ))}
-                    </select>
-                    {editErrors.phoneCountryCode && (
-                      <p className="text-sm text-red-600 ml-2">{editErrors.phoneCountryCode}</p>
-                    )}
-                  </div>
-
-                  <InputField
-                    name="phone"
-                    label="Phone number"
-                    type="text"
-                    value={editForm.phone ?? ""}
-                    onChange={handleEditTextChange("phone")}
-                    placeholder="Enter phone number"
-                    disabled={savingEdit}
-                    error={editErrors.phone}
-                  />
-
-                  <InputField
-                    name="dateOfBirth"
-                    label="Date of birth"
-                    type="date"
-                    value={editForm.dateOfBirth ?? ""}
-                    onChange={handleEditTextChange("dateOfBirth")}
-                    disabled={savingEdit}
-                    error={editErrors.dateOfBirth}
-                  />
-
-                  <InputField
-                    name="country"
-                    label="Country"
-                    type="text"
-                    value={editForm.country ?? ""}
-                    onChange={handleEditTextChange("country")}
-                    placeholder="Enter country"
-                    disabled={savingEdit}
-                    error={editErrors.country}
-                  />
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-[#004B5B]" htmlFor="edit-gender">
-                      Gender
-                    </label>
-                    <select
-                      id="edit-gender"
-                      name="gender"
-                      value={editForm.gender || "male"}
-                      onChange={(event) => updateEditField("gender", event.target.value)}
-                      disabled={savingEdit}
-                      className={`w-full rounded-full px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${
-                        editErrors.gender
-                          ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
-                          : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
-                      } ${savingEdit ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                      {GENDER_OPTIONS.map(({ value, label }) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                    {editErrors.gender && (
-                      <p className="text-sm text-red-600 ml-2">{editErrors.gender}</p>
-                    )}
-                  </div>
-
-                  <InputField
-                    name="city"
-                    label="City"
-                    type="text"
-                    value={editForm.city ?? ""}
-                    onChange={handleEditTextChange("city")}
-                    placeholder="Enter city"
-                    disabled={savingEdit}
-                    error={editErrors.city}
-                  />
-
-                  <InputField
-                    name="occupation"
-                    label="Occupation"
-                    type="text"
-                    value={editForm.occupation ?? ""}
-                    onChange={handleEditTextChange("occupation")}
-                    placeholder="Enter occupation"
-                    disabled={savingEdit}
-                    error={editErrors.occupation}
-                  />
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-[#004B5B]" htmlFor="edit-investmentExperience">
-                      Investment experience
-                    </label>
-                    <select
-                      id="edit-investmentExperience"
-                      name="investmentExperience"
-                      value={editForm.investmentExperience || ""}
-                      onChange={(event) => updateEditField("investmentExperience", event.target.value)}
-                      disabled={savingEdit}
-                      className={`w-full rounded-md px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${
-                        editErrors.investmentExperience
-                          ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
-                          : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
-                      } ${savingEdit ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                      {INVESTMENT_EXPERIENCE_OPTIONS.map((option) => (
-                        <option
-                          key={option.value || "placeholder"}
-                          value={option.value}
-                          disabled={option.value === ""}
-                        >
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    {editErrors.investmentExperience && (
-                      <p className="text-sm text-red-600 ml-2">{editErrors.investmentExperience}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-[#004B5B]">Role</label>
-                    <select
-                      value={editForm.role}
-                      onChange={handleEditRoleSelect}
-                      disabled={savingEdit || (editUser ? config.lockedRoleTargets.includes(editUser.raw.role) : false)}
-                      className="w-full rounded-md border border-[#004B5B]/50 bg-transparent px-4 py-2 text-sm text-[#004B5B] outline-none transition-all focus:border-[#004B5B]"
-                    >
-                      {editRoleOptions.map((role) => (
-                        <option key={role} value={role} disabled={!config.allowedEditRoles.includes(role)}>
-                          {ROLE_LABELS[role]}
-                        </option>
-                      ))}
-                    </select>
-                    {editErrors.role && <p className="text-sm text-red-600">{editErrors.role}</p>}
-                    {editUser && config.lockedRoleTargets.includes(editUser.raw.role) && (
-                      <p className="text-xs text-gray-500">You can&apos;t change the role of {ROLE_LABELS[editUser.raw.role]} accounts.</p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-2 sm:pt-6">
-                    <input
-                      id="isVerified"
-                      type="checkbox"
-                      checked={editForm.isVerified}
-                      onChange={handleEditCheckboxChange("isVerified")}
-                      disabled={savingEdit}
-                      className="h-4 w-4 rounded border-gray-300 text-[#004B5B] focus:ring-[#004B5B]"
+                      error={editErrors.fullName}
                     />
-                    <label htmlFor="isVerified" className="text-sm text-gray-700">
-                      Mark as verified
-                    </label>
-                  </div>
 
-                  <div className="sm:col-span-2">
-                    <h3 className="text-sm font-semibold text-[#004B5B]">Notification preferences</h3>
-                    {editErrors.notificationPreferences && (
-                      <p className="mt-1 text-sm text-red-600">{editErrors.notificationPreferences}</p>
-                    )}
-                    {Object.keys(editForm.notificationPreferences).length > 0 ? (
-                      <div className="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
-                        {Object.entries(editForm.notificationPreferences).map(([key, value]) => (
-                          <label key={key} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
-                            <input
-                              type="checkbox"
-                              checked={value}
-                              onChange={(e) => handleNotificationPreferenceChange(key)(e.target.checked)}
-                              disabled={savingEdit}
-                              className="h-4 w-4 rounded border-gray-300 text-[#004B5B] focus:ring-[#004B5B]"
-                            />
-                            <span className="capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</span>
-                          </label>
+                    <InputField
+                      name="email"
+                      label="Email"
+                      type="email"
+                      value={editForm.email}
+                      onChange={handleEditTextChange("email")}
+                      placeholder="Enter email"
+                      disabled={savingEdit}
+                      error={editErrors.email}
+                    />
+
+                    <InputField
+                      name="idNumber"
+                      label="ID number"
+                      type="text"
+                      value={editForm.idNumber ?? ""}
+                      onChange={handleEditTextChange("idNumber")}
+                      placeholder="Enter ID number"
+                      disabled={savingEdit}
+                      error={editErrors.idNumber}
+                    />
+
+                    <FileUploadField
+                      name="passportPhoto"
+                      label="Passport photo"
+                      value={editForm.passportPhoto ?? ""}
+                      onChange={handleEditFileUpload("passportPhoto")}
+                      accept="image/*"
+                      disabled={savingEdit}
+                      error={editErrors.passportPhoto}
+                      helperText="Upload a clear passport-style photo (image up to 10MB)"
+                    />
+
+                    <FileUploadField
+                      name="idDocument"
+                      label="Identification document"
+                      value={editForm.idDocument ?? ""}
+                      onChange={handleEditFileUpload("idDocument")}
+                      accept="image/*,application/pdf"
+                      disabled={savingEdit}
+                      error={editErrors.idDocument}
+                      helperText="Upload the ID document (image or PDF up to 10MB)"
+                    />
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-[#004B5B]" htmlFor="edit-phoneCountryCode">
+                        Phone country code
+                      </label>
+                      <select
+                        id="edit-phoneCountryCode"
+                        name="phoneCountryCode"
+                        value={editForm.phoneCountryCode}
+                        onChange={(event) => updateEditField("phoneCountryCode", event.target.value)}
+                        disabled={savingEdit}
+                        className="w-full rounded-md border border-[#004B5B]/50 bg-transparent px-4 py-2 text-sm text-[#004B5B] outline-none transition-all focus:border-[#004B5B]"
+                      >
+                        {COUNTRY_CODES.map((code) => (
+                          <option key={code.value} value={code.value}>
+                            {code.label}
+                          </option>
                         ))}
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-sm text-gray-500">No notification preferences set for this user.</p>
-                    )}
-                  </div>
+                      </select>
+                      {editErrors.phoneCountryCode && (
+                        <p className="text-sm text-red-600 ml-2">{editErrors.phoneCountryCode}</p>
+                      )}
+                    </div>
+
+                    <InputField
+                      name="phone"
+                      label="Phone number"
+                      type="text"
+                      value={editForm.phone ?? ""}
+                      onChange={handleEditTextChange("phone")}
+                      placeholder="Enter phone number"
+                      disabled={savingEdit}
+                      error={editErrors.phone}
+                    />
+
+                    <InputField
+                      name="dateOfBirth"
+                      label="Date of birth"
+                      type="date"
+                      value={editForm.dateOfBirth ?? ""}
+                      onChange={handleEditTextChange("dateOfBirth")}
+                      disabled={savingEdit}
+                      error={editErrors.dateOfBirth}
+                    />
+
+                    <InputField
+                      name="country"
+                      label="Country"
+                      type="text"
+                      value={editForm.country ?? ""}
+                      onChange={handleEditTextChange("country")}
+                      placeholder="Enter country"
+                      disabled={savingEdit}
+                      error={editErrors.country}
+                    />
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-[#004B5B]" htmlFor="edit-gender">
+                        Gender
+                      </label>
+                      <select
+                        id="edit-gender"
+                        name="gender"
+                        value={editForm.gender || "male"}
+                        onChange={(event) => updateEditField("gender", event.target.value)}
+                        disabled={savingEdit}
+                        className={`w-full rounded-full px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${editErrors.gender
+                            ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
+                            : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
+                          } ${savingEdit ? "opacity-50 cursor-not-allowed" : ""}`}
+                      >
+                        {GENDER_OPTIONS.map(({ value, label }) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      {editErrors.gender && (
+                        <p className="text-sm text-red-600 ml-2">{editErrors.gender}</p>
+                      )}
+                    </div>
+
+                    <InputField
+                      name="city"
+                      label="City"
+                      type="text"
+                      value={editForm.city ?? ""}
+                      onChange={handleEditTextChange("city")}
+                      placeholder="Enter city"
+                      disabled={savingEdit}
+                      error={editErrors.city}
+                    />
+
+                    <InputField
+                      name="occupation"
+                      label="Occupation"
+                      type="text"
+                      value={editForm.occupation ?? ""}
+                      onChange={handleEditTextChange("occupation")}
+                      placeholder="Enter occupation"
+                      disabled={savingEdit}
+                      error={editErrors.occupation}
+                    />
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-[#004B5B]" htmlFor="edit-investmentExperience">
+                        Investment experience
+                      </label>
+                      <select
+                        id="edit-investmentExperience"
+                        name="investmentExperience"
+                        value={editForm.investmentExperience || ""}
+                        onChange={(event) => updateEditField("investmentExperience", event.target.value)}
+                        disabled={savingEdit}
+                        className={`w-full rounded-md px-4 py-2 text-[#004B5B] bg-transparent outline-none border transition-all ${editErrors.investmentExperience
+                            ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
+                            : "border-[#004B5B]/50 focus:border-[#004B5B] hover:border-[#004B5B]/80"
+                          } ${savingEdit ? "opacity-50 cursor-not-allowed" : ""}`}
+                      >
+                        {INVESTMENT_EXPERIENCE_OPTIONS.map((option) => (
+                          <option
+                            key={option.value || "placeholder"}
+                            value={option.value}
+                            disabled={option.value === ""}
+                          >
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      {editErrors.investmentExperience && (
+                        <p className="text-sm text-red-600 ml-2">{editErrors.investmentExperience}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-[#004B5B]">Role</label>
+                      <select
+                        value={editForm.role}
+                        onChange={handleEditRoleSelect}
+                        disabled={savingEdit || (editUser ? config.lockedRoleTargets.includes(editUser.raw.role) : false)}
+                        className="w-full rounded-md border border-[#004B5B]/50 bg-transparent px-4 py-2 text-sm text-[#004B5B] outline-none transition-all focus:border-[#004B5B]"
+                      >
+                        {editRoleOptions.map((role) => (
+                          <option key={role} value={role} disabled={!config.allowedEditRoles.includes(role)}>
+                            {ROLE_LABELS[role]}
+                          </option>
+                        ))}
+                      </select>
+                      {editErrors.role && <p className="text-sm text-red-600">{editErrors.role}</p>}
+                      {editUser && config.lockedRoleTargets.includes(editUser.raw.role) && (
+                        <p className="text-xs text-gray-500">You can&apos;t change the role of {ROLE_LABELS[editUser.raw.role]} accounts.</p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 sm:pt-6">
+                      <input
+                        id="isVerified"
+                        type="checkbox"
+                        checked={editForm.isVerified}
+                        onChange={handleEditCheckboxChange("isVerified")}
+                        disabled={savingEdit}
+                        className="h-4 w-4 rounded border-gray-300 text-[#004B5B] focus:ring-[#004B5B]"
+                      />
+                      <label htmlFor="isVerified" className="text-sm text-gray-700">
+                        Mark as verified
+                      </label>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <h3 className="text-sm font-semibold text-[#004B5B]">Notification preferences</h3>
+                      {editErrors.notificationPreferences && (
+                        <p className="mt-1 text-sm text-red-600">{editErrors.notificationPreferences}</p>
+                      )}
+                      {Object.keys(editForm.notificationPreferences).length > 0 ? (
+                        <div className="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
+                          {Object.entries(editForm.notificationPreferences).map(([key, value]) => (
+                            <label key={key} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
+                              <input
+                                type="checkbox"
+                                checked={value}
+                                onChange={(e) => handleNotificationPreferenceChange(key)(e.target.checked)}
+                                disabled={savingEdit}
+                                className="h-4 w-4 rounded border-gray-300 text-[#004B5B] focus:ring-[#004B5B]"
+                              />
+                              <span className="capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-gray-500">No notification preferences set for this user.</p>
+                      )}
+                    </div>
 
                     <div className="lg:col-span-2 flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-100">
                       <Button variant="outline" className="px-6 py-2.5 w-full sm:w-auto" onClick={closeEditModal} disabled={savingEdit}>

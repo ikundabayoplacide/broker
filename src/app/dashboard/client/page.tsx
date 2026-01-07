@@ -7,8 +7,9 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { useMarketSync } from '@/hooks/useMarketSync';
+import { useProfileReminder } from '@/hooks/useProfileReminder';
+import ProfileReminderCard from '@/components/common/ProfileReminderCard';
 import axios from '@/lib/axios';
-import { AlertCircle } from 'lucide-react';
 import MarketSyncButton from '@/components/market/MarketSyncButton';
 
 export default function ClientDashboard() {
@@ -26,58 +27,7 @@ export default function ClientDashboard() {
     marketUpdates: [] as Array<{ name: string; price: string; change: string; positive: boolean }>,
   });
   const [loading, setLoading] = useState(true);
-
-  const [fullUserData, setFullUserData] = useState<any>(null);
-
-  const profileReminder = useMemo(() => {
-    if (!fullUserData) {
-      return { needed: false, tasks: [] as string[] };
-    }
-
-    const isEmpty = (value: unknown) =>
-      value === null || value === undefined || (typeof value === 'string' && value.trim().length === 0);
-
-    const requirements = [
-      {
-        id: 'verify-email',
-        message: 'verify your email',
-        optional: false,
-        isComplete: () => fullUserData.isVerified === true,
-      },
-      {
-        id: 'phone',
-        message: 'add a phone number',
-        optional: false,
-        isComplete: () => !isEmpty(fullUserData.phone) && !isEmpty(fullUserData.phoneCountryCode),
-      },
-      {
-        id: 'address',
-        message: 'confirm your address',
-        optional: false,
-        isComplete: () => !isEmpty(fullUserData.country) && !isEmpty(fullUserData.city),
-      },
-      {
-        id: 'id-document',
-        message: 'upload your ID document',
-        optional: false,
-        isComplete: () => !isEmpty(fullUserData.idDocument),
-      },
-      {
-        id: 'passport-photo',
-        message: 'add a passport photo',
-        optional: false,
-        isComplete: () => !isEmpty(fullUserData.passportPhoto),
-      },
-    ];
-
-    const missingEssentials = requirements.filter((item) => !item.optional && !item.isComplete());
-    const tasks = missingEssentials.map((item) => item.message);
-
-    return {
-      needed: missingEssentials.length > 0,
-      tasks,
-    };
-  }, [fullUserData]);
+  const { fullUserData } = useProfileReminder();
 
   const { displayName, email, dashboardRole } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? '';
@@ -96,18 +46,11 @@ export default function ClientDashboard() {
     const fetchDashboardData = async () => {
       if (!user?.id || !token) return;
       try {
-        const [walletData, portfolioRes, tradesResponse, userResponse] = await Promise.all([
+        const [walletData, portfolioRes, tradesResponse] = await Promise.all([
           axios.get('/wallet', { headers: { Authorization: `Bearer ${token}` } }) as Promise<{ success: boolean; wallet: { balance: number; lockedBalance: number } }>,
           fetch(`/api/portfolio?userId=${user.id}`).then(r => r.json()),
           axios.get('/trade/history?limit=1000', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ trades: [] })) as Promise<{ trades: Array<{ type: string; status: string; executedQuantity?: number; quantity: number; companyId: string; userId: string; executedPrice?: number; company?: { name: string }; Company?: { name: string } }> }>,
-          axios.get('/user', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { user: null } })) as Promise<{ data: { user: any } }>,
         ]);
-
-        const currentUser = Array.isArray(userResponse.data) 
-          ? userResponse.data.find((u: any) => u.id === user.id)
-          : userResponse.data;
-        
-        setFullUserData(currentUser);
         setTradesData(tradesResponse.trades || []);
         
         const walletBalance = (walletData.wallet?.balance || 0) - (walletData.wallet?.lockedBalance || 0);
@@ -204,35 +147,12 @@ export default function ClientDashboard() {
     return holdings;
   };
 
-  const formatTaskList = (tasks: string[]) => {
-    if (tasks.length <= 1) return tasks[0] ?? '';
-    const leading = tasks.slice(0, -1).join(', ');
-    const last = tasks[tasks.length - 1];
-    return `${leading} and ${last}`;
-  };
+
 
   return (
     <DashboardLayout userRole={dashboardRole} userName={displayName} userEmail={email}>
       <div className="space-y-4 md:space-y-6 max-w-full overflow-hidden">
-        {profileReminder.needed && (
-          <div className="flex flex-col gap-3 md:gap-4 rounded-xl md:rounded-2xl border border-amber-200 bg-amber-50 p-3 md:p-5 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-2 md:gap-3 min-w-0">
-              <AlertCircle className="mt-0.5 h-4 w-4 md:h-5 md:w-5 shrink-0 text-amber-500" aria-hidden="true" />
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-xs md:text-sm">Complete your profile</p>
-                <p className="text-amber-800 text-xs md:text-sm">
-                  Finish setting up your account: {formatTaskList(profileReminder.tasks)}.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/dashboard/commonPage/settings"
-              className="inline-flex items-center justify-center rounded-full border border-[#004F64] px-4 md:px-5 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#004F64] transition hover:bg-[#004F64] hover:text-white whitespace-nowrap shrink-0"
-            >
-              Update profile
-            </Link>
-          </div>
-        )}
+        <ProfileReminderCard userData={fullUserData} />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-1">Welcome back, {displayName}!</h1>

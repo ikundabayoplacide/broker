@@ -14,7 +14,7 @@ import MarketSyncButton from "@/components/market/MarketSyncButton";
 import ReportModal, { ReportConfig } from "@/components/models/ReportModal";
 import { ReportGenerator } from "@/utils/reportGenerator";
 
-type ManagementMode = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER";
+type ManagementMode = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "TELLER" | "CLIENT";
 
 type DashboardRole = "client" | "teller" | "admin" | "manager" | "super-admin" | "company";
 
@@ -65,6 +65,15 @@ const MODE_CONFIG: Record<ManagementMode, ModeConfig> = {
     canDelete: false,
     emptyMessage: "No companies available yet. Check back once the operations team lists them.",
   },
+  CLIENT: {
+    dashboardRole: "client",
+    title: "Companies",
+    subtitle: "Browse available companies for investment opportunities.",
+    canCreate: false,
+    canEdit: false,
+    canDelete: false,
+    emptyMessage: "No companies available for investment yet.",
+  },
 };
 
 const normalizeAuthRole = (role?: string | null): ManagementMode => {
@@ -76,8 +85,12 @@ const normalizeAuthRole = (role?: string | null): ManagementMode => {
       return "MANAGER";
     case "TELLER":
       return "TELLER";
-    default:
+    case "CLIENT":
+      return "CLIENT";
+    case "ADMIN":
       return "ADMIN";
+    default:
+      return "CLIENT"; // Default to client view for unknown roles
   }
 };
 

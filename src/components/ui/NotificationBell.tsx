@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { FiBell } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Notification {
@@ -16,6 +17,7 @@ interface Notification {
 
 export default function NotificationBell() {
   const { token, user } = useAuth();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -24,6 +26,7 @@ export default function NotificationBell() {
 
   const isCompany = user?.role?.toLowerCase() === 'company';
   const apiEndpoint = isCompany ? '/api/company/notifications' : '/api/notifications';
+  const notificationBasePath = isCompany ? '/dashboard/company/notification' : '/dashboard/commonPage/notification';
 
   useEffect(() => {
     if (token) {
@@ -120,7 +123,7 @@ export default function NotificationBell() {
                     onClick={() => {
                       if (!notif.isRead) markAsRead(notif.id);
                       setShowDropdown(false);
-                      window.location.href = `/dashboard/commonPage/notification/${notif.id}`;
+                      router.push(notificationBasePath);
                     }}
                     className={`p-3 hover:bg-gray-50 cursor-pointer ${!notif.isRead ? 'bg-blue-50' : ''
                       }`}
@@ -148,7 +151,7 @@ export default function NotificationBell() {
                     <button
                       onClick={() => {
                         setShowDropdown(false);
-                        window.location.href = '/dashboard/commonPage/notification';
+                        router.push(notificationBasePath);
                       }}
                       className="w-full text-center text-sm text-[#004B5B] hover:text-[#006B85] font-medium"
                     >

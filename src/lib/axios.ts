@@ -50,16 +50,13 @@ api.interceptors.response.use(
       const data = error.response.data;
       const message =
         data?.message || data?.error || `Server error: ${error.response.status}`;
-      const enrichedError = new Error(message) as Error & {
-        status?: number;
-        response?: typeof error.response;
-        fieldErrors?: Array<{ field?: string; message: string }>;
-      };
-      enrichedError.status = error.response.status;
-      enrichedError.response = error.response; // Preserve the full response
-      if (Array.isArray(data?.errors)) {
-        enrichedError.fieldErrors = data.errors;
-      }
+      
+      const enrichedError = Object.assign(new Error(message), {
+        status: error.response.status,
+        response: error.response,
+        fieldErrors: Array.isArray(data?.errors) ? data.errors : undefined
+      });
+      
       return Promise.reject(enrichedError);
     } else if (error.request) {
       return Promise.reject(new Error('No response from server. Please check your connection.'));
