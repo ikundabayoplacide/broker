@@ -10,9 +10,31 @@ import {
 	purchaseOrderCreateSchema,
 } from "./helpers";
 
-export async function GET() {
+export async function GET(request: Request) {
 	try {
+		// Get authenticated user
+		const auth = await getAuthenticatedUser(request as any);
+		if (!auth?.userId) {
+			return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+		}
+
+		// Get user role from database
+		const user = await prisma.user.findUnique({
+			where: { id: auth.userId },
+			select: { role: true }
+		});
+
+		if (!user) {
+			return NextResponse.json({ error: "User not found" }, { status: 404 });
+		}
+
+		// Filter orders based on role
+		const whereClause = user.role.toUpperCase() === 'CLIENT' 
+			? { userId: auth.userId } 
+			: {}; // Tellers and managers see all orders
+
 		const orders = await prisma.purchaseOrder.findMany({
+			where: whereClause,
 			orderBy: { createdAt: "desc" },
 			include: { PurchaseOrderItem: true },
 		});
@@ -38,7 +60,15 @@ export async function POST(request: Request) {
 			return NextResponse.json({ error: "At least one valid order item is required" }, { status: 400 });
 		}
 
-		const data = buildPurchaseOrderData(payload, auth.userId);
+		// Use userId from payload if provided, otherwise use authenticated user's ID
+		const targetUserId = payload.userId || auth.userId;
+		console.log('🔍 Backend Purchase Order Debug:', {
+			authUserId: auth.userId,
+			payloadUserId: (payload as any).userId,
+			targetUserId,
+			orderFor: (payload as any).orderFor
+		});
+		const data = buildPurchaseOrderData(payload, targetUserId);
 
 		const createData = {
 			id: randomUUID(),
@@ -61,7 +91,11 @@ export async function POST(request: Request) {
 			include: { PurchaseOrderItem: true },
 		});
 
-		return NextResponse.json({ data: order }, { status: 201 });
+		return NextResponse.json({ 
+			data: order, 
+			id: order.id,
+			userId: order.userId 
+		}, { status: 201 });
 	} catch (error) {
 		return handlePurchaseOrderApiError(error, "Failed to create purchase order");
 	}

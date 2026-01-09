@@ -3,6 +3,7 @@
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import DeleteOrderModal from "@/components/models/DeleteOrderModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -27,6 +28,8 @@ interface Order {
   total: number;
   date: string;
   status: string;
+  userId?: string;
+  type: string;
 }
 
 export default function PurchaseOrdersPage() {
@@ -36,6 +39,10 @@ export default function PurchaseOrdersPage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    order: Order | null;
+  }>({ isOpen: false, order: null });
 
   const { displayName, email, dashboardRole } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
@@ -68,7 +75,9 @@ export default function PurchaseOrdersPage() {
           price: Number(item.price || 0),
           total: Number(item.quantity || 0) * Number(item.price || 0),
           date: order.createdAt,
-          status: order.status
+          status: order.status,
+          userId: order.userId,
+          type: 'BUY'
         } as Order)) || []
       ).sort((a: Order, b: Order) => new Date(b.date).getTime() - new Date(a.date).getTime());
       
@@ -77,6 +86,81 @@ export default function PurchaseOrdersPage() {
       console.error('Error fetching purchase orders:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const isMyOrder = (order: Order) => {
+    return order.userId === user?.id;
+  };
+
+  const handleApprove = async (orderId: string, orderType: string) => {
+    try {
+      const response = await fetch('/api/orders/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, orderType })
+      });
+
+      if (response.ok) {
+        setOrders(prev => prev.map(order => 
+          order.id === orderId ? { ...order, status: 'PROCESS' } : order
+        ));
+      }
+    } catch (error) {
+      console.error('Error approving order:', error);
+    }
+  };
+
+  const handleEdit = async (orderId: string, orderType: string) => {
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, orderType })
+      });
+
+      if (response.ok) {
+        setOrders(prev => prev.map(order => 
+          order.id === orderId ? { ...order, status: 'PROCESS' } : order
+        ));
+      }
+    } catch (error) {
+      console.error('Error editing order:', error);
+    }
+  };
+
+  const handleDelete = (orderId: string, orderType: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      setDeleteModal({ isOpen: true, order });
+    }
+  };
+
+  const handleOrderDeleted = (orderId: string) => {
+    setOrders(prev => prev.filter(order => order.id !== orderId));
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModal({ isOpen: false, order: null });
+  };
+
+  const handleCancel = async (orderId: string, orderType: string) => {
+    if (!confirm('Are you sure you want to cancel this order?')) return;
+    
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, orderType, status: 'REJECTED' })
+      });
+
+      if (response.ok) {
+        setOrders(prev => prev.map(order => 
+          order.id === orderId ? { ...order, status: 'REJECTED' } : order
+        ));
+      }
+    } catch (error) {
+      console.error('Error canceling order:', error);
     }
   };
 
@@ -130,9 +214,11 @@ export default function PurchaseOrdersPage() {
       <div className="space-y-6">
         <div className="animate-fadeInUp space-y-2 flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-bold text-gray-600">Purchase Orders</h1>
+            <h1 className="text-2xl font-bold text-gray-600">{dashboardRole === 'client' ? 'My Purchase Orders' : 'Purchase Orders'}</h1>
             <p className="text-base text-gray-400">
-              View and manage all purchase orders in the market.
+              {dashboardRole === 'client' 
+                ? 'View and manage your purchase orders.' 
+                : 'View and manage all purchase orders in the market.'}
             </p>
           </div>
           <div className="flex gap-3">
@@ -161,7 +247,7 @@ export default function PurchaseOrdersPage() {
               <div>
                 <p className="text-base font-medium text-gray-500 mb-2">Total Orders</p>
                 <p className="text-xl font-semibold text-gray-700">{stats.total}</p>
-                <p className="text-sm text-gray-400">All purchase orders</p>
+                <p className="text-sm text-gray-400">{dashboardRole === 'client' ? 'Your purchase orders' : 'All purchase orders'}</p>
               </div>
               <div className="w-11 h-11 bg-green-100 rounded-full flex items-center justify-between">
                 <FiCheckCircle className="w-6 h-6 text-green-600" />
@@ -292,12 +378,58 @@ export default function PurchaseOrdersPage() {
                         <button className="p-2 hover:bg-gray-100 rounded-lg transition">
                           <FiEye className="w-4 h-4 text-gray-600" />
                         </button>
-                        <Button variant="primary" className="text-sm  hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
-                            Execute
-                        </Button>
-                        <Button variant="primary" className="text-sm  hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
-                            Reject
-                        </Button>
+                        
+                        {(() => {
+                          if (isMyOrder(order)) {
+                            return order.status === 'PENDING' ? (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  className="text-sm hover:bg-blue-600 hover:text-white transition-all duration-200"
+                                  onClick={() => handleEdit(order.id, order.type)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  className="text-sm hover:bg-red-600 hover:text-white transition-all duration-200"
+                                  onClick={() => handleDelete(order.id, order.type)}
+                                >
+                                  Delete
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  className="text-sm hover:bg-orange-600 hover:text-white transition-all duration-200"
+                                  onClick={() => handleCancel(order.id, order.type)}
+                                >
+                                  Cancel
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="text-xl text-gray-500 px-2 py-1">
+                                {order.status === 'EXECUTED' ? 'Executed' : 'Processed'}
+                              </span>
+                            );
+                          } else {
+                            if ((dashboardRole.toLowerCase() === 'teller' || dashboardRole.toLowerCase() === 'manager') && order.status === 'PENDING') {
+                              return (
+                                <Button 
+                                  variant="outline" 
+                                  className="text-sm hover:bg-green-600 hover:text-white transition-all duration-200"
+                                  onClick={() => handleApprove(order.id, order.type)}
+                                >
+                                  Approve
+                                </Button>
+                              );
+                            } else {
+                              return (
+                                <span className="text-xs text-gray-500 px-2 py-1">
+                                  {order.status === 'EXECUTED' ? 'Executed' : 'Not Available'}
+                                </span>
+                              );
+                            }
+                          }
+                        })()}
                       </div>
                     </td>
                   </tr>
@@ -319,6 +451,14 @@ export default function PurchaseOrdersPage() {
           )}
         </Card>
       </div>
+      
+      {/* Delete Order Modal */}
+      <DeleteOrderModal
+        isOpen={deleteModal.isOpen}
+        onClose={closeDeleteModal}
+        order={deleteModal.order}
+        onOrderDeleted={handleOrderDeleted}
+      />
     </DashboardLayout>
   );
 }

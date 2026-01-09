@@ -3,7 +3,11 @@
 import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import TradeModal from "@/components/models/TradeModal";
+import DeleteOrderModal from "@/components/models/DeleteOrderModal";
+import CancelOrderModal from "@/components/models/CancelOrderModal";
 import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
 import {
   FiSearch,
@@ -29,15 +33,33 @@ interface MarketOrder {
   total: number;
   date: string;
   status: string;
+  userId?: string;
+  approved?: boolean;
 }
 
 export default function MarketPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [orders, setOrders] = useState<MarketOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ordersPerPage = 6;
+  const [tradeModal, setTradeModal] = useState<{
+    isOpen: boolean;
+    order: MarketOrder | null;
+    tradeType: "BUY" | "SELL";
+  }>({ isOpen: false, order: null, tradeType: "BUY" });
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    order: MarketOrder | null;
+  }>({ isOpen: false, order: null });
+  const [cancelModal, setCancelModal] = useState<{
+    isOpen: boolean;
+    order: MarketOrder | null;
+  }>({ isOpen: false, order: null });
 
   const { displayName, email, dashboardRole } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
@@ -77,7 +99,9 @@ export default function MarketPage() {
           price: Number(item.price || 0),
           total: Number(item.quantity || 0) * Number(item.price || 0),
           date: order.createdAt,
-          status: order.status
+          status: order.status,
+          userId: order.userId,
+          approved: false
         } as MarketOrder)) || []
       );
       
@@ -92,7 +116,9 @@ export default function MarketPage() {
           price: Number(item.price || 0),
           total: Number(item.quantity || 0) * Number(item.price || 0),
           date: order.createdAt,
-          status: order.status
+          status: order.status,
+          userId: order.userId,
+          approved: false
         } as MarketOrder)) || []
       );
       
@@ -116,11 +142,18 @@ export default function MarketPage() {
             Pending
           </span>
         );
-      case "COMPLETED":
+      case "PROCESS":
+        return (
+          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-1">
+            <FiRefreshCw className="w-3 h-3" />
+            Processing
+          </span>
+        );
+      case "EXECUTED":
         return (
           <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm flex items-center gap-1">
             <FiCheckCircle className="w-3 h-3" />
-            Completed
+            Executed
           </span>
         );
       case "REJECTED":
@@ -149,6 +182,122 @@ export default function MarketPage() {
     );
   };
 
+  const isMyOrder = (order: MarketOrder) => {
+    return order.userId === user?.id;
+  };
+
+  const openTradeModal = (order: MarketOrder, tradeType: "BUY" | "SELL") => {
+    setTradeModal({ isOpen: true, order, tradeType });
+  };
+
+  const closeTradeModal = () => {
+    setTradeModal({ isOpen: false, order: null, tradeType: "BUY" });
+  };
+
+  const handleApprove = async (orderId: string, orderType: string) => {
+    try {      
+      const response = await fetch('/api/orders/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, orderType })
+      });
+
+      const responseData = await response.json();
+      if (response.ok) {
+        setOrders(prev => prev.map(order => 
+          order.id === orderId ? { ...order, status: 'PROCESS', approved: true } : order
+        ));
+      } else {
+        console.error('API call failed:', responseData);
+      }
+    } catch (error) {
+      console.error('Error approving order:', error);
+    }
+  };
+
+  const handleEdit = async (orderId: string, orderType: string) => {
+    try {
+      // Extract the actual order ID from the composite ID
+      // Format: SO-{uuid}-{itemIndex} or PO-{uuid}-{itemIndex}
+      let actualOrderId = orderId;
+      if (orderId.startsWith('SO-')) {
+        // Remove 'SO-' prefix and '-{itemIndex}' suffix
+        actualOrderId = orderId.substring(3).split('-').slice(0, -1).join('-');
+      } else if (orderId.startsWith('PO-')) {
+        // Remove 'PO-' prefix and '-{itemIndex}' suffix
+        actualOrderId = orderId.substring(3).split('-').slice(0, -1).join('-');
+      }
+      
+      // Navigate to the appropriate form with the order ID for editing
+      if (orderType === 'SELL') {
+        router.push(`/dashboard/forms/SaleOrderForm?edit=${actualOrderId}`);
+      } else if (orderType === 'BUY') {
+        router.push(`/dashboard/forms/PurchaseOrderForm?edit=${actualOrderId}`);
+      }
+    } catch (error) {
+      console.error('Error navigating to edit form:', error);
+    }
+  };
+
+  const handleDelete = (orderId: string, orderType: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      setDeleteModal({ isOpen: true, order });
+    }
+  };
+
+  const handleOrderDeleted = (orderId: string) => {
+    setOrders(prev => prev.filter(order => order.id !== orderId));
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModal({ isOpen: false, order: null });
+  };
+
+  const handleCancel = (orderId: string, orderType: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      setCancelModal({ isOpen: true, order });
+    }
+  };
+
+  const handleOrderCancelled = async (orderId: string) => {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+      
+      // Extract actual order ID and determine order type
+      let actualOrderId = orderId;
+      let orderType = order.type;
+      
+      if (orderId.startsWith('SO-')) {
+        actualOrderId = orderId.substring(3).split('-').slice(0, -1).join('-');
+        orderType = 'SELL';
+      } else if (orderId.startsWith('PO-')) {
+        actualOrderId = orderId.substring(3).split('-').slice(0, -1).join('-');
+        orderType = 'BUY';
+      }
+      
+      const response = await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: actualOrderId, orderType, status: 'REJECTED' })
+      });
+
+      if (response.ok) {
+        setOrders(prev => prev.map(order => 
+          order.id === orderId ? { ...order, status: 'REJECTED' } : order
+        ));
+      }
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+    }
+  };
+
+  const closeCancelModal = () => {
+    setCancelModal({ isOpen: false, order: null });
+  };
+
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -160,9 +309,15 @@ export default function MarketPage() {
     return matchesSearch && matchesStatus && matchesType;
   });
 
+  // Pagination
+  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
+  const startIndex = (currentPage - 1) * ordersPerPage;
+  const paginatedOrders = filteredOrders.slice(startIndex, startIndex + ordersPerPage);
+
   const stats = {
     pending: orders.filter((o) => o.status === "PENDING").length,
-    completed: orders.filter((o) => o.status === "COMPLETED").length,
+    processing: orders.filter((o) => o.status === "PROCESS").length,
+    completed: orders.filter((o) => o.status === "EXECUTED").length,
     rejected: orders.filter((o) => o.status === "REJECTED").length,
     total: orders.length,
     sellOrders: orders.filter((o) => o.type === "SELL").length,
@@ -175,9 +330,11 @@ export default function MarketPage() {
         {/* Header */}
         <div className="animate-fadeInUp space-y-2 flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-bold text-gray-600">Market Overview</h1>
+            <h1 className="text-2xl font-bold text-gray-600">{dashboardRole === 'client' ? 'My Orders' : 'Market Overview'}</h1>
             <p className="text-base text-gray-400">
-              View all market orders and trading activity across the platform.
+              {dashboardRole === 'client' 
+                ? 'View and manage your trading orders and activity.' 
+                : 'View all market orders and trading activity across the platform.'}
             </p>
           </div>
           <Button
@@ -330,10 +487,10 @@ export default function MarketPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredOrders.map((order, index) => (
+                {paginatedOrders.map((order, index) => (
                   <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">
-                      <p className="font-medium text-sm text-gray-600">{index + 1}</p>
+                      <p className="font-medium text-sm text-gray-600">{startIndex + index + 1}</p>
                     </td>
                     <td className="py-3 px-4">
                       <div>
@@ -368,12 +525,77 @@ export default function MarketPage() {
                         <button className="p-2 hover:bg-gray-100 rounded-lg transition">
                           <FiEye className="w-4 h-4 text-gray-600" />
                         </button>
-                        <Button variant="primary" className="text-sm  hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
-                          Execute
-                        </Button>
-                        <Button variant="primary" className="text-sm  hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
-                          Reject
-                        </Button>
+                        
+                        {(() => {
+                           if (isMyOrder(order)) {
+                            return order.status === 'PENDING' ? (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  className="text-sm hover:bg-blue-600 hover:text-white transition-all duration-200"
+                                  onClick={() => handleEdit(order.id, order.type)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  className="text-sm hover:bg-red-600 hover:text-white transition-all duration-200"
+                                  onClick={() => handleDelete(order.id, order.type)}
+                                >
+                                  Delete
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  className="text-sm hover:bg-orange-600 hover:text-white transition-all duration-200"
+                                  onClick={() => handleCancel(order.id, order.type)}
+                                >
+                                  Cancel
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="text-xl text-gray-500 px-2 py-1">
+                                {order.status === 'EXECUTED' ? 'Executed' : 'Rocked'}
+                              </span>
+                            );
+                          } else {
+                            if ((dashboardRole.toLowerCase() === 'teller' || dashboardRole.toLowerCase() === 'manager') && order.status === 'PENDING') {
+                              return (
+                                <>
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-sm hover:bg-green-600 hover:text-white transition-all duration-200"
+                                    onClick={() => handleApprove(order.id, order.type)}
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button 
+                                    variant="outline"
+                                    disabled={true}
+                                    className="text-sm opacity-50 cursor-not-allowed"
+                                  >
+                                    {order.type === 'SELL' ? 'Buy' : 'Sell'}
+                                  </Button>
+                                </>
+                              );
+                            } else if ((dashboardRole.toLowerCase() === 'teller' || dashboardRole.toLowerCase() === 'manager') && order.status === 'PROCESS') {
+                              return (
+                                <Button 
+                                  variant="primary"
+                                  className="text-sm hover:bg-green-600 hover:text-white transition-all duration-200"
+                                  onClick={() => openTradeModal(order, order.type === 'SELL' ? 'BUY' : 'SELL')}
+                                >
+                                  {order.type === 'SELL' ? 'Buy' : 'Sell'}
+                                </Button>
+                              );
+                            } else {
+                              return (
+                                <span className="text-xs text-gray-500 px-2 py-1">
+                                  {order.status === 'EXECUTED' ? 'Executed' : 'Not Available'}
+                                </span>
+                              );
+                            }
+                          }
+                        })()}
                       </div>
                     </td>
                   </tr>
@@ -388,13 +610,81 @@ export default function MarketPage() {
             </div>
           )}
 
-          {!loading && filteredOrders.length === 0 && (
+          {!loading && paginatedOrders.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500">No market orders found matching your criteria.</p>
             </div>
           )}
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-between items-center mt-6 pt-4 border-t">
+              <p className="text-sm text-gray-600">
+                Showing {startIndex + 1} to {Math.min(startIndex + ordersPerPage, filteredOrders.length)} of {filteredOrders.length} orders
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="text-sm"
+                >
+                  Previous
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "primary" : "outline"}
+                    onClick={() => setCurrentPage(page)}
+                    className="text-sm w-8 h-8 p-0"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="text-sm"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
+      
+      {/* Trade Modal */}
+      {tradeModal.order && (
+        <TradeModal
+          isOpen={tradeModal.isOpen}
+          onClose={closeTradeModal}
+          order={tradeModal.order}
+          tradeType={tradeModal.tradeType}
+          currentUser={{
+            role: dashboardRole,
+            id: user?.id || "",
+            name: displayName
+          }}
+        />
+      )}
+      
+      {/* Delete Order Modal */}
+      <DeleteOrderModal
+        isOpen={deleteModal.isOpen}
+        onClose={closeDeleteModal}
+        order={deleteModal.order}
+        onOrderDeleted={handleOrderDeleted}
+      />
+      
+      {/* Cancel Order Modal */}
+      <CancelOrderModal
+        isOpen={cancelModal.isOpen}
+        onClose={closeCancelModal}
+        order={cancelModal.order}
+        onOrderCancelled={handleOrderCancelled}
+      />
     </DashboardLayout>
   );
 }

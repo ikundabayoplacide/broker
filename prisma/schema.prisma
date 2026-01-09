@@ -421,12 +421,14 @@ model Wallet {
 
 enum PurchaseOrder_status {
   PENDING
+  PROCESS
   EXECUTED
   REJECTED
 }
 
 enum SaleOrder_status {
   PENDING
+  PROCESS
   EXECUTED
   REJECTED
 }

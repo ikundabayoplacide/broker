@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/apiAuth";
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { userId: string } }
+) {
   try {
     const authResult = await getAuthenticatedUser(request);
     if (!authResult) {
@@ -10,15 +13,10 @@ export async function GET(request: NextRequest) {
     }
 
     const requesterId = authResult.userId || authResult.id;
-    if (!requesterId) {
-      return NextResponse.json({ error: "User ID not found" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    const { userId } = params;
 
     // Determine target user ID
-    let targetUserId: string = requesterId;
+    let targetUserId = requesterId;
     
     if (userId && userId !== requesterId) {
       // Check if requester has permission to view other user's wallet
@@ -46,45 +44,40 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Invalid target user" }, { status: 400 });
       }
 
-      // For tellers, allow access to all clients (removed branch restriction)
-      // Managers already have access to all branches
-      // if (requester.role === "TELLER" && targetUser.branchId !== requester.branchId) {
-      //   return NextResponse.json({ error: "Access denied - different branch" }, { status: 403 });
-      // }
-
       targetUserId = userId;
     }
 
-    // Get or create wallet
-    let wallet = await prisma.wallet.findUnique({
-      where: { userId: targetUserId }
+    // Get user wallet balance
+    const user = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: {
+        id: true,
+        fullName: true,
+        Wallet: {
+          select: {
+            balance: true
+          }
+        }
+      }
     });
 
-    if (!wallet) {
-      // Create wallet if it doesn't exist
-      wallet = await prisma.wallet.create({
-        data: {
-          id: crypto.randomUUID(),
-          userId: targetUserId,
-          balance: 0,
-          lockedBalance: 0,
-          updatedAt: new Date(),
-        }
-      });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json({
       success: true,
-      wallet: {
-        balance: Number(wallet.balance),
-        lockedBalance: Number(wallet.lockedBalance)
+      data: {
+        userId: user.id,
+        balance: Number(user.Wallet?.balance || 0),
+        userName: user.fullName
       }
     });
 
   } catch (error) {
-    console.error("Error fetching wallet:", error);
+    console.error("Error fetching wallet balance:", error);
     return NextResponse.json(
-      { error: "Failed to fetch wallet" },
+      { error: "Failed to fetch wallet balance" },
       { status: 500 }
     );
   }

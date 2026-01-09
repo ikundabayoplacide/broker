@@ -53,6 +53,9 @@ export const purchaseOrderCreateSchema = purchaseOrderFieldsSchema.extend({
 		message: "Terms must be accepted",
 	}),
 	items: z.array(purchaseOrderItemSchema).min(1, "At least one order item is required"),
+	userId: z.string().uuid().optional(),
+	orderFor: z.enum(["self", "client"]).optional(),
+	clientId: z.string().uuid().optional(),
 });
 
 export const purchaseOrderUpdateSchema = purchaseOrderFieldsSchema.extend({

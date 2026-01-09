@@ -43,10 +43,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Invalid target user" }, { status: 400 });
       }
 
-      // For tellers, ensure same branch
-      if (requester.role === "TELLER" && targetUser.branchId !== requester.branchId) {
-        return NextResponse.json({ error: "Access denied - different branch" }, { status: 403 });
-      }
+      // For tellers, allow access to all clients (removed branch restriction)
+      // Managers already have access to all branches
+      // if (requester.role === "TELLER" && targetUser.branchId !== requester.branchId) {
+      //   return NextResponse.json({ error: "Access denied - different branch" }, { status: 403 });
+      // }
 
       targetUserId = userId;
     }
