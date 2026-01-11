@@ -149,9 +149,9 @@ export default function SellOrdersPage() {
     
     try {
       const response = await fetch('/api/orders', {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, orderType, status: 'REJECTED' })
+        body: JSON.stringify({ orderId, orderType, action: 'cancel' })
       });
 
       if (response.ok) {
@@ -173,11 +173,18 @@ export default function SellOrdersPage() {
             Pending
           </span>
         );
-      case "COMPLETED":
+      case "PROCESS":
+        return (
+          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-1">
+            <FiRefreshCw className="w-3 h-3" />
+            Processing
+          </span>
+        );
+      case "EXECUTED":
         return (
           <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm flex items-center gap-1">
             <FiCheckCircle className="w-3 h-3" />
-            Completed
+            Executed
           </span>
         );
       case "REJECTED":
@@ -204,7 +211,8 @@ export default function SellOrdersPage() {
 
   const stats = {
     pending: orders.filter((o) => o.status === "PENDING").length,
-    completed: orders.filter((o) => o.status === "COMPLETED").length,
+    processing: orders.filter((o) => o.status === "PROCESS").length,
+    completed: orders.filter((o) => o.status === "EXECUTED").length,
     rejected: orders.filter((o) => o.status === "REJECTED").length,
     total: orders.length,
   };
@@ -241,7 +249,7 @@ export default function SellOrdersPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-slideInRight">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 animate-slideInRight">
           <Card className="p-6 hover:shadow-lg transition-all">
             <div className="flex items-center justify-between">
               <div>
@@ -271,7 +279,20 @@ export default function SellOrdersPage() {
           <Card className="p-6 hover:shadow-lg transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base font-medium text-gray-500 mb-2">Completed</p>
+                <p className="text-base font-medium text-gray-500 mb-2">Processing</p>
+                <p className="text-xl font-semibold text-blue-600">{stats.processing}</p>
+                <p className="text-sm text-blue-600">In progress</p>
+              </div>
+              <div className="w-11 h-11 bg-blue-100 rounded-full flex items-center justify-center">
+                <FiRefreshCw className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 hover:shadow-lg transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base font-medium text-gray-500 mb-2">Executed</p>
                 <p className="text-xl font-semibold text-green-600">{stats.completed}</p>
                 <p className="text-sm text-green-600">Successfully executed</p>
               </div>
@@ -314,7 +335,8 @@ export default function SellOrdersPage() {
             >
               <option value="all">All Status</option>
               <option value="PENDING">Pending</option>
-              <option value="COMPLETED">Completed</option>
+              <option value="PROCESS">Processing</option>
+              <option value="EXECUTED">Executed</option>
               <option value="REJECTED">Rejected</option>
             </select>
             <Button variant="outline" className="flex items-center gap-2 hover:bg-[#004B5B] hover:text-white hover:border-[#004B5B] transition-all duration-200">
@@ -381,15 +403,34 @@ export default function SellOrdersPage() {
                         
                         {(() => {
                           if (isMyOrder(order)) {
-                            return order.status === 'PENDING' ? (
-                              <>
-                                <Button 
-                                  variant="outline" 
-                                  className="text-sm hover:bg-blue-600 hover:text-white transition-all duration-200"
-                                  onClick={() => handleEdit(order.id, order.type)}
-                                >
-                                  Edit
-                                </Button>
+                            if (order.status === 'PENDING') {
+                              return (
+                                <>
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-sm hover:bg-blue-600 hover:text-white transition-all duration-200"
+                                    onClick={() => handleEdit(order.id, order.type)}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-sm hover:bg-red-600 hover:text-white transition-all duration-200"
+                                    onClick={() => handleDelete(order.id, order.type)}
+                                  >
+                                    Delete
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-sm hover:bg-orange-600 hover:text-white transition-all duration-200"
+                                    onClick={() => handleCancel(order.id, order.type)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </>
+                              );
+                            } else if (order.status === 'REJECTED') {
+                              return (
                                 <Button 
                                   variant="outline" 
                                   className="text-sm hover:bg-red-600 hover:text-white transition-all duration-200"
@@ -397,19 +438,24 @@ export default function SellOrdersPage() {
                                 >
                                   Delete
                                 </Button>
+                              );
+                            } else if (order.status === 'EXECUTED') {
+                              return (
                                 <Button 
                                   variant="outline" 
-                                  className="text-sm hover:bg-orange-600 hover:text-white transition-all duration-200"
-                                  onClick={() => handleCancel(order.id, order.type)}
+                                  className="text-sm hover:bg-red-600 hover:text-white transition-all duration-200"
+                                  onClick={() => handleDelete(order.id, order.type)}
                                 >
-                                  Cancel
+                                  Delete
                                 </Button>
-                              </>
-                            ) : (
-                              <span className="text-xl text-gray-500 px-2 py-1">
-                                {order.status === 'EXECUTED' ? 'Executed' : 'Processed'}
-                              </span>
-                            );
+                              );
+                            } else {
+                              return (
+                                <span className="text-sm text-gray-500 px-2 py-1">
+                                  Processing
+                                </span>
+                              );
+                            }
                           } else {
                             if ((dashboardRole.toLowerCase() === 'teller' || dashboardRole.toLowerCase() === 'manager') && order.status === 'PENDING') {
                               return (

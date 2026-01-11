@@ -177,7 +177,7 @@ export default function TellerDashboard() {
             const currentMinute = now.getMinutes();
             const currentTime = currentHour * 60 + currentMinute; // Convert to minutes
             const marketOpen = 9 * 60; // 9:00 AM in minutes
-            const marketClose = 15 * 60; // 3:00 PM in minutes
+            const marketClose = 12 * 60; // 12:00 PM in minutes
             const isMarketOpen = currentTime >= marketOpen && currentTime < marketClose;
             
             setMarketData({
@@ -193,7 +193,7 @@ export default function TellerDashboard() {
           const currentHour = now.getHours();
           const currentMinute = now.getMinutes();
           const currentTime = currentHour * 60 + currentMinute;
-          const isMarketOpen = currentTime >= 540 && currentTime < 900; // 9 AM to 3 PM
+          const isMarketOpen = currentTime >= 540 && currentTime < 720; // 9 AM to 12 PM
           
           setMarketData({
             status: isMarketOpen ? 'Open' : 'Closed',
@@ -398,7 +398,7 @@ export default function TellerDashboard() {
                 </div>
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <span className="text-sm font-medium text-gray-700">Trading Hours</span>
-                  <span className="text-sm font-semibold text-gray-800">9:00 - 15:00</span>
+                  <span className="text-sm font-semibold text-gray-800">9:00 - 12:00</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <span className="text-sm font-medium text-gray-700">Last Update</span>

@@ -279,9 +279,9 @@ export default function MarketPage() {
       }
       
       const response = await fetch('/api/orders', {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: actualOrderId, orderType, status: 'REJECTED' })
+        body: JSON.stringify({ orderId: actualOrderId, orderType, action: 'cancel' })
       });
 
       if (response.ok) {
@@ -449,7 +449,8 @@ export default function MarketPage() {
             >
               <option value="all">All Status</option>
               <option value="PENDING">Pending</option>
-              <option value="COMPLETED">Completed</option>
+              <option value="PROCESS">Processing</option>
+              <option value="EXECUTED">Executed</option>
               <option value="REJECTED">Rejected</option>
             </select>
             <select
@@ -528,15 +529,34 @@ export default function MarketPage() {
                         
                         {(() => {
                            if (isMyOrder(order)) {
-                            return order.status === 'PENDING' ? (
-                              <>
-                                <Button 
-                                  variant="outline" 
-                                  className="text-sm hover:bg-blue-600 hover:text-white transition-all duration-200"
-                                  onClick={() => handleEdit(order.id, order.type)}
-                                >
-                                  Edit
-                                </Button>
+                            if (order.status === 'PENDING') {
+                              return (
+                                <>
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-sm hover:bg-blue-600 hover:text-white transition-all duration-200"
+                                    onClick={() => handleEdit(order.id, order.type)}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-sm hover:bg-red-600 hover:text-white transition-all duration-200"
+                                    onClick={() => handleDelete(order.id, order.type)}
+                                  >
+                                    Delete
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-sm hover:bg-orange-600 hover:text-white transition-all duration-200"
+                                    onClick={() => handleCancel(order.id, order.type)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </>
+                              );
+                            } else if (order.status === 'REJECTED') {
+                              return (
                                 <Button 
                                   variant="outline" 
                                   className="text-sm hover:bg-red-600 hover:text-white transition-all duration-200"
@@ -544,19 +564,14 @@ export default function MarketPage() {
                                 >
                                   Delete
                                 </Button>
-                                <Button 
-                                  variant="outline" 
-                                  className="text-sm hover:bg-orange-600 hover:text-white transition-all duration-200"
-                                  onClick={() => handleCancel(order.id, order.type)}
-                                >
-                                  Cancel
-                                </Button>
-                              </>
-                            ) : (
-                              <span className="text-xl text-gray-500 px-2 py-1">
-                                {order.status === 'EXECUTED' ? 'Executed' : 'Rocked'}
-                              </span>
-                            );
+                              );
+                            } else {
+                              return (
+                                <span className="text-xl text-gray-500 px-2 py-1">
+                                  {order.status === 'EXECUTED' ? 'Executed' : 'Rocked'}
+                                </span>
+                              );
+                            }
                           } else {
                             if ((dashboardRole.toLowerCase() === 'teller' || dashboardRole.toLowerCase() === 'manager') && order.status === 'PENDING') {
                               return (

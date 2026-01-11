@@ -68,12 +68,18 @@ export function normalizeSaleItems(items: Array<z.infer<typeof saleOrderItemSche
 			price: item.price,
 		}))
 		.filter((item) => item.security.length > 0 && item.quantity > 0)
-		.map((item) => ({
-			id: randomUUID(),
-			security: item.security,
-			quantity: item.quantity,
-			...(item.price !== null ? { price: new Prisma.Decimal(item.price) } : {}),
-		}));
+		.map((item) => {
+			const price = item.price !== null ? new Prisma.Decimal(item.price) : new Prisma.Decimal(0);
+			const expectedAmount = price.mul(item.quantity);
+			
+			return {
+				id: randomUUID(),
+				security: item.security,
+				quantity: item.quantity,
+				expectedAmount,
+				...(item.price !== null ? { price } : {}),
+			};
+		});
 }
 
 export function buildSaleOrderData(

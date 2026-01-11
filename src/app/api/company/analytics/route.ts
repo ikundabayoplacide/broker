@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
       ? new Date(now.getFullYear(), 0, 1) 
       : new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Fetch company trades for the company within the period
-    const trades = await prisma.companyTrade.findMany({
+    // Fetch trades for this company's shares (from Trade table, not CompanyTrade)
+    const trades = await prisma.trade.findMany({
       where: {
         companyId: auth.companyId,
         status: "EXECUTED",

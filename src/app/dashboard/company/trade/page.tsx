@@ -57,7 +57,8 @@ export default function CompanyTradePage() {
     executedPrice: string;
     totalAmount: string;
     createdAt: string;
-    Company_CompanyTrade_targetCompanyIdToCompany: { name: string; symbol: string };
+    company: { name: string; symbol: string };
+    user?: { fullName: string; email: string };
   }>>([]);
   const [walletLoading, setWalletLoading] = useState(false);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
@@ -699,8 +700,8 @@ export default function CompanyTradePage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{trade.Company_CompanyTrade_targetCompanyIdToCompany.symbol}</div>
-                        <div className="text-sm text-gray-500">{trade.Company_CompanyTrade_targetCompanyIdToCompany.name}</div>
+                        <div className="text-sm font-medium text-gray-900">{trade.company?.symbol || 'N/A'}</div>
+                        <div className="text-sm text-gray-500">{trade.company?.name || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {trade.quantity.toLocaleString()}
@@ -747,8 +748,8 @@ export default function CompanyTradePage() {
     const transformedTrades = recentTrades.map(trade => ({
       ...trade,
       company: {
-        name: trade.Company_CompanyTrade_targetCompanyIdToCompany.name,
-        symbol: trade.Company_CompanyTrade_targetCompanyIdToCompany.symbol
+        name: trade.company?.name || 'N/A',
+        symbol: trade.company?.symbol || 'N/A'
       }
     }));
     

@@ -272,6 +272,7 @@ model PurchaseOrderItem {
   security        String
   quantity        Int
   price           Decimal?      @db.Decimal(18, 2)
+  reservedAmount  Decimal       @default(0.00) @db.Decimal(18, 2)
   purchaseOrderId String
   PurchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
 
@@ -303,12 +304,13 @@ model SaleOrder {
 }
 
 model SaleOrderItem {
-  id          String    @id
-  security    String
-  quantity    Int
-  price       Decimal?  @db.Decimal(18, 2)
-  saleOrderId String
-  SaleOrder   SaleOrder @relation(fields: [saleOrderId], references: [id])
+  id             String    @id
+  security       String
+  quantity       Int
+  price          Decimal?  @db.Decimal(18, 2)
+  expectedAmount Decimal   @default(0.00) @db.Decimal(18, 2)
+  saleOrderId    String
+  SaleOrder      SaleOrder @relation(fields: [saleOrderId], references: [id])
 
   @@index([saleOrderId], map: "SaleOrderItem_saleOrderId_fkey")
 }

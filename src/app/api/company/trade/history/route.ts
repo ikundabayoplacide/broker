@@ -13,21 +13,26 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "100");
 
-    const trades = await prisma.companyTrade.findMany({
+    // Fetch trades for this company's shares (from Trade table)
+    const trades = await prisma.trade.findMany({
       where: { companyId },
       include: {
-        Company_CompanyTrade_targetCompanyIdToCompany: {
+        Company: {
           select: { name: true, symbol: true },
+        },
+        User: {
+          select: { fullName: true, email: true },
         },
       },
       orderBy: { createdAt: "desc" },
       take: limit,
     });
 
-    // Map to match client trade response format
+    // Map to match expected format
     const formattedTrades = trades.map(trade => ({
       ...trade,
-      company: trade.Company_CompanyTrade_targetCompanyIdToCompany,
+      company: trade.Company,
+      user: trade.User,
     }));
 
     return NextResponse.json({ trades: formattedTrades });

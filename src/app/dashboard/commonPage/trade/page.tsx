@@ -56,7 +56,7 @@ export default function TradePage() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [portfolio, setPortfolio] = useState<Portfolio[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [tradeType, setTradeType] = useState<"BUY" | "SELL">("BUY");
+  const [tradeType, setTradeType] = useState<"BUY">("BUY");
   const [quantity, setQuantity] = useState("");
   const [priceType, setPriceType] = useState<"MARKET" | "LIMIT">("MARKET");
   const [limitPrice, setLimitPrice] = useState("");
@@ -815,13 +815,6 @@ export default function TradePage() {
                       >
                         Buy Shares
                       </Button>
-                      <Button
-                        onClick={() => setTradeType("SELL")}
-                        variant={tradeType === "SELL" ? "primary" : "outline"}
-                        className="flex-1"
-                      >
-                        Sell Shares
-                      </Button>
                     </div>
                   </div>
 
@@ -893,34 +886,9 @@ export default function TradePage() {
                       >
                         Market Price
                       </Button>
-                      <Button
-                        onClick={() => setPriceType("LIMIT")}
-                        variant={priceType === "LIMIT" ? "primary" : "outline"}
-                        size="sm"
-                        className="flex-1"
-                      >
-                        Limit Price
-                      </Button>
+                    
                     </div>
                   </div>
-
-                  {/* Limit Price Input */}
-                  {priceType === "LIMIT" && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Limit Price (Rwf)
-                      </label>
-                      <input
-                        type="number"
-                        value={limitPrice}
-                        onChange={(e) => setLimitPrice(e.target.value)}
-                        placeholder="Enter your limit price"
-                        min="0"
-                        step="0.01"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#004F64] focus:border-transparent"
-                      />
-                    </div>
-                  )}
 
                   {/* Order Summary */}
                   {quantity && parseInt(quantity) > 0 && (
@@ -946,6 +914,26 @@ export default function TradePage() {
                         <div className="flex justify-between font-semibold text-base border-t pt-2 text-gray-900">
                           <span>Total:</span>
                           <span>Rwf {finalTotal.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Insufficient Balance Warning */}
+                  {quantity && parseInt(quantity) > 0 && wallet && finalTotal > wallet.balance && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <div>
+                          <h4 className="text-sm font-medium text-red-800">Insufficient Balance</h4>
+                          <p className="text-sm text-red-700 mt-1">
+                            You need Rwf {(finalTotal - wallet.balance).toLocaleString()} more to complete this trade.
+                          </p>
+                          <p className="text-xs text-red-600 mt-1">
+                            Available: Rwf {wallet.balance.toLocaleString()} | Required: Rwf {finalTotal.toLocaleString()}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1294,16 +1282,6 @@ export default function TradePage() {
                           className="bg-green-600 hover:bg-green-700"
                         >
                           Buy More
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            setShowHoldingsModal(false);
-                            setTradeType("SELL");
-                          }}
-                          variant="outline"
-                          className="border-red-500 text-red-600 hover:bg-red-50"
-                        >
-                          Sell Shares
                         </Button>
                       </div>
                     </div>

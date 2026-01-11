@@ -14,20 +14,60 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "5");
     const offset = (page - 1) * limit;
 
+    // Get company details
+    const company = await prisma.company.findUnique({
+      where: { id: auth.companyId },
+      select: { symbol: true }
+    });
+
+    if (!company) {
+      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+    }
+
+    // Find the system user for this company
+    const companyUser = await prisma.user.findFirst({
+      where: { 
+        email: `system-${company.symbol.toLowerCase()}@company.internal`,
+        role: "CLIENT"
+      }
+    });
+
+    if (!companyUser) {
+      // No system user exists yet, return empty notifications
+      return NextResponse.json({ 
+        notifications: [], 
+        unreadCount: 0, 
+        totalPages: 1, 
+        currentPage: page,
+        totalCount: 0 
+      });
+    }
+
+    // Get notifications for the company system user
     const [notifications, totalCount] = await Promise.all([
-      prisma.companyNotification.findMany({
-        where: { companyId: auth.companyId },
+      prisma.notification.findMany({
+        where: { 
+          userId: companyUser.id,
+          type: { in: ["COMPANY", "TRADE", "SYSTEM"] }
+        },
         orderBy: { createdAt: "desc" },
         take: limit,
         skip: offset,
       }),
-      prisma.companyNotification.count({
-        where: { companyId: auth.companyId },
+      prisma.notification.count({
+        where: { 
+          userId: companyUser.id,
+          type: { in: ["COMPANY", "TRADE", "SYSTEM"] }
+        },
       })
     ]);
 
-    const unreadCount = await prisma.companyNotification.count({
-      where: { companyId: auth.companyId, isRead: false },
+    const unreadCount = await prisma.notification.count({
+      where: { 
+        userId: companyUser.id, 
+        isRead: false,
+        type: { in: ["COMPANY", "TRADE", "SYSTEM"] }
+      },
     });
 
     const totalPages = Math.ceil(totalCount / limit);
@@ -52,12 +92,35 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const company = await prisma.company.findUnique({
+      where: { id: auth.companyId },
+      select: { symbol: true }
+    });
+
+    if (!company) {
+      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+    }
+
+    const companyUser = await prisma.user.findFirst({
+      where: { 
+        email: `system-${company.symbol.toLowerCase()}@company.internal`,
+        role: "CLIENT"
+      }
+    });
+
+    if (!companyUser) {
+      return NextResponse.json({ error: "No notifications found" }, { status: 404 });
+    }
+
     const body = await req.json();
     
     // Check if this is a mark-all-read request
     if (body.markAllRead) {
-      await prisma.companyNotification.updateMany({
-        where: { companyId: auth.companyId },
+      await prisma.notification.updateMany({
+        where: { 
+          userId: companyUser.id,
+          type: { in: ["COMPANY", "TRADE", "SYSTEM"] }
+        },
         data: { isRead: true },
       });
       return NextResponse.json({ message: 'All notifications marked as read' });
@@ -65,8 +128,11 @@ export async function PATCH(req: NextRequest) {
 
     // Single notification mark as read
     const { notificationId } = body;
-    await prisma.companyNotification.update({
-      where: { id: notificationId, companyId: auth.companyId },
+    await prisma.notification.update({
+      where: { 
+        id: notificationId, 
+        userId: companyUser.id 
+      },
       data: { isRead: true },
     });
 
@@ -84,10 +150,33 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const company = await prisma.company.findUnique({
+      where: { id: auth.companyId },
+      select: { symbol: true }
+    });
+
+    if (!company) {
+      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+    }
+
+    const companyUser = await prisma.user.findFirst({
+      where: { 
+        email: `system-${company.symbol.toLowerCase()}@company.internal`,
+        role: "CLIENT"
+      }
+    });
+
+    if (!companyUser) {
+      return NextResponse.json({ error: "No notifications found" }, { status: 404 });
+    }
+
     const { notificationId } = await req.json();
 
-    await prisma.companyNotification.deleteMany({
-      where: { id: notificationId, companyId: auth.companyId },
+    await prisma.notification.deleteMany({
+      where: { 
+        id: notificationId, 
+        userId: companyUser.id 
+      },
     });
 
     return NextResponse.json({ success: true });

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
 import { getAuthenticatedUser } from "@/lib/apiAuth";
 import { Decimal } from "@prisma/client/runtime/library";
+import { Transaction_type, Transaction_status } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   try {
@@ -77,6 +79,7 @@ export async function POST(request: NextRequest) {
       // 4. Create trade record
       const trade = await tx.trade.create({
         data: {
+          id: randomUUID(),
           userId,
           companyId: company.id,
           type: "SELL",
@@ -89,6 +92,7 @@ export async function POST(request: NextRequest) {
           totalAmount,
           fees: new Decimal(0),
           executedAt: new Date(),
+          updatedAt: new Date(),
         },
       });
 
@@ -102,24 +106,22 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 6. Create transaction record
-      await tx.transaction.create({
-        data: {
-          userId,
-          type: "SELL_SHARES",
-          amount: totalAmount,
-          status: "COMPLETED",
-          reference: `TRADE-${trade.id}`,
-          description: `Sale of ${quantity} shares of ${company.symbol} at Rwf ${priceDecimal.toFixed(2)} per share`,
-          metadata: {
-            tradeId: trade.id,
-            companyId: company.id,
-            companySymbol: company.symbol,
-            quantity,
-            pricePerShare: priceDecimal.toNumber(),
-          },
+      // 6. (DEFERRED) Build transaction payload to create after the DB transaction commits
+      const transactionPayload = {
+        userId,
+        type: "SELL_SHARES" as Transaction_type,
+        amount: totalAmount,
+        status: "COMPLETED" as Transaction_status,
+        reference: `TRADE-${trade.id}`,
+        description: `Sale of ${quantity} shares of ${company.symbol} at Rwf ${priceDecimal.toFixed(2)} per share`,
+        metadata: {
+          tradeId: trade.id,
+          companyId: company.id,
+          companySymbol: company.symbol,
+          quantity,
+          pricePerShare: priceDecimal.toNumber(),
         },
-      });
+      };
 
       // 7. Update portfolio
       const newQuantity = portfolio.quantity - quantity;
@@ -193,6 +195,7 @@ export async function POST(request: NextRequest) {
           symbol: company.symbol,
           name: company.name,
         },
+        transactionPayload,
         transaction: {
           quantity,
           pricePerShare: priceDecimal.toNumber(),
@@ -200,12 +203,39 @@ export async function POST(request: NextRequest) {
         },
         newBalance: updatedWallet?.balance.toString() || "0",
       };
+    }, {
+      timeout: 15000 // 15 second interactive transaction timeout
     });
+
+    // After the DB transaction has committed, create the Transaction record
+    let createdTransaction = null;
+    try {
+      const txData = result.transactionPayload;
+      createdTransaction = await prisma.transaction.create({
+        data: {
+          id: randomUUID(),
+          userId: txData.userId,
+          type: txData.type,
+          amount: txData.amount,
+          status: txData.status,
+          reference: txData.reference,
+          description: txData.description,
+          metadata: txData.metadata,
+          updatedAt: new Date(),
+        },
+      });
+    } catch (err) {
+      console.error('Transaction record creation failed after commit:', err);
+      // Not fatal for the trade — continue and return success for the trade itself
+    }
 
     return NextResponse.json({
       success: true,
       message: `Successfully sold ${quantity} shares of ${result.company.symbol}`,
-      data: result,
+      data: {
+        ...result,
+        transactionRecord: createdTransaction,
+      },
     });
 
   } catch (error) {

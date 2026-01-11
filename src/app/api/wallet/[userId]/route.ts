@@ -47,15 +47,17 @@ export async function GET(
       targetUserId = userId;
     }
 
-    // Get user wallet balance
+    // Get user wallet with complete information
     const user = await prisma.user.findUnique({
       where: { id: targetUserId },
       select: {
         id: true,
         fullName: true,
+        email: true,
         Wallet: {
           select: {
-            balance: true
+            balance: true,
+            lockedBalance: true
           }
         }
       }
@@ -65,12 +67,19 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    const balance = Number(user.Wallet?.balance || 0);
+    const lockedBalance = Number(user.Wallet?.lockedBalance || 0);
+
     return NextResponse.json({
       success: true,
       data: {
         userId: user.id,
-        balance: Number(user.Wallet?.balance || 0),
-        userName: user.fullName
+        userName: user.fullName,
+        email: user.email,
+        balance: balance,
+        lockedBalance: lockedBalance,
+        availableBalance: balance - lockedBalance,
+        totalBalance: balance + lockedBalance
       }
     });
 

@@ -204,6 +204,56 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // Handle company wallet for BUY transactions
+      if (tradeType === "BUY") {
+        // Ensure company has a wallet
+        let companyWallet = await tx.companyWallet.findUnique({
+          where: { companyId: company.id },
+        });
+        
+        if (!companyWallet) {
+          companyWallet = await tx.companyWallet.create({
+            data: {
+              id: crypto.randomUUID(),
+              companyId: company.id,
+              balance: new Decimal(0),
+              lockedBalance: new Decimal(0),
+              updatedAt: new Date(),
+            },
+          });
+        }
+        
+        // Add share value to company wallet
+        await tx.companyWallet.update({
+          where: { companyId: company.id },
+          data: {
+            balance: { increment: totalAmount },
+          },
+        });
+
+        // Create company transaction record
+        await tx.companyTransaction.create({
+          data: {
+            id: crypto.randomUUID(),
+            companyId: company.id,
+            type: "SELL_SHARES",
+            amount: totalAmount,
+            status: "COMPLETED",
+            reference: `TRADE-${trade.id}`,
+            description: `Sale of ${quantity} shares to ${actualClientId} at Rwf ${executionPrice.toFixed(2)} per share`,
+            metadata: {
+              tradeId: trade.id,
+              buyerUserId: actualClientId,
+              quantity,
+              pricePerShare: executionPrice.toNumber(),
+              executedBy: executorId,
+              executorRole: executor.role,
+            },
+            updatedAt: new Date(),
+          },
+        });
+      }
+
       // Create transaction record
       await tx.transaction.create({
         data: {
@@ -222,6 +272,7 @@ export async function POST(request: NextRequest) {
             pricePerShare: executionPrice.toNumber(),
             executedBy: executorId,
             executorRole: executor.role,
+            fees: fees.toNumber(),
           },
           updatedAt: new Date(),
         },
@@ -303,34 +354,46 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Update company data
-      const availableShares = company.availableShares ? Number(company.availableShares) : 0;
-      const newAvailableShares = tradeType === "BUY" 
-        ? BigInt(availableShares - quantity)
-        : BigInt(availableShares + quantity);
-
-      const oldClosingPrice = company.closingPrice || company.sharePrice || executionPrice;
-      const priceChangeInCents = Number(executionPrice) - Number(oldClosingPrice);
-
-      await tx.company.update({
-        where: { id: company.id },
-        data: {
-          availableShares: newAvailableShares,
-          closingPrice: executionPrice,
-          previousClosingPrice: oldClosingPrice,
-          priceChange: priceChangeInCents.toFixed(2),
-          tradedVolume: { increment: new Decimal(quantity.toString()) },
-          tradedValue: { increment: totalAmount },
-          snapshotDate: new Date(),
-        },
-      });
-
       // Get updated wallet
       const updatedWallet = await tx.wallet.findUnique({
         where: { userId: actualClientId },
       });
 
-      // Create notification
+      // Update company available shares and trading stats
+      if (tradeType === "BUY") {
+        await tx.company.update({
+          where: { id: company.id },
+          data: {
+            availableShares: {
+              decrement: BigInt(quantity),
+            },
+            tradedVolume: {
+              increment: new Decimal(quantity.toString()),
+            },
+            tradedValue: {
+              increment: totalAmount,
+            },
+          },
+        });
+      } else {
+        // SELL - Add shares back to company
+        await tx.company.update({
+          where: { id: company.id },
+          data: {
+            availableShares: {
+              increment: BigInt(quantity),
+            },
+            tradedVolume: {
+              increment: new Decimal(quantity.toString()),
+            },
+            tradedValue: {
+              increment: totalAmount,
+            },
+          },
+        });
+      }
+
+      // Create notification for client
       const client = await tx.user.findUnique({
         where: { id: actualClientId },
         select: { fullName: true, email: true }
@@ -358,6 +421,57 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // Create company notification by finding/creating a system user for the company
+      let companyUser = await tx.user.findFirst({
+        where: { 
+          email: `system-${company.symbol.toLowerCase()}@company.internal`,
+          role: "CLIENT" // Use CLIENT role for company system users
+        }
+      });
+
+      if (!companyUser) {
+        // Create a system user for this company
+        companyUser = await tx.user.create({
+          data: {
+            id: crypto.randomUUID(),
+            fullName: `${company.name} System`,
+            email: `system-${company.symbol.toLowerCase()}@company.internal`,
+            phoneCountryCode: "+250",
+            phone: "000000000",
+            password: "system-user", // Not used for login
+            country: "Rwanda",
+            city: "Kigali",
+            role: "CLIENT",
+            isVerified: true,
+            updatedAt: new Date(),
+          }
+        });
+      }
+
+      // Create notification for company using the system user
+      await tx.notification.create({
+        data: {
+          id: crypto.randomUUID(),
+          userId: companyUser.id,
+          title: `Shares ${tradeType === "BUY" ? "Sold" : "Bought Back"}`,
+          message: `${quantity} shares ${tradeType === "BUY" ? "sold to" : "bought back from"} ${client?.fullName || "client"} at Rwf ${executionPrice.toFixed(2)} per share. Total: Rwf ${totalAmount.toFixed(2)}`,
+          type: "COMPANY",
+          metadata: {
+            tradeId: trade.id,
+            companyId: company.id,
+            clientUserId: actualClientId,
+            clientName: client?.fullName,
+            quantity,
+            pricePerShare: executionPrice.toNumber(),
+            totalAmount: totalAmount.toNumber(),
+            type: tradeType === "BUY" ? "SELL" : "BUY", // Opposite from company perspective
+            executedBy: executorId,
+            executorRole: executor.role,
+          },
+          updatedAt: new Date(),
+        },
+      });
+
       return {
         trade,
         company: {
@@ -378,7 +492,7 @@ export async function POST(request: NextRequest) {
         executorRole: executor.role,
       };
     }, {
-      timeout: 15000, // 15 seconds timeout
+      timeout: 30000, // 30 seconds timeout
     });
 
     return NextResponse.json({

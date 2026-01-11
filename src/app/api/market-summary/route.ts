@@ -129,14 +129,15 @@ const classifyMarketStatus = (raw: string): MarketSummaryPayload["marketStatus"]
 	const lower = label.toLowerCase();
 	let normalized: MarketStatusValue = "unknown";
 
-	// Check for closed first (more specific patterns)
-	if (/close|closed|after\s*hours|post-?close|end of day|market\s*close/u.test(lower)) {
+	// Check for closed patterns (more specific first)
+	if (/close|closed|after\s*hours|post-?close|end\s*of\s*day|market\s*close|not\s*trading/u.test(lower)) {
 		normalized = "closed";
-	} else if (/suspend|halt|holiday|maintenance/u.test(lower)) {
+	} else if (/suspend|halt|holiday|maintenance|break/u.test(lower)) {
 		normalized = "suspended";
-	} else if (/open|trading|pre-?open|session|market\s*open/u.test(lower)) {
+	} else if (/open|trading|active|session|market\s*open|live/u.test(lower)) {
 		normalized = "open";
 	}
+
 
 	return {
 		label: label || "Unknown",
@@ -145,62 +146,67 @@ const classifyMarketStatus = (raw: string): MarketSummaryPayload["marketStatus"]
 	};
 };
 
+// Time-based market status calculation as fallback
+const isRSEMarketOpenByTime = (): boolean => {
+	// RSE trading hours: Monday-Friday, 9:00 AM - 12:00 PM (Rwanda time)
+	const now = new Date();
+	const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+	const rwandaTime = new Date(utcTime + (2 * 3600000)); // Rwanda is UTC+2
+	const hour = rwandaTime.getHours();
+	const dayOfWeek = rwandaTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+	
+	const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+	const isWithinTradingHours = hour >= 9 && hour < 12;
+	
+	
+	return isWeekday && isWithinTradingHours;
+};
+
 const extractMarketStatus = (
 	$: cheerio.Root,
 	highlightStats: MarketSummaryPayload["highlightStats"]
 ): MarketSummaryPayload["marketStatus"] | undefined => {
-	// Priority 1: Check highlight stats table
+	// Priority 1: Check highlight stats table for explicit market status
 	const highlightEntry = highlightStats.find((item) => /market status/i.test(item.indicator));
 	if (highlightEntry?.current) {
 		return classifyMarketStatus(highlightEntry.current);
 	}
 
-	// Priority 2: Check for visible market status spans (RSE has both open/closed spans)
-	// The one with red background (#f11616) is the active status
-	let closedSpan: string | undefined;
-	let openSpan: string | undefined;
+	// Priority 2: Look for market status in various page elements
+	const statusSelectors = [
+		'.market-status',
+		'#market-status', 
+		'[data-market-status]',
+		'.trading-status',
+		'.status'
+	];
 	
-	$("span.market-status, .market-status").each((_, element) => {
-		const $el = $(element);
-		const style = $el.attr("style") || "";
-		const id = $el.attr("id") || "";
-		const text = normaliseText($el.text());
-		
-		if (!text) return;
-		
-		// Check if this span has red background (indicates active closed status)
-		if (/background.*#f11616|background.*red/i.test(style)) {
-			closedSpan = text;
-		} else if (id === "open") {
-			openSpan = text;
+	for (const selector of statusSelectors) {
+		const statusElement = $(selector);
+		if (statusElement.length > 0) {
+			const statusText = normaliseText(statusElement.text());
+			if (statusText) {
+				return classifyMarketStatus(statusText);
+			}
 		}
-	});
-	
-	// If closed span has red background, market is closed
-	if (closedSpan) {
-		return classifyMarketStatus(closedSpan);
-	}
-	
-	// Otherwise use open span
-	if (openSpan) {
-		return classifyMarketStatus(openSpan);
 	}
 
-	// Priority 3: Search in marquee or ticker elements
-	let marqueeStatus: string | undefined;
-	$("marquee, .ticker, .status-bar").each((_, element) => {
-		const text = normaliseText($(element).text());
-		const match = text.match(/market status\s*[:\-]?\s*([a-z\s]+)/iu);
-		if (match?.[1]) {
-			marqueeStatus = match[1];
-			return false;
-		}
-	});
-	if (marqueeStatus) {
-		return classifyMarketStatus(marqueeStatus);
+	// Priority 3: Check for status in any text containing "market" and "open/close"
+	const pageText = $('body').text();
+	const marketStatusMatch = pageText.match(/market\s+(is\s+)?(open|closed|trading|suspended)/i);
+	if (marketStatusMatch) {
+		return classifyMarketStatus(marketStatusMatch[0]);
 	}
 
-	return undefined;
+	// Priority 4: Since RSE doesn't provide explicit status, use time-based fallback
+	const isOpen = isRSEMarketOpenByTime();
+	const statusText = isOpen ? "Market Status - Open (Time-based)" : "Market Status - Closed (Time-based)";
+	
+	return {
+		label: statusText,
+		normalized: isOpen ? "open" : "closed",
+		isOpen: isOpen,
+	};
 };
 
 const parseExchangeRates = ($: cheerio.Root, baseUrl: string) => {

@@ -47,6 +47,25 @@ export default function TradeModal({ isOpen, onClose, order, tradeType, currentU
 
   const canManageUsers = currentUser?.role?.toLowerCase() === "teller" || currentUser?.role?.toLowerCase() === "manager";
 
+  // Function to convert company name to symbol
+  const getCompanySymbol = (companyName: string): string => {
+    const symbolMap: { [key: string]: string } = {
+      "Bank of Kigali Group": "BK",
+      "Bank of Kigali": "BK",
+      "BK Group": "BK",
+      "Equity Bank Rwanda": "EBR",
+      "Equity Group": "EBR",
+      "MTN Rwanda": "MTN",
+      "Bralirwa Limited": "BLR",
+      "Bralirwa": "BLR",
+      "Bralirwa Plc": "BLR",
+      "I&M Bank Rwanda": "IMB",
+      "SAN TECH": "BK" // Default to BK for testing
+    };
+    
+    return symbolMap[companyName] || companyName;
+  };
+
   const maxQuantity = order.quantity;
   const pricePerShare = order.price;
   const totalAmount = quantity * pricePerShare;
@@ -157,11 +176,139 @@ export default function TradeModal({ isOpen, onClose, order, tradeType, currentU
   };
 
   const handleTrade = async () => {
+    console.log('🛒 TRADE MODAL - Starting trade process');
+    console.log('📝 TRADE MODAL - Trade details:', {
+      tradeType,
+      company: order.company,
+      quantity,
+      pricePerShare,
+      totalAmount: finalAmount,
+      tradingForSelf,
+      selectedUserId,
+      currentUser: currentUser?.id,
+      orderId: order.id
+    });
+    
     setIsProcessing(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsProcessing(false);
-    onClose();
+    
+    try {
+      if (tradeType === "BUY") {
+        console.log('🛒 TRADE MODAL - Making buy API call');
+        
+        const response = await fetch('/api/trade/buy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            companySymbol: getCompanySymbol(order.company),
+            quantity: quantity,
+            priceType: 'MARKET'
+          })
+        });
+        
+        const result = await response.json();
+        console.log('📝 TRADE MODAL - Buy API response:', result);
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to buy shares');
+        }
+        
+        console.log('✅ TRADE MODAL - Buy successful, now executing the order');
+        
+        // Execute the order by changing status to EXECUTED
+        try {
+          const executeResponse = await fetch('/api/orders/execute', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            // Use the original order.type (SELL/BUY) so we update the correct order record
+            body: JSON.stringify({
+              orderId: order.id,
+              orderType: order.type
+            })
+          });
+          
+          const executeResult = await executeResponse.json();
+          console.log('📝 TRADE MODAL - Execute order response:', executeResult);
+          
+          if (!executeResponse.ok) {
+            console.warn('⚠️ TRADE MODAL - Failed to update order status, but trade was successful');
+          } else {
+            console.log('✅ TRADE MODAL - Order status updated to EXECUTED');
+          }
+        } catch (executeError) {
+          console.error('⚠️ TRADE MODAL - Error executing order:', executeError);
+          // Don't throw, as the trade itself was successful
+        }
+        
+        console.log(`✅ TRADE MODAL - Buy completed successfully for ${quantity} shares of ${order.company}`);
+        
+        // Refresh the page data after successful trade
+        window.location.reload();
+      } else if (tradeType === "SELL") {
+        console.log('💸 TRADE MODAL - Making sell API call');
+        
+        const response = await fetch('/api/trade/sell', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            companySymbol: getCompanySymbol(order.company),
+            quantity: quantity,
+            priceType: 'MARKET'
+          })
+        });
+        
+        const result = await response.json();
+        console.log('📝 TRADE MODAL - Sell API response:', result);
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to sell shares');
+        }
+        
+        console.log('✅ TRADE MODAL - Sell successful, now executing the order');
+        
+        // Execute the order by changing status to EXECUTED
+        try {
+          const executeResponse = await fetch('/api/orders/execute', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            // Use the original order.type so the correct order table is updated
+            body: JSON.stringify({
+              orderId: order.id,
+              orderType: order.type
+            })
+          });
+          
+          const executeResult = await executeResponse.json();
+          console.log('📝 TRADE MODAL - Execute order response:', executeResult);
+          
+          if (!executeResponse.ok) {
+            console.warn('⚠️ TRADE MODAL - Failed to update order status, but trade was successful');
+          } else {
+            console.log('✅ TRADE MODAL - Order status updated to EXECUTED');
+          }
+        } catch (executeError) {
+          console.error('⚠️ TRADE MODAL - Error executing order:', executeError);
+          // Don't throw, as the trade itself was successful
+        }
+        
+       console.log(`✅ TRADE MODAL - Sell completed successfully for ${quantity} shares of ${order.company}`);
+        
+        // Refresh the page data after successful trade
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('❌ TRADE MODAL - Trade failed:', error);
+    } finally {
+      setIsProcessing(false);
+      onClose();
+    }
   };
 
   if (!isOpen) return null;

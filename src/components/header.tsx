@@ -392,7 +392,7 @@ export default function Header() {
                       : "bg-[#f11616]"
                 } text-white`}
               >
-                {`${statusInfo.label}`}
+                {statusInfo.isOpen ? "● MARKET OPEN" : "● MARKET CLOSED"}
               </div>
             )}
           </div>

@@ -10,8 +10,8 @@ export function useMarketSync() {
         const day = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 5 = Friday
         const hour = now.getHours();
 
-        // Only sync during market hours: Monday-Friday, 9 AM - 3 PM
-        if (day >= 1 && day <= 5 && hour >= 9 && hour < 15) {
+        // Only sync during market hours: Monday-Friday, 9 AM - 12 PM
+        if (day >= 1 && day <= 5 && hour >= 9 && hour < 12) {
           await fetch('/api/market-sync', { method: 'POST' });
         }
       } catch (error) {

@@ -92,6 +92,48 @@ export default function WalletPage() {
   const [totalPages, setTotalPages] = useState(1);
   const transactionsPerPage = 10;
   const [deleteModal, setDeleteModal] = useState<{ show: boolean; id: string; name: string }>({ show: false, id: "", name: "" });
+  const [expectedAmounts, setExpectedAmounts] = useState<{
+    totalExpectedAmount: number;
+    totalGrossAmount: number;
+    totalCommission: number;
+    pendingSellOrdersCount: number;
+  } | null>(null);
+  const [reservedAmounts, setReservedAmounts] = useState<{
+    totalReservedAmount: number;
+    pendingPurchaseOrdersCount: number;
+  } | null>(null);
+
+  const fetchExpectedAmounts = async () => {
+    try {
+      const response = await axios.get('/api/orders/expected-amounts', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setExpectedAmounts(response.data);
+    } catch (error) {
+      console.error('Error fetching expected amounts:', error);
+      setExpectedAmounts({
+        totalExpectedAmount: 0,
+        totalGrossAmount: 0,
+        totalCommission: 0,
+        pendingSellOrdersCount: 0
+      });
+    }
+  };
+
+  const fetchReservedAmounts = async () => {
+    try {
+      const response = await axios.get('/api/orders/reserved-amounts', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setReservedAmounts(response.data);
+    } catch (error) {
+      console.error('Error fetching reserved amounts:', error);
+      setReservedAmounts({
+        totalReservedAmount: 0,
+        pendingPurchaseOrdersCount: 0
+      });
+    }
+  };
 
   const { displayName, email, dashboardRole } = useMemo(() => {
     const fullName = (user?.fullName as string | undefined)?.trim() ?? "";
@@ -117,6 +159,8 @@ export default function WalletPage() {
       if (token) {
         await fetchWalletData();
         await fetchPaymentMethods();
+        await fetchExpectedAmounts();
+        await fetchReservedAmounts();
       }
     };
     fetchData();
@@ -390,7 +434,7 @@ export default function WalletPage() {
         </div>
 
         {/* Balance Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-2 md:gap-4">
          
 
           <Card className="p-3 md:p-6" hover={false}>
@@ -430,6 +474,34 @@ export default function WalletPage() {
                 <p className="text-xs md:text-sm font-medium text-slate-600">Locked Balance</p>
                 <p className="text-lg md:text-2xl font-bold text-slate-900">
                   Rwf {walletData ? parseFloat(walletData.lockedBalance).toLocaleString() : "0"}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-3 md:p-6" hover={false}>
+            <div className="flex items-center gap-2 md:gap-4">
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                <ArrowUpFromLine className="h-5 w-5 md:h-6 md:w-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-xs md:text-sm font-medium text-slate-600">Expected from Sales</p>
+                <p className="text-lg md:text-2xl font-bold text-slate-900">
+                  Rwf {expectedAmounts ? expectedAmounts.totalExpectedAmount.toLocaleString() : "0"}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-3 md:p-6" hover={false}>
+            <div className="flex items-center gap-2 md:gap-4">
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <ArrowDownToLine className="h-5 w-5 md:h-6 md:w-6 text-red-600" />
+              </div>
+              <div>
+                <p className="text-xs md:text-sm font-medium text-slate-600">Reserved for Purchases</p>
+                <p className="text-lg md:text-2xl font-bold text-slate-900">
+                  Rwf {reservedAmounts ? reservedAmounts.totalReservedAmount.toLocaleString() : "0"}
                 </p>
               </div>
             </div>
