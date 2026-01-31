@@ -164,6 +164,22 @@ export default function ClientDashboard() {
         {/* <UserInfoCard name={displayName} email={email} role={dashboardRole} /> */}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+             <Link href="/dashboard/client/wallet">
+            <Card className="p-3 md:p-5 cursor-pointer hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0 flex-1 mr-2">
+                  <p className="text-[10px] md:text-xs font-medium text-gray-600 truncate">Wallet Balance</p>
+                  <p className="text-base md:text-xl font-bold text-gray-900">Rwf {dashboardData.walletBalance.toLocaleString()}</p>
+                  <p className="text-xs text-blue-600">Available</p>
+                </div>
+                <div className="w-8 h-8 md:w-12 md:h-12 gradient-primary rounded-full flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                </div>
+              </div>
+            </Card>
+          </Link>     
           <Link href="/dashboard/client/investments">
             <Card className="p-3 md:p-5 cursor-pointer hover:shadow-lg transition-shadow">
               <div className="flex items-center justify-between">
@@ -183,22 +199,7 @@ export default function ClientDashboard() {
             </Card>
           </Link>
 
-          <Link href="/dashboard/client/wallet">
-            <Card className="p-3 md:p-5 cursor-pointer hover:shadow-lg transition-shadow">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1 mr-2">
-                  <p className="text-[10px] md:text-xs font-medium text-gray-600 truncate">Wallet Balance</p>
-                  <p className="text-base md:text-xl font-bold text-gray-900">Rwf {dashboardData.walletBalance.toLocaleString()}</p>
-                  <p className="text-xs text-blue-600">Available</p>
-                </div>
-                <div className="w-8 h-8 md:w-12 md:h-12 gradient-primary rounded-full flex items-center justify-center shrink-0">
-                  <svg className="w-4 h-4 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                </div>
-              </div>
-            </Card>
-          </Link>
+       
 
           <Link href="/dashboard/client/investments">
             <Card className="p-3 md:p-5 cursor-pointer hover:shadow-lg transition-shadow">

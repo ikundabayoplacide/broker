@@ -5,6 +5,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import TradeModal from "@/components/models/TradeModal";
 import DeleteOrderModal from "@/components/models/DeleteOrderModal";
+import ApproveOrderModal from "@/components/models/ApproveOrderModal";
 import CancelOrderModal from "@/components/models/CancelOrderModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
@@ -20,6 +21,7 @@ import {
   FiRefreshCw,
   FiTrendingUp,
   FiTrendingDown,
+  FiShare2,
 } from "react-icons/fi";
 
 interface MarketOrder {
@@ -57,6 +59,11 @@ export default function MarketPage() {
     order: MarketOrder | null;
   }>({ isOpen: false, order: null });
   const [cancelModal, setCancelModal] = useState<{
+    isOpen: boolean;
+    order: MarketOrder | null;
+  }>({ isOpen: false, order: null });
+
+  const [approveModal, setApproveModal] = useState<{
     isOpen: boolean;
     order: MarketOrder | null;
   }>({ isOpen: false, order: null });
@@ -194,25 +201,17 @@ export default function MarketPage() {
     setTradeModal({ isOpen: false, order: null, tradeType: "BUY" });
   };
 
-  const handleApprove = async (orderId: string, orderType: string) => {
-    try {      
-      const response = await fetch('/api/orders/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, orderType })
-      });
-
-      const responseData = await response.json();
-      if (response.ok) {
-        setOrders(prev => prev.map(order => 
-          order.id === orderId ? { ...order, status: 'PROCESS', approved: true } : order
-        ));
-      } else {
-        console.error('API call failed:', responseData);
-      }
-    } catch (error) {
-      console.error('Error approving order:', error);
+  const handleApprove = (orderId: string, orderType: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      setApproveModal({ isOpen: true, order });
     }
+  };
+
+  const handleOrderApproved = (orderId: string) => {
+    setOrders(prev => prev.map(order => 
+      order.id === orderId ? { ...order, status: 'PROCESS', approved: true } : order
+    ));
   };
 
   const handleEdit = async (orderId: string, orderType: string) => {
@@ -298,6 +297,10 @@ export default function MarketPage() {
     setCancelModal({ isOpen: false, order: null });
   };
 
+  const closeApproveModal = () => {
+    setApproveModal({ isOpen: false, order: null });
+  };
+
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -322,6 +325,8 @@ export default function MarketPage() {
     total: orders.length,
     sellOrders: orders.filter((o) => o.type === "SELL").length,
     purchaseOrders: orders.filter((o) => o.type === "BUY").length,
+    sharesWaitingToTrade: orders.filter((o) => o.status === "PROCESS").reduce((sum, order) => sum + order.quantity, 0),
+    totalUserShares: dashboardRole === 'client' ? orders.filter((o) => isMyOrder(o) && o.status === "EXECUTED").reduce((sum, order) => sum + order.quantity, 0) : orders.filter((o) => o.status === "EXECUTED").reduce((sum, order) => sum + order.quantity, 0),
   };
 
   return (
@@ -349,7 +354,7 @@ export default function MarketPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 animate-slideInRight">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-8 gap-4 animate-slideInRight">
           <Card className="p-6 hover:shadow-lg transition-all">
             <div className="flex items-center justify-between">
               <div>
@@ -424,6 +429,32 @@ export default function MarketPage() {
               </div>
               <div className="w-11 h-11 bg-red-100 rounded-full flex items-center justify-center">
                 <FiXCircle className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+          </Card>
+        {/* Shares card showing shares waiting to be traded and total shares */}
+          <Card className="p-6 hover:shadow-lg transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base font-medium text-gray-500 mb-2">Shares Trading</p>
+                <p className="text-xl font-semibold text-blue-600">{stats.sharesWaitingToTrade.toLocaleString()}</p>
+                <p className="text-sm text-gray-400">Waiting to trade</p>
+              </div>
+              <div className="w-11 h-11 bg-blue-100 rounded-full flex items-center justify-center">
+                <FiShare2 className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 hover:shadow-lg transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base font-medium text-gray-500 mb-2">{dashboardRole === 'client' ? 'My Total Shares' : 'Total Shares'}</p>
+                <p className="text-xl font-semibold text-green-600">{stats.totalUserShares.toLocaleString()}</p>
+                <p className="text-sm text-gray-400">{dashboardRole === 'client' ? 'Your executed shares' : 'All executed shares'}</p>
+              </div>
+              <div className="w-11 h-11 bg-green-100 rounded-full flex items-center justify-center">
+                <FiCheckCircle className="w-6 h-6 text-green-600" />
               </div>
             </div>
           </Card>
@@ -565,10 +596,20 @@ export default function MarketPage() {
                                   Delete
                                 </Button>
                               );
+                            } else if (order.status === 'EXECUTED') {
+                              return (
+                                <Button 
+                                  variant="outline" 
+                                  className="text-sm hover:bg-red-600 hover:text-white transition-all duration-200"
+                                  onClick={() => handleDelete(order.id, order.type)}
+                                >
+                                  Delete
+                                </Button>
+                              );
                             } else {
                               return (
                                 <span className="text-xl text-gray-500 px-2 py-1">
-                                  {order.status === 'EXECUTED' ? 'Executed' : 'Rocked'}
+                                  Rocked
                                 </span>
                               );
                             }
@@ -691,6 +732,14 @@ export default function MarketPage() {
         onClose={closeDeleteModal}
         order={deleteModal.order}
         onOrderDeleted={handleOrderDeleted}
+      />
+      
+      {/* Approve Order Modal */}
+      <ApproveOrderModal
+        isOpen={approveModal.isOpen}
+        onClose={closeApproveModal}
+        order={approveModal.order}
+        onOrderApproved={handleOrderApproved}
       />
       
       {/* Cancel Order Modal */}

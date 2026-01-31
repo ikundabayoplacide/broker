@@ -157,7 +157,7 @@ export function MarketHero(): JSX.Element {
               </motion.svg>
             </motion.a>
             <motion.a
-              href="/dashboard/client/trade"
+              href="#securities"
               whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.2)" }}
               whileTap={{ scale: 0.95 }}
               className="inline-flex items-center gap-2 rounded-full border-2 border-white/30 bg-white/10 backdrop-blur-md text-white px-8 py-4 font-semibold transition-all focus:outline-none focus:ring-4 focus:ring-white/50"

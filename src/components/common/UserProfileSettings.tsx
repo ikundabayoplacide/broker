@@ -39,32 +39,41 @@ type OptionType = {
   label: string;
 };
 
-const navItems: SettingsLayoutNavItem[] = [
-  {
-    id: "profile",
-    label: "Profile",
-    description: "Update your personal details",
-    icon: <User className="h-4 w-4" aria-hidden="true" />,
-  },
-  {
-    id: "platform",
-    label: "Platform controls",
-    description: "Tune global preferences for all workspaces",
-    icon: <Network className="h-4 w-4" aria-hidden="true" />,
-  },
-  {
-    id: "security",
-    label: "Security",
-    description: "Set authentication and access rules",
-    icon: <ShieldCheck className="h-4 w-4" aria-hidden="true" />,
-  },
-  {
-    id: "monitoring",
-    label: "Monitoring",
-    description: "Choose what we track and how alerts trigger",
-    icon: <Activity className="h-4 w-4" aria-hidden="true" />,
-  },
-];
+const getNavItems = (userRole?: string): SettingsLayoutNavItem[] => {
+  const baseItems: SettingsLayoutNavItem[] = [
+    {
+      id: "profile",
+      label: "Profile",
+      description: "Update your personal details",
+      icon: <User className="h-4 w-4" aria-hidden="true" />,
+    },
+  ];
+
+  const adminItems: SettingsLayoutNavItem[] = [
+    {
+      id: "platform",
+      label: "Platform controls",
+      description: "Tune global preferences for all workspaces",
+      icon: <Network className="h-4 w-4" aria-hidden="true" />,
+    },
+    {
+      id: "security",
+      label: "Security",
+      description: "Set authentication and access rules",
+      icon: <ShieldCheck className="h-4 w-4" aria-hidden="true" />,
+    },
+    {
+      id: "monitoring",
+      label: "Monitoring",
+      description: "Choose what we track and how alerts trigger",
+      icon: <Activity className="h-4 w-4" aria-hidden="true" />,
+    },
+  ];
+
+  return userRole === "admin" || userRole === "super-admin" 
+    ? [...baseItems, ...adminItems] 
+    : baseItems;
+};
 
 type ProfileForm = {
   fullName?: string;
@@ -87,6 +96,7 @@ type ProfileStatus = "idle" | "saving" | "success" | "error";
 export default function UserProfileSettings() {
   const { user } = useAuth();
   console.log('UserProfileSettings component mounted');
+  const navItems = getNavItems(user?.role);
   const [activeSection, setActiveSection] = useState<string>(navItems[0]?.id ?? "profile");
   const [profileForm, setProfileForm] = useState<ProfileForm>({});
   const [profileErrors, setProfileErrors] = useState<ProfileErrors>({});
@@ -195,6 +205,69 @@ export default function UserProfileSettings() {
       setProfileMessage(error.message || "Failed to update profile. Please try again.");
     }
   };
+
+  const renderPlatform = () => (
+    <Card className="p-6" hover={false}>
+      <header className="mb-6">
+        <h2 className="text-xl font-semibold text-[#004B5B]">Platform Controls</h2>
+        <p className="mt-1 text-base text-slate-600">
+          Manage global platform settings and preferences.
+        </p>
+      </header>
+      <div className="space-y-4">
+        <div className="p-4 border border-gray-200 rounded-lg">
+          <h3 className="font-medium text-[#004B5B] mb-2">System Maintenance</h3>
+          <p className="text-sm text-gray-600">Configure maintenance windows and system updates.</p>
+        </div>
+        <div className="p-4 border border-gray-200 rounded-lg">
+          <h3 className="font-medium text-[#004B5B] mb-2">Global Settings</h3>
+          <p className="text-sm text-gray-600">Manage platform-wide configurations and defaults.</p>
+        </div>
+      </div>
+    </Card>
+  );
+
+  const renderSecurity = () => (
+    <Card className="p-6" hover={false}>
+      <header className="mb-6">
+        <h2 className="text-xl font-semibold text-[#004B5B]">Security Settings</h2>
+        <p className="mt-1 text-base text-slate-600">
+          Configure authentication rules and access controls.
+        </p>
+      </header>
+      <div className="space-y-4">
+        <div className="p-4 border border-gray-200 rounded-lg">
+          <h3 className="font-medium text-[#004B5B] mb-2">Authentication</h3>
+          <p className="text-sm text-gray-600">Manage login requirements and session settings.</p>
+        </div>
+        <div className="p-4 border border-gray-200 rounded-lg">
+          <h3 className="font-medium text-[#004B5B] mb-2">Access Control</h3>
+          <p className="text-sm text-gray-600">Define user roles and permissions.</p>
+        </div>
+      </div>
+    </Card>
+  );
+
+  const renderMonitoring = () => (
+    <Card className="p-6" hover={false}>
+      <header className="mb-6">
+        <h2 className="text-xl font-semibold text-[#004B5B]">Monitoring Settings</h2>
+        <p className="mt-1 text-base text-slate-600">
+          Configure system monitoring and alert preferences.
+        </p>
+      </header>
+      <div className="space-y-4">
+        <div className="p-4 border border-gray-200 rounded-lg">
+          <h3 className="font-medium text-[#004B5B] mb-2">System Alerts</h3>
+          <p className="text-sm text-gray-600">Set up notifications for system events and errors.</p>
+        </div>
+        <div className="p-4 border border-gray-200 rounded-lg">
+          <h3 className="font-medium text-[#004B5B] mb-2">Performance Tracking</h3>
+          <p className="text-sm text-gray-600">Monitor system performance and usage metrics.</p>
+        </div>
+      </div>
+    </Card>
+  );
 
   const renderProfile = () => (
     <Card className="p-6" hover={false}>
@@ -410,11 +483,11 @@ export default function UserProfileSettings() {
       case "profile":
         return renderProfile();
       case "platform":
-        return <div className="p-6">Platform controls coming soon...</div>;
+        return renderPlatform();
       case "security":
-        return <div className="p-6">Security settings coming soon...</div>;
+        return renderSecurity();
       case "monitoring":
-        return <div className="p-6">Monitoring settings coming soon...</div>;
+        return renderMonitoring();
       default:
         return renderProfile();
     }

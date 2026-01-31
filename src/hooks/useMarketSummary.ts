@@ -78,7 +78,8 @@ export function useMarketSummary(): UseMarketSummaryState {
 				}
 
 				const payload = (await response.json()) as MarketSummaryResponse;
-				setData({
+				
+				const processedData = {
 					...payload,
 					dailySnapshot: payload.dailySnapshot ?? [],
 					marketStats: payload.marketStats ?? [],
@@ -86,7 +87,9 @@ export function useMarketSummary(): UseMarketSummaryState {
 					exchangeRates: payload.exchangeRates ?? [],
 					bonds: payload.bonds ?? [],
 					marketStatus: payload.marketStatus,
-				});
+				};
+				
+				setData(processedData);
 				setError(null);
 			} catch (err) {
 				if (!controller.signal.aborted) {

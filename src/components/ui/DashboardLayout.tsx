@@ -234,15 +234,15 @@ export default function DashboardLayout({
             ]
           },
           { name: "Companies", icon: FiBriefcase, href: "/dashboard/commonPage/companies" },
-            {name: "Live Securities",
-            icon: FiDollarSign,
-             hasChildren: true,
-            children: [
-              {name:"All Orders", href:"/dashboard/commonPage/market", icon:FiTrendingUp},
-              {name:"Purchase Orders", href:"/dashboard/commonPage/market/purchaseOrders", icon:FiTrendingUp},
-              {name:"Sell Orders", href:"/dashboard/commonPage/market/sellOrders", icon:FiTrendingUp},
-            ]
-          },
+          //   {name: "Live Securities",
+          //   icon: FiDollarSign,
+          //    hasChildren: true,
+          //   children: [
+          //     {name:"All Orders", href:"/dashboard/commonPage/market", icon:FiTrendingUp},
+          //     {name:"Purchase Orders", href:"/dashboard/commonPage/market/purchaseOrders", icon:FiTrendingUp},
+          //     {name:"Sell Orders", href:"/dashboard/commonPage/market/sellOrders", icon:FiTrendingUp},
+          //   ]
+          // },
           { name: "Trade", icon: FaTradeFederation, href: "/dashboard/super-admin/trade" },
           {name:"Wallets",icon:FiCreditCard,href:"/dashboard/super-admin/wallet"},
           {name:"Branches",icon:FiMenu,href:"/dashboard/super-admin/branches"},
@@ -254,15 +254,15 @@ export default function DashboardLayout({
           { name: "Dashboard", icon: FiBarChart2, href: "/dashboard/company" },
           { name: "Investments", icon: FiBriefcase, href: "/dashboard/company/investments" },
           { name: "Trade", icon: FiTrendingUp, href: "/dashboard/company/trade" },
-            {name: "Live Securities",
-            icon: FiDollarSign,
-             hasChildren: true,
-            children: [
-              {name:"All Orders", href:"/dashboard/commonPage/market", icon:FiTrendingUp},
-              {name:"Purchase Orders", href:"/dashboard/commonPage/market/purchaseOrders", icon:FiTrendingUp},
-              {name:"Sell Orders", href:"/dashboard/commonPage/market/sellOrders", icon:FiTrendingUp},
-            ]
-          },
+          //   {name: "Live Securities",
+          //   icon: FiDollarSign,
+          //    hasChildren: true,
+          //   children: [
+          //     {name:"All Orders", href:"/dashboard/commonPage/market", icon:FiTrendingUp},
+          //     {name:"Purchase Orders", href:"/dashboard/commonPage/market/purchaseOrders", icon:FiTrendingUp},
+          //     {name:"Sell Orders", href:"/dashboard/commonPage/market/sellOrders", icon:FiTrendingUp},
+          //   ]
+          // },
           { name: "Wallet", icon: FiCreditCard, href: "/dashboard/company/wallet" },
           { name: "History", icon: FiClipboard, href: "/dashboard/company/history" },
           { name: "Share Movement", icon: FiZap, href: "/dashboard/company/share-movement" },

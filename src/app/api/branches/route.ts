@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       
       return { branch, manager };
     }, {
-      timeout: 30000 // 30 seconds timeout
+      timeout: 15000 // 15 seconds timeout
     });
     
     // Create notifications outside the transaction to avoid timeout

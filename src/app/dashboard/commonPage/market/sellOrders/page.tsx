@@ -4,6 +4,8 @@ import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import DeleteOrderModal from "@/components/models/DeleteOrderModal";
+import ApproveOrderModal from "@/components/models/ApproveOrderModal";
+import ExecuteOrderModal from "@/components/models/ExecuteOrderModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -40,6 +42,16 @@ export default function SellOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    order: Order | null;
+  }>({ isOpen: false, order: null });
+
+  const [approveModal, setApproveModal] = useState<{
+    isOpen: boolean;
+    order: Order | null;
+  }>({ isOpen: false, order: null });
+
+  const [executeModal, setExecuteModal] = useState<{
     isOpen: boolean;
     order: Order | null;
   }>({ isOpen: false, order: null });
@@ -93,22 +105,30 @@ export default function SellOrdersPage() {
     return order.userId === user?.id;
   };
 
-  const handleApprove = async (orderId: string, orderType: string) => {
-    try {
-      const response = await fetch('/api/orders/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, orderType })
-      });
-
-      if (response.ok) {
-        setOrders(prev => prev.map(order => 
-          order.id === orderId ? { ...order, status: 'PROCESS' } : order
-        ));
-      }
-    } catch (error) {
-      console.error('Error approving order:', error);
+  const handleApprove = (orderId: string, orderType: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      setApproveModal({ isOpen: true, order });
     }
+  };
+
+  const handleOrderApproved = (orderId: string) => {
+    setOrders(prev => prev.map(order => 
+      order.id === orderId ? { ...order, status: 'PROCESS' } : order
+    ));
+  };
+
+  const handleExecute = (orderId: string, orderType: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      setExecuteModal({ isOpen: true, order });
+    }
+  };
+
+  const handleOrderExecuted = (orderId: string) => {
+    setOrders(prev => prev.map(order => 
+      order.id === orderId ? { ...order, status: 'EXECUTED' } : order
+    ));
   };
 
   const handleEdit = async (orderId: string, orderType: string) => {
@@ -142,6 +162,14 @@ export default function SellOrdersPage() {
 
   const closeDeleteModal = () => {
     setDeleteModal({ isOpen: false, order: null });
+  };
+
+  const closeApproveModal = () => {
+    setApproveModal({ isOpen: false, order: null });
+  };
+
+  const closeExecuteModal = () => {
+    setExecuteModal({ isOpen: false, order: null });
   };
 
   const handleCancel = async (orderId: string, orderType: string) => {
@@ -452,21 +480,33 @@ export default function SellOrdersPage() {
                             } else {
                               return (
                                 <span className="text-sm text-gray-500 px-2 py-1">
-                                  Processing
+                                  Rocked
                                 </span>
                               );
                             }
                           } else {
-                            if ((dashboardRole.toLowerCase() === 'teller' || dashboardRole.toLowerCase() === 'manager') && order.status === 'PENDING') {
-                              return (
-                                <Button 
-                                  variant="outline" 
-                                  className="text-sm hover:bg-green-600 hover:text-white transition-all duration-200"
-                                  onClick={() => handleApprove(order.id, order.type)}
-                                >
-                                  Approve
-                                </Button>
-                              );
+                            if ((dashboardRole.toLowerCase() === 'teller' || dashboardRole.toLowerCase() === 'manager')) {
+                              if (order.status === 'PENDING') {
+                                return (
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-sm hover:bg-green-600 hover:text-white transition-all duration-200"
+                                    onClick={() => handleApprove(order.id, order.type)}
+                                  >
+                                    Approve
+                                  </Button>
+                                );
+                              } else if (order.status === 'PROCESS') {
+                                return (
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-sm hover:bg-blue-600 hover:text-white transition-all duration-200"
+                                    onClick={() => handleExecute(order.id, order.type)}
+                                  >
+                                    Execute
+                                  </Button>
+                                );
+                              }
                             } else {
                               return (
                                 <span className="text-xs text-gray-500 px-2 py-1">
@@ -504,6 +544,22 @@ export default function SellOrdersPage() {
         onClose={closeDeleteModal}
         order={deleteModal.order}
         onOrderDeleted={handleOrderDeleted}
+      />
+      
+      {/* Approve Order Modal */}
+      <ApproveOrderModal
+        isOpen={approveModal.isOpen}
+        onClose={closeApproveModal}
+        order={approveModal.order}
+        onOrderApproved={handleOrderApproved}
+      />
+      
+      {/* Execute Order Modal */}
+      <ExecuteOrderModal
+        isOpen={executeModal.isOpen}
+        onClose={closeExecuteModal}
+        order={executeModal.order}
+        onOrderExecuted={handleOrderExecuted}
       />
     </DashboardLayout>
   );

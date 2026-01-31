@@ -88,8 +88,8 @@ export default function Header() {
   const tickerWrapperRef = useRef<HTMLDivElement>(null);
   const tickerTrackRef = useRef<HTMLDivElement>(null);
 
-  const primaryCtaHref = isAuthenticated ? dashboardPath : "/auth/login";
-  const primaryCtaLabel = isAuthenticated ? "Back to Dashboard" : "Sign in";
+  const primaryCtaHref = "/auth/login";
+  const primaryCtaLabel = "Sign in";
   const showPrimaryCta = !loading || isAuthenticated;
 
   const searchRef = useRef<HTMLInputElement>(null);

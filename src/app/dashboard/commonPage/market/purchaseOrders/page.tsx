@@ -4,6 +4,7 @@ import DashboardLayout from "@/components/ui/DashboardLayout";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import DeleteOrderModal from "@/components/models/DeleteOrderModal";
+import ApproveOrderModal from "@/components/models/ApproveOrderModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -40,6 +41,11 @@ export default function PurchaseOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    order: Order | null;
+  }>({ isOpen: false, order: null });
+
+  const [approveModal, setApproveModal] = useState<{
     isOpen: boolean;
     order: Order | null;
   }>({ isOpen: false, order: null });
@@ -93,22 +99,17 @@ export default function PurchaseOrdersPage() {
     return order.userId === user?.id;
   };
 
-  const handleApprove = async (orderId: string, orderType: string) => {
-    try {
-      const response = await fetch('/api/orders/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, orderType })
-      });
-
-      if (response.ok) {
-        setOrders(prev => prev.map(order => 
-          order.id === orderId ? { ...order, status: 'PROCESS' } : order
-        ));
-      }
-    } catch (error) {
-      console.error('Error approving order:', error);
+  const handleApprove = (orderId: string, orderType: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      setApproveModal({ isOpen: true, order });
     }
+  };
+
+  const handleOrderApproved = (orderId: string) => {
+    setOrders(prev => prev.map(order => 
+      order.id === orderId ? { ...order, status: 'PROCESS' } : order
+    ));
   };
 
   const handleEdit = async (orderId: string, orderType: string) => {
@@ -142,6 +143,10 @@ export default function PurchaseOrdersPage() {
 
   const closeDeleteModal = () => {
     setDeleteModal({ isOpen: false, order: null });
+  };
+
+  const closeApproveModal = () => {
+    setApproveModal({ isOpen: false, order: null });
   };
 
   const handleCancel = async (orderId: string, orderType: string) => {
@@ -504,6 +509,14 @@ export default function PurchaseOrdersPage() {
         onClose={closeDeleteModal}
         order={deleteModal.order}
         onOrderDeleted={handleOrderDeleted}
+      />
+      
+      {/* Approve Order Modal */}
+      <ApproveOrderModal
+        isOpen={approveModal.isOpen}
+        onClose={closeApproveModal}
+        order={approveModal.order}
+        onOrderApproved={handleOrderApproved}
       />
     </DashboardLayout>
   );

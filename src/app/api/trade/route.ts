@@ -492,13 +492,153 @@ export async function POST(request: NextRequest) {
         executorRole: executor.role,
       };
     }, {
-      timeout: 30000, // 30 seconds timeout
+      timeout: 45000, // 45 seconds timeout
     });
+
+    // Create additional records outside transaction for better performance
+    try {
+      const client = await prisma.user.findUnique({
+        where: { id: actualClientId },
+        select: { fullName: true, email: true }
+      });
+
+      // Create notifications and transaction records outside main transaction
+      await Promise.all([
+        // Client notification
+        prisma.notification.create({
+          data: {
+            id: crypto.randomUUID(),
+            userId: actualClientId,
+            title: "Trade Executed Successfully",
+            message: `${tradeType} order executed: ${quantity} shares of ${result.company.symbol} at Rwf ${result.executionPrice.toFixed(2)} per share. ${executor.role !== "CLIENT" ? `Executed by ${executor.fullName} (${executor.role})` : ""}`,
+            type: "TRADE",
+            metadata: {
+              tradeId: result.trade.id,
+              companySymbol: result.company.symbol,
+              companyName: result.company.name,
+              quantity,
+              pricePerShare: result.executionPrice.toNumber(),
+              totalAmount: result.totalAmount.toNumber(),
+              type: tradeType,
+              executedBy: executorId,
+              executorRole: executor.role,
+            },
+            updatedAt: new Date(),
+          },
+        }),
+        // Client transaction record
+        prisma.transaction.create({
+          data: {
+            id: crypto.randomUUID(),
+            userId: actualClientId,
+            type: tradeType === "BUY" ? "BUY_SHARES" : "SELL_SHARES",
+            amount: tradeType === "BUY" ? result.totalAmount.add(result.fees).neg() : result.totalAmount.sub(result.fees),
+            status: "COMPLETED",
+            reference: `TRADE-${result.trade.id}`,
+            description: `${tradeType} ${quantity} shares of ${result.company.symbol} at Rwf ${result.executionPrice.toFixed(2)} per share`,
+            metadata: {
+              tradeId: result.trade.id,
+              companyId: result.company.id,
+              companySymbol: result.company.symbol,
+              quantity,
+              pricePerShare: result.executionPrice.toNumber(),
+              executedBy: executorId,
+              executorRole: executor.role,
+              fees: result.fees.toNumber(),
+            },
+            updatedAt: new Date(),
+          },
+        })
+      ]);
+
+      // Create company transaction record for BUY only
+      if (tradeType === "BUY") {
+        await prisma.companyTransaction.create({
+          data: {
+            id: crypto.randomUUID(),
+            companyId: result.company.id,
+            type: "SELL_SHARES",
+            amount: result.totalAmount,
+            status: "COMPLETED",
+            reference: `TRADE-${result.trade.id}`,
+            description: `Sale of ${quantity} shares to ${actualClientId} at Rwf ${result.executionPrice.toFixed(2)} per share`,
+            metadata: {
+              tradeId: result.trade.id,
+              buyerUserId: actualClientId,
+              quantity,
+              pricePerShare: result.executionPrice.toNumber(),
+              executedBy: executorId,
+              executorRole: executor.role,
+            },
+            updatedAt: new Date(),
+          },
+        });
+      }
+
+      // Create company notification
+      let companyUser = await prisma.user.findFirst({
+        where: { 
+          email: `system-${result.company.symbol.toLowerCase()}@company.internal`,
+          role: "CLIENT"
+        }
+      });
+
+      if (!companyUser) {
+        companyUser = await prisma.user.create({
+          data: {
+            id: crypto.randomUUID(),
+            fullName: `${result.company.name} System`,
+            email: `system-${result.company.symbol.toLowerCase()}@company.internal`,
+            phoneCountryCode: "+250",
+            phone: "000000000",
+            password: "system-user",
+            country: "Rwanda",
+            city: "Kigali",
+            role: "CLIENT",
+            isVerified: true,
+            updatedAt: new Date(),
+          }
+        });
+      }
+
+      await prisma.notification.create({
+        data: {
+          id: crypto.randomUUID(),
+          userId: companyUser.id,
+          title: `Shares ${tradeType === "BUY" ? "Sold" : "Bought Back"}`,
+          message: `${quantity} shares ${tradeType === "BUY" ? "sold to" : "bought back from"} ${client?.fullName || "client"} at Rwf ${result.executionPrice.toFixed(2)} per share. Total: Rwf ${result.totalAmount.toFixed(2)}`,
+          type: "COMPANY",
+          metadata: {
+            tradeId: result.trade.id,
+            companyId: result.company.id,
+            clientUserId: actualClientId,
+            clientName: client?.fullName,
+            quantity,
+            pricePerShare: result.executionPrice.toNumber(),
+            totalAmount: result.totalAmount.toNumber(),
+            type: tradeType === "BUY" ? "SELL" : "BUY",
+            executedBy: executorId,
+            executorRole: executor.role,
+          },
+          updatedAt: new Date(),
+        },
+      });
+    } catch (notificationError) {
+      console.error("Failed to create notifications/transactions:", notificationError);
+    }
 
     return NextResponse.json({
       success: true,
       message: `Successfully ${tradeType.toLowerCase()}ed ${quantity} shares of ${result.company.symbol}`,
-      data: result,
+      data: {
+        trade: result.trade,
+        company: result.company,
+        transaction: result.transaction,
+        newBalance: result.newBalance,
+        client: result.client,
+        executor: executor.fullName,
+        executorRole: executor.role,
+      },
     });
 
   } catch (error) {

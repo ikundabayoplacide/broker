@@ -79,7 +79,40 @@ export async function DELETE(_request: Request, context: { params: RouteParams }
 	const { id } = await context.params;
 
 	try {
-		await prisma.saleOrder.delete({ where: { id } });
+		// Restore shares to user's portfolio when deleting/cancelling sale order
+		await prisma.$transaction(async (tx) => {
+			// Get the sale order with items
+			const saleOrder = await tx.saleOrder.findUnique({
+				where: { id },
+				include: { SaleOrderItem: true }
+			});
+
+			if (!saleOrder) {
+				throw new Error("Sale order not found");
+			}
+
+			// Restore shares for each item
+			for (const item of saleOrder.SaleOrderItem) {
+				const portfolio = await tx.portfolio.findFirst({
+					where: {
+						userId: saleOrder.userId,
+						Company: { name: item.security }
+					}
+				});
+
+				if (portfolio) {
+					// Add shares back to portfolio
+					await tx.portfolio.update({
+						where: { id: portfolio.id },
+						data: { quantity: { increment: item.quantity } }
+					});
+				}
+			}
+
+			// Delete the sale order
+			await tx.saleOrder.delete({ where: { id } });
+		});
+
 		return NextResponse.json({ success: true });
 	} catch (error) {
 		return handleSaleOrderApiError(error, "Failed to delete sale order");
