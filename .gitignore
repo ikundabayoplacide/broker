@@ -32,13 +32,11 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
-.next.zip
 # vercel
 .vercel
-
+*.zip
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
 /src/generated/prisma
-next.zip
