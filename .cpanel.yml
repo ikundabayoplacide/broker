@@ -1,8 +1,5 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/eacse/repositories/broker
-    - source /home/eacse/nodevenv/repositories/broker/20/bin/activate
-    - cd $DEPLOYPATH
-    - npm install
-    - npm run build
+    - export DEPLOYPATH=/home/eacse/repository/broker
+    - source /home/eacse/nodevenv/repository/broker/20/bin/activate
