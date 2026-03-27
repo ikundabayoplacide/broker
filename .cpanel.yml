@@ -3,3 +3,4 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/eacse/repositories/broker
     - /bin/bash -c "cd $DEPLOYPATH && npm install && npm run build"
+    
