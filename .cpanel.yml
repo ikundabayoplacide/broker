@@ -2,4 +2,4 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/eacse/repositories/broker
-    - /bin/bash -c "cd $DEPLOYPATH && source /home/eacse/nodevenv/repositories/broker/20/bin/activate && npm install && npm run build && cp passenger_node.js server.js"
+    - /bin/bash -c "cd $DEPLOYPATH && npm install && npm run build"
