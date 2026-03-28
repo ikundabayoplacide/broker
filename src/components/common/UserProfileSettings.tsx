@@ -95,7 +95,7 @@ type ProfileStatus = "idle" | "saving" | "success" | "error";
 
 export default function UserProfileSettings() {
   const { user } = useAuth();
-  console.log('UserProfileSettings component mounted');
+  console.log('UserProfileSettings component mounted done');
   const navItems = getNavItems(user?.role);
   const [activeSection, setActiveSection] = useState<string>(navItems[0]?.id ?? "profile");
   const [profileForm, setProfileForm] = useState<ProfileForm>({});

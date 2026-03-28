@@ -1,0 +1,8 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/eacse/public_html/broker.eac-se.com
+    - npm install
+    - npm run build
+    - rsync -av --delete ./dist/ $DEPLOYPATH
+    
